@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { LoginCredentials, SignupCredentials, StudyProject } from '../types';
+import { LoginCredentials, SignupCredentials, StudyProject, Flashcard, MCQ as MCQType } from '../types';
 
 const API_URL = '/api'; // Using proxy to point to the backend server
 
@@ -77,6 +77,56 @@ export const generateContent = async (
 ) => {
     const { data } = await api.post(`/gemini/${feature}`, { projectId, ...options });
     return data;
+};
+
+export const extractTextFromFile = async (llm: string, base64Data: string, fileType: string): Promise<string> => {
+    const { data } = await api.post('/gemini/extract-text', { llm, base64Data, fileType });
+    return data;
+};
+
+export const generateMCQs = async (llm: string, text: string, language: string, difficulty: string): Promise<any[]> => {
+    const { data } = await api.post('/gemini/generate-mcqs', { llm, text, language, difficulty });
+    return data;
+};
+
+export const generatePersonalizedStudyGuide = async (llm: string, text: string, incorrectMCQs: any[], language: string): Promise<string> => {
+    const { data } = await api.post('/gemini/generate-study-guide', { llm, text, incorrectMCQs, language });
+    return data;
+};
+
+// ... (existing functions: login, signup, getProfile, projects, generateContent, extractTextFromFile) ...
+
+// --- Functions for Ingest.tsx ---
+export const fetchTopicInfo = async (llm: string, topic: string, language: string): Promise<string> => {
+  const { data } = await api.post('/gemini/topic-info', { llm, topic, language });
+  return data;
+};
+
+// --- Functions for VoiceQA.tsx ---
+export const transcribeAudio = async (llm: string, base64Data: string, fileType: string): Promise<string> => {
+    const { data } = await api.post('/gemini/transcribe', { llm, base64Data, fileType });
+    return data;
+};
+
+export const generateSummary = async (llm: string, text: string, language: string): Promise<string> => {
+    const { data } = await api.post('/gemini/summary-from-text', { llm, text, language });
+    return data;
+};
+
+export const generateFlashcards = async (llm: string, text: string, language: string): Promise<Flashcard[]> => {
+    const { data } = await api.post('/gemini/flashcards-from-text', { llm, text, language });
+    return data as Flashcard[];
+};
+
+export const generateAnswer = async (llm: string, text: string, question: string, language: string): Promise<string> => {
+    const { data } = await api.post('/gemini/answer-from-text', { llm, text, question, language });
+    return data;
+};
+
+// --- Functions for SemanticSearch.tsx ---
+export const performSemanticSearch = async (llm: string, text: string, query: string, topK: number): Promise<string[]> => {
+    const { data } = await api.post('/gemini/semantic-search', { text, query, topK });
+    return data as string[];
 };
 
 // Export the configured instance if direct use is needed elsewhere

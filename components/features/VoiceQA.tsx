@@ -4,7 +4,7 @@ import { Button } from '../ui/Button';
 import { FileUploader } from '../ui/FileUploader';
 import { useAppContext } from '../../context/AppContext';
 import { EmptyState } from '../ui/EmptyState';
-import { transcribeAudio, generateSummary, generateFlashcards, generateAnswer } from '../../services/geminiService';
+import { transcribeAudio, generateSummary, generateFlashcards, generateAnswer } from '../../services/api';
 import { Loader } from '../ui/Loader';
 import { Flashcard as FlashcardType } from '../../types';
 

@@ -6,7 +6,7 @@ import { FileUploader } from '../ui/FileUploader';
 import { Loader } from '../ui/Loader';
 import { Slider } from '../ui/Slider';
 import { Tab } from '../../types';
-import { fetchTopicInfo, extractTextFromFile } from '../../services/geminiService';
+import { fetchTopicInfo, extractTextFromFile } from '../../services/api';
 
 const MAX_TEXT_LENGTH = 100000;
 

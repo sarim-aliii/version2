@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { useAppContext } from '../../context/AppContext';
-import { generateMCQs, generatePersonalizedStudyGuide } from '../../services/geminiService';
+import { generateMCQs, generatePersonalizedStudyGuide } from '../../services/api';
 import { Button } from '../ui/Button';
 import { Card } from '../ui/Card';
 import { Loader } from '../ui/Loader';
