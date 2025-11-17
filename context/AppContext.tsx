@@ -1,3 +1,4 @@
+// sarim-aliii/version2/version2-1493846b30acdc91c679cab38a402d8b18ff91c6/context/AppContext.tsx
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { 
     Tab, 
@@ -15,14 +16,18 @@ import {
     SignupCredentials
 } from '../types';
 import useLocalStorage from '../hooks/useLocalStorage';
-import * as api from '../services/api';
+import * as api from '../services/api'; // Importantly, this now includes googleLogin and githubLogin
 import { v4 as uuidv4 } from 'uuid';
+import { auth } from '../firebase';
+import { GoogleAuthProvider, GithubAuthProvider, signInWithPopup } from 'firebase/auth'; // Import GithubAuthProvider
 
 interface AppContextType {
     // Auth
     isAuthenticated: boolean;
     currentUser: User | null;
     login: (credentials: LoginCredentials) => Promise<void>;
+    loginWithGoogle: () => Promise<void>;
+    loginWithGithub: () => Promise<void>; // Added this
     signup: (credentials: SignupCredentials) => Promise<void>;
     logout: () => void;
     verifyEmail: (token: string) => Promise<void>;
@@ -153,6 +158,52 @@ export const AppProvider: React.FC<{children: ReactNode}> = ({ children }) => {
         api.setAuthToken(null);
         setActiveTab(Tab.Ingest);
     };
+
+    // Generic handler for successful social login
+    const handleSocialLoginSuccess = (data: any, providerName: string) => {
+        setUserToken(data.token);
+        setCurrentUser({ _id: data._id, email: data.email, avatar: data.avatar });
+        api.setAuthToken(data.token);
+        fetchProjects(); // Don't await, let it load in background
+        addNotification(`Logged in with ${providerName}!`, 'success');
+    };
+    
+    const loginWithGoogle = async () => {
+        try {
+            const provider = new GoogleAuthProvider();
+            const result = await signInWithPopup(auth, provider);
+            const idToken = await result.user.getIdToken();
+
+            // Send the Firebase token to your backend
+            const data = await api.googleLogin(idToken); // Use named api function
+
+            // Log in to your custom app using your backend's response
+            handleSocialLoginSuccess(data, 'Google');
+
+        } catch (error: any) {
+            addNotification(error.message || 'Google login failed.');
+            throw error;
+        }
+    };
+
+    // CORRECTED: loginWithGithub
+    const loginWithGithub = async () => {
+        try {
+            const provider = new GithubAuthProvider(); // Use GithubAuthProvider
+            const result = await signInWithPopup(auth, provider);
+            const idToken = await result.user.getIdToken();
+
+            // Send the Firebase token to your backend
+            const data = await api.githubLogin(idToken); // Use named api function
+
+            // Log in to your custom app using your backend's response
+            handleSocialLoginSuccess(data, 'GitHub');
+
+        } catch (error: any) {
+            addNotification(error.message || 'GitHub login failed.');
+            throw error;
+        }
+    };
     
     const verifyEmail = async (token: string) => { /* Implement API call */ };
     const resetPassword = async (token: string, newPassword: string) => { /* Implement API call */ };
@@ -181,7 +232,7 @@ export const AppProvider: React.FC<{children: ReactNode}> = ({ children }) => {
                 if (error.response?.status === 401) logout();
             }
         }
-    }, [userToken, activeProjectId, addNotification]);
+    }, [userToken, activeProjectId, addNotification]); // addNotification was missing dependency
 
     useEffect(() => {
         if (userToken) {
@@ -191,7 +242,7 @@ export const AppProvider: React.FC<{children: ReactNode}> = ({ children }) => {
                 fetchProjects();
             }).catch(() => logout());
         }
-    }, [userToken, fetchProjects]);
+    }, [userToken, fetchProjects]); // fetchProjects was missing dependency
 
     const loadProject = (id: string) => setActiveProjectId(id);
 
@@ -243,13 +294,12 @@ export const AppProvider: React.FC<{children: ReactNode}> = ({ children }) => {
         }
     };
     
+    // ... (AI Generation functions remain the same) ...
     // AI Generation
     const generateSummaryForActiveProject = async () => {
         if (!activeProject) return;
         setIsGeneratingSummary(true);
         try {
-            // This would call the backend in a real scenario:
-            // const summary = await api.generateSummary(activeProject._id, { llm, language });
             const summary = await api.generateContent(activeProject._id, 'summary', { llm, language });
             updateActiveProjectData({ summary });
         } catch (e: any) { addNotification(e.message); } 
@@ -260,7 +310,6 @@ export const AppProvider: React.FC<{children: ReactNode}> = ({ children }) => {
         if (!activeProject) return;
         setIsGeneratingFlashcards(true);
         try {
-            // const flashcards: Flashcard[] = await api.generateFlashcards(activeProject._id, { llm, language });
              const flashcards: Flashcard[] = await api.generateContent(activeProject._id, 'flashcards', { llm, language });
             const srsFlashcards = flashcards.map(fc => ({
                 ...fc,
@@ -282,7 +331,6 @@ export const AppProvider: React.FC<{children: ReactNode}> = ({ children }) => {
         setIsTutorResponding(true);
 
         try {
-            // const responseText = await api.getTutorResponse(activeProject._id, { message, history: newHistory, llm, language });
             const responseText = await api.generateContent(activeProject._id, 'tutor', { message, history: newHistory, llm, language });
             const updatedHistory: ChatMessage[] = [...newHistory, { role: 'model', content: responseText }];
             updateActiveProjectData({ aiTutorHistory: updatedHistory });
@@ -299,7 +347,6 @@ export const AppProvider: React.FC<{children: ReactNode}> = ({ children }) => {
         if (!activeProject) return;
         setIsGeneratingConceptMap(true);
         try {
-            // const conceptMapData: ConceptMapData = await api.generateConceptMap(activeProject._id, { llm, language });
             const conceptMapData: ConceptMapData = await api.generateContent(activeProject._id, 'concept-map', { llm, language });
             updateActiveProjectData({ conceptMapData });
         } catch (e: any) { addNotification(e.message); } 
@@ -310,7 +357,6 @@ export const AppProvider: React.FC<{children: ReactNode}> = ({ children }) => {
         if (!activeProject) return;
         setIsGeneratingLessonPlan(true);
         try {
-            // const lessonPlan: LessonPlan = await api.generateLessonPlan(activeProject._id, { topic, llm, language });
             const lessonPlan: LessonPlan = await api.generateContent(activeProject._id, 'lesson-plan', { topic, llm, language });
             updateActiveProjectData({ lessonPlan });
         } catch (e: any) { addNotification(e.message); }
@@ -321,17 +367,19 @@ export const AppProvider: React.FC<{children: ReactNode}> = ({ children }) => {
         if (!activeProject) return;
         setIsGeneratingStudyPlan(true);
         try {
-            // const studyPlan: StudyPlan = await api.generateStudyPlan(activeProject._id, { days, llm, language });
             const studyPlan: StudyPlan = await api.generateContent(activeProject._id, 'study-plan', { days, llm, language });
             updateActiveProjectData({ studyPlan });
         } catch (e: any) { addNotification(e.message); }
         finally { setIsGeneratingStudyPlan(false); }
     };
 
+
     const value = {
         isAuthenticated,
         currentUser,
         login,
+        loginWithGoogle,
+        loginWithGithub,
         signup,
         logout,
         verifyEmail,

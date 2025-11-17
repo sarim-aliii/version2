@@ -1,26 +1,26 @@
-// FIX: This file contained placeholder text. Populating with a sample Firebase Admin SDK setup for verifying authentication tokens.
 import * as admin from 'firebase-admin';
 
-// This is a placeholder for your Firebase Admin SDK configuration.
-// In a real application, you would replace the placeholder values
-// with your actual Firebase project credentials.
-// You might load these from a service account JSON file or environment variables.
+if (!process.env.FIREBASE_SERVICE_ACCOUNT) {
+  throw new Error('FIREBASE_SERVICE_ACCOUNT environment variable is not set. Please check your server/.env file.');
+}
+
+let serviceAccount: admin.ServiceAccount;
 
 try {
-  // Check if the app is already initialized
+  serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+} catch (error: any) {
+  console.error('Error parsing FIREBASE_SERVICE_ACCOUNT. Make sure it is a valid JSON string.', error.message);
+  process.exit(1);
+}
+
+try {
   if (!admin.apps.length) {
-    // If you are using a service account file:
-    // const serviceAccount = require('../../path/to/your/serviceAccountKey.json');
-    // admin.initializeApp({
-    //   credential: admin.credential.cert(serviceAccount)
-    // });
-    
-    // Or if you are using environment variables (e.g., in Google Cloud Run/Functions):
     admin.initializeApp({
-        credential: admin.credential.applicationDefault(),
+      credential: admin.credential.cert(serviceAccount),
+      projectId: serviceAccount.projectId, 
     });
 
-    console.log('Firebase Admin SDK initialized successfully.');
+    console.log('Firebase Admin SDK initialized successfully from environment variable.');
   }
 } catch (error) {
   console.error('Error initializing Firebase Admin SDK:', error);

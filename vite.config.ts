@@ -9,12 +9,15 @@ export default defineConfig(({ mode }) => {
         port: 3000,
         host: '0.0.0.0',
         proxy: {
-        '/api': {
-          target: 'http://localhost:5001',
-          changeOrigin: true,
-          secure: false,
+          '/api': {
+            target: 'http://localhost:5001',
+            changeOrigin: true,
+            secure: false,
+          }
+        },
+        headers: {
+          'Cross-Origin-Opener-Policy': 'same-origin-allow-popups',
         }
-      }
       },
       plugins: [react()],
       resolve: {

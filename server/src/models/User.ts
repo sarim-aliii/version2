@@ -1,13 +1,13 @@
-
-// FIX: This file contained placeholder text. Implementing a Mongoose User schema with password hashing for secure authentication.
+// sarim-aliii/version2/version2-1493846b30acdc91c679cab38a402d8b18ff91c6/server/src/models/User.ts
 import mongoose, { Document, Model } from 'mongoose';
 import bcrypt from 'bcryptjs';
 
 // Interface for User document properties
 interface IUser {
   email: string;
-  password: string;
+  password?: string; // <-- Made password optional
   avatar?: string;
+  authMethod?: 'email' | 'google' | 'github'; // <-- Added authMethod
 }
 
 // Interface for User document methods
@@ -15,11 +15,8 @@ interface IUserMethods {
   matchPassword(enteredPassword: string): Promise<boolean>;
 }
 
-// Combine properties and methods into a single document interface, extending Mongoose's Document
-// FIX: Added explicit types for the User schema and model to make custom methods like `matchPassword` available to TypeScript.
 export interface IUserDocument extends IUser, IUserMethods, Document {}
 
-// Interface for the User model (for static methods, if any)
 interface IUserModel extends Model<IUserDocument> {}
 
 
@@ -32,20 +29,25 @@ const userSchema = new mongoose.Schema<IUserDocument, IUserModel>({
   },
   password: {
     type: String,
-    required: true,
+    required: false, // <-- Set to false
   },
   avatar: {
     type: String,
     default: 'avatar-1',
+  },
+  authMethod: { // <-- Added authMethod to schema
+    type: String,
+    enum: ['email', 'google', 'github'],
+    default: 'email',
   },
 }, {
   timestamps: true,
 });
 
 // Middleware to hash password before saving
-// FIX: Use a generic on the 'pre' hook to correctly type `this` and allow access to Mongoose document methods like `isModified`.
 userSchema.pre<IUserDocument>('save', async function (next) {
-  if (!this.isModified('password')) {
+  // Only hash if password exists and is modified
+  if (!this.isModified('password') || !this.password) {
     return next();
   }
   const salt = await bcrypt.genSalt(10);
@@ -55,6 +57,7 @@ userSchema.pre<IUserDocument>('save', async function (next) {
 
 // Method to compare entered password with hashed password
 userSchema.methods.matchPassword = async function (enteredPassword: string) {
+  if (!this.password) return false; // <-- Handle users with no password
   return await bcrypt.compare(enteredPassword, this.password);
 };
 

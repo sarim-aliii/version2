@@ -1,3 +1,4 @@
+// sarim-aliii/version2/version2-1493846b30acdc91c679cab38a402d8b18ff91c6/services/api.ts
 import axios from 'axios';
 import { LoginCredentials, SignupCredentials, StudyProject, Flashcard, MCQ as MCQType } from '../types';
 
@@ -43,6 +44,18 @@ export const signup = async (credentials: SignupCredentials) => {
   return data;
 };
 
+// ADDED: googleLogin
+export const googleLogin = async (idToken: string) => {
+  const { data } = await api.post('/auth/google', { idToken });
+  return data;
+};
+
+// ADDED: githubLogin
+export const githubLogin = async (idToken: string) => {
+  const { data } = await api.post('/auth/github', { idToken });
+  return data;
+};
+
 export const getProfile = async () => {
   const { data } = await api.get('/auth/profile');
   return data;
@@ -69,7 +82,7 @@ export const deleteProject = async (id: string) => {
 };
 
 // --- Gemini AI ---
-// A generic function to handle all content generation requests
+// ... (rest of the file is unchanged) ...
 export const generateContent = async (
     projectId: string, 
     feature: 'summary' | 'flashcards' | 'tutor' | 'concept-map' | 'lesson-plan' | 'study-plan', 

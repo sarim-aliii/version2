@@ -1,7 +1,3 @@
-
-// FIX: Comment out the Vite client types reference. This error suggests a build environment issue where the types are not found. This is a workaround to allow compilation.
-// /// <reference types="vite/client" />
-
 interface ImportMetaEnv {
   readonly VITE_API_BASE_URL: string;
   readonly VITE_FIREBASE_API_KEY: string;

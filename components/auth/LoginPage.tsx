@@ -1,3 +1,4 @@
+// sarim-aliii/version2/version2-1493846b30acdc91c679cab38a402d8b18ff91c6/components/auth/LoginPage.tsx
 import React, { useState } from 'react';
 import { useAppContext } from '../../context/AppContext';
 import { Button } from '../ui/Button';
@@ -12,7 +13,7 @@ interface LoginPageProps {
 }
 
 export const LoginPage: React.FC<LoginPageProps> = ({ onSwitchToSignUp, onSwitchToForgotPassword }) => {
-  const { login } = useAppContext();
+  const { login, loginWithGoogle, loginWithGithub } = useAppContext();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -80,8 +81,8 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onSwitchToSignUp, onSwitch
         </div>
       </div>
       <div className="space-y-3">
-        <SocialButton provider="google" onClick={() => {}} isLoading={false} />
-        <SocialButton provider="github" onClick={() => {}} isLoading={false} />
+        <SocialButton provider="google" onClick={loginWithGoogle} isLoading={false} />
+        <SocialButton provider="github" onClick={loginWithGithub} isLoading={false} />
       </div>
        <p className="text-sm text-center text-slate-400 mt-6">
           Don't have an account?{' '}
