@@ -1,19 +1,21 @@
 import { Request, Response } from 'express';
 import StudyProject from '../models/StudyProject';
-import { 
-    GoogleGenerativeAI, // <-- Correct class name
-    GenerationConfig, 
-    HarmCategory, 
-    HarmBlockThreshold, 
-    Content, 
-    Part 
-} from "@google/genai";
+import type * as GenAI from "@google/genai";
+const genai = require("@google/genai");
+const {
+    GoogleGenerativeAI,
+    HarmCategory,
+    HarmBlockThreshold
+} = genai as typeof GenAI;
+
+type GenerationConfig = GenAI.GenerationConfig;
+type Content = GenAI.Content;
+type Part = GenAI.Part;
 
 if (!process.env.GEMINI_API_KEY) {
     throw new Error("GEMINI_API_KEY environment variable is not set.");
 }
 
-// FIX: Initialize with the correct v1 class
 const ai = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 const modelName = 'gemini-1.5-flash';
 
@@ -54,7 +56,6 @@ export const generateSummary = async (req: Request, res: Response) => {
         const project = await getProjectForUser(projectId, req.user.id);
         const prompt = `Summarize the following text in ${language}. Provide a concise but comprehensive overview of the key points.\n\nTEXT:\n${project.ingestedText}`;
         
-        // FIX: Correct syntax: ai.getGenerativeModel
         const model = ai.getGenerativeModel({ model: modelName, safetySettings, generationConfig });
         const result = await model.generateContent(prompt);
         const response = result.response;
@@ -74,7 +75,6 @@ export const generateFlashcards = async (req: Request, res: Response) => {
         const project = await getProjectForUser(projectId, req.user.id);
         const prompt = `Based on the following text, generate a JSON array of 5-10 flashcards in ${language}. Each flashcard should be an object with a "question" (string) and "answer" (string) property.\n\nTEXT:\n${project.ingestedText}`;
 
-        // FIX: Correct syntax and remove schema (not needed for v1 JSON mode)
         const model = ai.getGenerativeModel({ 
             model: modelName, 
             safetySettings,
@@ -101,7 +101,8 @@ export const getTutorResponse = async (req: Request, res: Response) => {
         const project = await getProjectForUser(projectId, req.user.id);
         const context = `CONTEXT: ${project.ingestedText.substring(0, 20000)}\n\n`;
         
-        const chatHistory: Content[] = (history || []).map((h: any) => ({
+        // FIX 5: Access Content type from namespace
+        const chatHistory: genai.Content[] = (history || []).map((h: any) => ({
             role: h.role,
             parts: [{ text: h.content }]
         }));
@@ -197,10 +198,10 @@ export const generateStudyPlan = async (req: Request, res: Response) => {
 export const extractTextFromFile = async (req: Request, res: Response) => {
     const { llm, base64Data, fileType } = req.body;
     try {
-        // FIX: This is the line that was failing (214)
         const genAIModel = ai.getGenerativeModel({ model: llm || modelName, safetySettings });
         
-        const parts: Part[] = [
+        // FIX 6: Access Part type from namespace
+        const parts: genai.Part[] = [
           { inlineData: { mimeType: fileType, data: base64Data } },
           { text: "Extract all text from this file. Respond only with the extracted text." },
         ];
@@ -309,7 +310,8 @@ export const transcribeAudio = async (req: Request, res: Response) => {
     const { llm, base64Data, fileType } = req.body;
     try {
         const genAIModel = ai.getGenerativeModel({ model: llm || modelName, safetySettings });
-        const parts: Part[] = [
+        // FIX 7: Access Part type from namespace
+        const parts: genai.Part[] = [
           { inlineData: { mimeType: fileType, data: base64Data } },
           { text: "Transcribe the audio from this file. Respond only with the full transcription." },
         ];
@@ -354,7 +356,6 @@ export const generateFlashcardsFromText = async (req: Request, res: Response) =>
             throw new Error("AI returned invalid flashcard format.");
         }
     } catch (error: any) {
-        // FIX: My typo was here. Corrected to 500.
         res.status(500).json({ message: `Failed to generate flashcards: ${error.message}` });
     }
 };
@@ -376,7 +377,6 @@ export const generateAnswerFromText = async (req: Request, res: Response) => {
 export const performSemanticSearch = async (req: Request, res: Response) => {
     const { text, query, topK } = req.body;
     try {
-        // FIX: Corrected to ai.getEmbeddingModel
         const embeddingModel = ai.getEmbeddingModel({ model: "text-embedding-004" });
         
         const chunks = chunkText(text);
