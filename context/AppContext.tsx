@@ -1,4 +1,3 @@
-// sarim-aliii/version2/version2-1493846b30acdc91c679cab38a402d8b18ff91c6/context/AppContext.tsx
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { 
     Tab, 
@@ -16,10 +15,10 @@ import {
     SignupCredentials
 } from '../types';
 import useLocalStorage from '../hooks/useLocalStorage';
-import * as api from '../services/api'; // Importantly, this now includes googleLogin and githubLogin
+import * as api from '../services/api';
 import { v4 as uuidv4 } from 'uuid';
 import { auth } from '../firebase';
-import { GoogleAuthProvider, GithubAuthProvider, signInWithPopup } from 'firebase/auth'; // Import GithubAuthProvider
+import { GoogleAuthProvider, GithubAuthProvider, signInWithPopup } from 'firebase/auth';
 
 interface AppContextType {
     // Auth
@@ -27,7 +26,7 @@ interface AppContextType {
     currentUser: User | null;
     login: (credentials: LoginCredentials) => Promise<void>;
     loginWithGoogle: () => Promise<void>;
-    loginWithGithub: () => Promise<void>; // Added this
+    loginWithGithub: () => Promise<void>;
     signup: (credentials: SignupCredentials) => Promise<void>;
     logout: () => void;
     verifyEmail: (token: string) => Promise<void>;
@@ -180,16 +179,17 @@ export const AppProvider: React.FC<{children: ReactNode}> = ({ children }) => {
             // Log in to your custom app using your backend's response
             handleSocialLoginSuccess(data, 'Google');
 
-        } catch (error: any) {
+        } 
+        catch (error: any) {
             addNotification(error.message || 'Google login failed.');
             throw error;
         }
     };
 
-    // CORRECTED: loginWithGithub
     const loginWithGithub = async () => {
         try {
-            const provider = new GithubAuthProvider(); // Use GithubAuthProvider
+            const provider = new GithubAuthProvider();
+            provider.addScope('user:email');
             const result = await signInWithPopup(auth, provider);
             const idToken = await result.user.getIdToken();
 
@@ -210,8 +210,6 @@ export const AppProvider: React.FC<{children: ReactNode}> = ({ children }) => {
 
     const updateUserAvatar = async (avatar: string) => {
         if (!currentUser) return;
-        // In a real app, this would be an API call
-        // await api.updateProfile({ avatar }); 
         setCurrentUser({ ...currentUser, avatar });
         addNotification("Avatar updated!", "success");
     };
@@ -294,8 +292,6 @@ export const AppProvider: React.FC<{children: ReactNode}> = ({ children }) => {
         }
     };
     
-    // ... (AI Generation functions remain the same) ...
-    // AI Generation
     const generateSummaryForActiveProject = async () => {
         if (!activeProject) return;
         setIsGeneratingSummary(true);

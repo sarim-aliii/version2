@@ -1,22 +1,21 @@
 import { Request, Response } from 'express';
 import StudyProject from '../models/StudyProject';
-import type * as GenAI from "@google/genai";
-const genai = require("@google/genai");
-const {
-    GoogleGenerativeAI,
-    HarmCategory,
-    HarmBlockThreshold
-} = genai as typeof GenAI;
+import {
+  GoogleGenerativeAI,
+  HarmCategory,
+  HarmBlockThreshold,
+  GenerationConfig,
+  Part,
+  Content
+} from "@google/generative-ai";
 
-type GenerationConfig = GenAI.GenerationConfig;
-type Content = GenAI.Content;
-type Part = GenAI.Part;
+
 
 if (!process.env.GEMINI_API_KEY) {
     throw new Error("GEMINI_API_KEY environment variable is not set.");
 }
 
-const ai = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 const modelName = 'gemini-1.5-flash';
 
 const safetySettings = [
@@ -33,7 +32,6 @@ const generationConfig: GenerationConfig = {
   maxOutputTokens: 8192,
 };
 
-// Helper to get project and check ownership
 const getProjectForUser = async (projectId: string, userId: string) => {
     const project = await StudyProject.findById(projectId);
     if (!project) {
@@ -45,8 +43,6 @@ const getProjectForUser = async (projectId: string, userId: string) => {
     return project;
 };
 
-// --- All functions below are now corrected ---
-
 export const generateSummary = async (req: Request, res: Response) => {
     if (!req.user) {
         return res.status(401).json({ message: 'Not authorized, no user' });
@@ -56,7 +52,8 @@ export const generateSummary = async (req: Request, res: Response) => {
         const project = await getProjectForUser(projectId, req.user.id);
         const prompt = `Summarize the following text in ${language}. Provide a concise but comprehensive overview of the key points.\n\nTEXT:\n${project.ingestedText}`;
         
-        const model = ai.getGenerativeModel({ model: modelName, safetySettings, generationConfig });
+        // CHANGED: Use genAI instance
+        const model = genAI.getGenerativeModel({ model: modelName, safetySettings, generationConfig });
         const result = await model.generateContent(prompt);
         const response = result.response;
         
@@ -75,7 +72,7 @@ export const generateFlashcards = async (req: Request, res: Response) => {
         const project = await getProjectForUser(projectId, req.user.id);
         const prompt = `Based on the following text, generate a JSON array of 5-10 flashcards in ${language}. Each flashcard should be an object with a "question" (string) and "answer" (string) property.\n\nTEXT:\n${project.ingestedText}`;
 
-        const model = ai.getGenerativeModel({ 
+        const model = genAI.getGenerativeModel({ 
             model: modelName, 
             safetySettings,
             generationConfig: { ...generationConfig, responseMimeType: "application/json" }
@@ -101,17 +98,15 @@ export const getTutorResponse = async (req: Request, res: Response) => {
         const project = await getProjectForUser(projectId, req.user.id);
         const context = `CONTEXT: ${project.ingestedText.substring(0, 20000)}\n\n`;
         
-        // FIX 5: Access Content type from namespace
-        const chatHistory: genai.Content[] = (history || []).map((h: any) => ({
+        const chatHistory: Content[] = (history || []).map((h: any) => ({
             role: h.role,
             parts: [{ text: h.content }]
         }));
-        
-        chatHistory.pop(); 
 
         const prompt = `${context}Based on the context above and our conversation history, answer my latest question in ${language}.\n\nLATEST QUESTION:\n${message}`;
 
-        const model = ai.getGenerativeModel({ model: modelName, safetySettings, generationConfig });
+        const model = genAI.getGenerativeModel({ model: modelName, safetySettings, generationConfig });
+        
         const chat = model.startChat({ history: chatHistory });
         const result = await chat.sendMessage(prompt);
         const response = result.response;
@@ -132,7 +127,7 @@ export const generateConceptMap = async (req: Request, res: Response) => {
         const project = await getProjectForUser(projectId, req.user.id);
         const prompt = `Analyze the following text and generate a concept map. Identify the main concepts and their relationships. Return a JSON object with 'nodes' and 'links'. Each node should have an 'id' (the concept name) and a 'group' (a number for color-coding related concepts). Each link should have a 'source' (node id), a 'target' (node id), and a 'value' (representing the strength of the connection, from 1 to 10).\n\nTEXT:\n${project.ingestedText}`;
 
-        const model = ai.getGenerativeModel({ 
+        const model = genAI.getGenerativeModel({ 
             model: modelName, 
             safetySettings,
             generationConfig: { ...generationConfig, responseMimeType: "application/json" }
@@ -156,7 +151,7 @@ export const generateLessonPlan = async (req: Request, res: Response) => {
         const project = await getProjectForUser(projectId, req.user.id);
         const prompt = `Based on the following text content, create a detailed 50-minute lesson plan about "${topic}". The plan should be structured as a JSON object with keys: 'title', 'objective', 'duration' (string), 'materials' (array of strings), 'activities' (array of objects with 'name', 'duration', and 'description'), and 'assessment'.\n\nTEXT:\n${project.ingestedText}`;
 
-        const model = ai.getGenerativeModel({ 
+        const model = genAI.getGenerativeModel({ 
             model: modelName, 
             safetySettings,
             generationConfig: { ...generationConfig, responseMimeType: "application/json" }
@@ -180,7 +175,7 @@ export const generateStudyPlan = async (req: Request, res: Response) => {
         const project = await getProjectForUser(projectId, req.user.id);
         const prompt = `Create a ${days}-day study plan based on the provided text. The output should be a JSON object with 'title', 'durationDays', and a 'schedule' array. Each item in the schedule should be an object with 'day' (number), 'topic' (string), and 'tasks' (array of strings).\n\nTEXT:\n${project.ingestedText}`;
         
-        const model = ai.getGenerativeModel({ 
+        const model = genAI.getGenerativeModel({ 
             model: modelName, 
             safetySettings,
             generationConfig: { ...generationConfig, responseMimeType: "application/json" }
@@ -198,15 +193,14 @@ export const generateStudyPlan = async (req: Request, res: Response) => {
 export const extractTextFromFile = async (req: Request, res: Response) => {
     const { llm, base64Data, fileType } = req.body;
     try {
-        const genAIModel = ai.getGenerativeModel({ model: llm || modelName, safetySettings });
+        const genAIModel = genAI.getGenerativeModel({ model: llm || modelName, safetySettings });
         
-        // FIX 6: Access Part type from namespace
-        const parts: genai.Part[] = [
+        const parts: Part[] = [
           { inlineData: { mimeType: fileType, data: base64Data } },
           { text: "Extract all text from this file. Respond only with the extracted text." },
         ];
         
-        const result = await genAIModel.generateContent({ contents: [{ parts }] });
+        const result = await genAIModel.generateContent({ contents: [{ role: 'user', parts }] });
         res.json(result.response.text());
 
     } catch (error: any) {
@@ -221,7 +215,7 @@ export const generateMCQs = async (req: Request, res: Response) => {
     try {
         const prompt = `Based on the following text, generate a JSON array of 5 ${difficulty} multiple-choice questions in ${language}. Each object in the array must have four properties: "question" (string), "options" (array of 4 strings), "correctAnswer" (string, which must be one of the options), and "explanation" (string).\n\nTEXT:\n${text}`;
 
-        const genAIModel = ai.getGenerativeModel({
+        const genAIModel = genAI.getGenerativeModel({
             model: llm || modelName,
             safetySettings,
             generationConfig: {
@@ -258,7 +252,7 @@ export const generatePersonalizedStudyGuide = async (req: Request, res: Response
 
         const prompt = `A student took a quiz based on the provided text and got the following questions wrong. Create a personalized study guide in ${language} that focuses on these incorrect topics. Explain the concepts clearly and relate them back to the main text.\n\NORIGINAL TEXT:\n${text}\n\NINCORRECT QUESTIONS:\n${incorrectReview}`;
 
-        const genAIModel = ai.getGenerativeModel({ model: llm || modelName, safetySettings, generationConfig });
+        const genAIModel = genAI.getGenerativeModel({ model: llm || modelName, safetySettings, generationConfig });
         const result = await genAIModel.generateContent(prompt);
         res.json(result.response.text());
 
@@ -292,12 +286,11 @@ function chunkText(text: string, chunkSize: number = 500, overlap: number = 100)
   return chunks;
 }
 
-// FOR Ingest.tsx
 export const fetchTopicInfo = async (req: Request, res: Response) => {
     const { llm, topic, language } = req.body;
     try {
         const prompt = `Generate comprehensive, well-structured study notes about "${topic}" in ${language}. The notes should be detailed enough for a university student to use for an exam. Use markdown for formatting.`;
-        const genAIModel = ai.getGenerativeModel({ model: llm || modelName, safetySettings, generationConfig });
+        const genAIModel = genAI.getGenerativeModel({ model: llm || modelName, safetySettings, generationConfig });
         const result = await genAIModel.generateContent(prompt);
         res.json(result.response.text());
     } catch (error: any) {
@@ -305,29 +298,27 @@ export const fetchTopicInfo = async (req: Request, res: Response) => {
     }
 };
 
-// FOR VoiceQA.tsx
 export const transcribeAudio = async (req: Request, res: Response) => {
     const { llm, base64Data, fileType } = req.body;
     try {
-        const genAIModel = ai.getGenerativeModel({ model: llm || modelName, safetySettings });
-        // FIX 7: Access Part type from namespace
-        const parts: genai.Part[] = [
+        const genAIModel = genAI.getGenerativeModel({ model: llm || modelName, safetySettings });
+        const parts: Part[] = [
           { inlineData: { mimeType: fileType, data: base64Data } },
           { text: "Transcribe the audio from this file. Respond only with the full transcription." },
         ];
-        const result = await genAIModel.generateContent({ contents: [{ parts }] });
+        const result = await genAIModel.generateContent({ contents: [{ role: 'user', parts }] });
         res.json(result.response.text());
-    } catch (error: any) {
+    } 
+    catch (error: any) {
         res.status(500).json({ message: `Failed to transcribe audio: ${error.message}` });
     }
 };
 
-// FOR VoiceQA.tsx
 export const generateSummaryFromText = async (req: Request, res: Response) => {
     const { llm, text, language } = req.body;
     try {
         const prompt = `Summarize the following text in ${language}. Provide a concise but comprehensive overview of the key points.\n\nTEXT:\n${text}`;
-        const genAIModel = ai.getGenerativeModel({ model: llm || modelName, safetySettings, generationConfig });
+        const genAIModel = genAI.getGenerativeModel({ model: llm || modelName, safetySettings, generationConfig });
         const result = await genAIModel.generateContent(prompt);
         res.json(result.response.text());
     } catch (error: any) {
@@ -335,12 +326,11 @@ export const generateSummaryFromText = async (req: Request, res: Response) => {
     }
 };
 
-// FOR VoiceQA.tsx
 export const generateFlashcardsFromText = async (req: Request, res: Response) => {
     const { llm, text, language } = req.body;
     try {
         const prompt = `Based on the following text, generate a JSON array of 5-10 flashcards in ${language}. Each flashcard should be an object with a "question" (string) and "answer" (string) property.\n\nTEXT:\n${text}`;
-        const genAIModel = ai.getGenerativeModel({
+        const genAIModel = genAI.getGenerativeModel({
             model: llm || modelName,
             safetySettings,
             generationConfig: { ...generationConfig, responseMimeType: "application/json" },
@@ -360,12 +350,11 @@ export const generateFlashcardsFromText = async (req: Request, res: Response) =>
     }
 };
 
-// FOR VoiceQA.tsx
 export const generateAnswerFromText = async (req: Request, res: Response) => {
     const { llm, text, question, language } = req.body;
     try {
         const prompt = `Based on the context below, answer the user's question in ${language}.\n\nCONTEXT:\n${text}\n\nQUESTION:\n${question}`;
-        const genAIModel = ai.getGenerativeModel({ model: llm || modelName, safetySettings, generationConfig });
+        const genAIModel = genAI.getGenerativeModel({ model: llm || modelName, safetySettings, generationConfig });
         const result = await genAIModel.generateContent(prompt);
         res.json(result.response.text());
     } catch (error: any) {
@@ -373,21 +362,24 @@ export const generateAnswerFromText = async (req: Request, res: Response) => {
     }
 };
 
-// FOR SemanticSearch.tsx
 export const performSemanticSearch = async (req: Request, res: Response) => {
     const { text, query, topK } = req.body;
     try {
-        const embeddingModel = ai.getEmbeddingModel({ model: "text-embedding-004" });
+        const embeddingModel = genAI.getGenerativeModel({ model: "text-embedding-004" });
         
         const chunks = chunkText(text);
         if (chunks.length === 0) return res.json([]);
 
-        const textEmbeddings = await embeddingModel.embedContents(chunks);
-        const queryEmbedding = await embeddingModel.embedContent(query);
+        const chunkEmbeddings = await Promise.all(chunks.map(chunk => 
+            embeddingModel.embedContent(chunk)
+        ));
 
-        const similarities = textEmbeddings.embeddings.map((emb: { values: number[] }, i: number) => ({
+        const queryEmbeddingResult = await embeddingModel.embedContent(query);
+        const queryVector = queryEmbeddingResult.embedding.values;
+
+        const similarities = chunkEmbeddings.map((embResult, i) => ({
           index: i,
-          score: cosineSimilarity(emb.values, queryEmbedding.embedding.values)
+          score: cosineSimilarity(embResult.embedding.values, queryVector)
         }));
 
         similarities.sort((a: { score: number }, b: { score: number }) => b.score - a.score);
