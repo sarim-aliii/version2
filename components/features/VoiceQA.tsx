@@ -4,7 +4,7 @@ import { Button } from '../ui/Button';
 import { FileUploader } from '../ui/FileUploader';
 import { useAppContext } from '../../context/AppContext';
 import { EmptyState } from '../ui/EmptyState';
-import { transcribeAudio, generateSummary, generateFlashcards, generateAnswer } from '../../services/api';
+import { transcribeAudio, generateSummary, generateFlashcards, generateAnswer } from '../../services/geminiService';
 import { Loader } from '../ui/Loader';
 import { Flashcard as FlashcardType } from '../../types';
 
@@ -28,8 +28,6 @@ export const AudioAnalysis: React.FC = () => {
   const [transcribedText, setTranscribedText] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [currentAction, setCurrentAction] = useState<AnalysisAction | null>(null);
-  
-  // Action-specific state
   const [summary, setSummary] = useState<string | null>(null);
   const [flashcards, setFlashcards] = useState<FlashcardType[]>([]);
   const [question, setQuestion] = useState('');
@@ -83,7 +81,6 @@ export const AudioAnalysis: React.FC = () => {
     if (!transcribedText) return;
     setCurrentAction(action);
     setIsLoading(true);
-    // Reset other action results
     setSummary(null);
     setFlashcards([]);
     setAnswer(null);
@@ -92,21 +89,25 @@ export const AudioAnalysis: React.FC = () => {
         if (action === 'summary') {
             const result = await generateSummary(llm, transcribedText, language);
             setSummary(result);
-        } else if (action === 'flashcards') {
+        } 
+        else if (action === 'flashcards') {
             const result = await generateFlashcards(llm, transcribedText, language);
             setFlashcards(result);
-        } else if (action === 'qa') {
+        } 
+        else if (action === 'qa') {
             if(!question.trim()) {
                 addNotification('Please enter a question.', 'info');
-                setIsLoading(false); // Manually set loading to false as we return early
+                setIsLoading(false);
                 return;
             }
             const result = await generateAnswer(llm, transcribedText, question, language);
             setAnswer(result);
         }
-    } catch(e: any) {
+    } 
+    catch(e: any) {
         addNotification(e.message);
-    } finally {
+    } 
+    finally {
         setIsLoading(false);
     }
   };

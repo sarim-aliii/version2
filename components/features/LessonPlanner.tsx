@@ -1,5 +1,6 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback } from 'react';
 import { useAppContext } from '../../context/AppContext';
+import { generateLessonPlan } from '../../services/geminiService';
 import { Button } from '../ui/Button';
 import { Card } from '../ui/Card';
 import { Loader } from '../ui/Loader';
@@ -19,7 +20,9 @@ const LessonPlanDisplay: React.FC<{ plan: LessonPlan }> = ({ plan }) => (
             </div>
             <div>
                 <h4 className="text-lg font-semibold text-slate-200 border-b border-slate-600 pb-1 mb-2">Materials</h4>
-                <ul className="list-disc list-inside pl-4 text-slate-400">{plan.materials.map((item, i) => <li key={i}>{item}</li>)}</ul>
+                <ul className="list-disc list-inside pl-4 text-slate-400">
+                    {plan.materials.map((item, i) => <li key={i}>{item}</li>)}
+                </ul>
             </div>
             <div>
                 <h4 className="text-lg font-semibold text-slate-200 border-b border-slate-600 pb-1 mb-2">Activities</h4>
@@ -41,30 +44,37 @@ const LessonPlanDisplay: React.FC<{ plan: LessonPlan }> = ({ plan }) => (
 );
 
 export const LessonPlanner: React.FC = () => {
-    const { 
-        activeProject, projects, addNotification,
-        isGeneratingLessonPlan, generateLessonPlanForActiveProject 
-    } = useAppContext();
-    const lessonPlan = activeProject?.lessonPlan ?? null;
-    
+    const { ingestedText, addNotification, language, llm } = useAppContext();
     const [topic, setTopic] = useState('');
+    const [isLoading, setIsLoading] = useState(false);
+    const [lessonPlan, setLessonPlan] = useState<LessonPlan | null>(null);
 
-    useEffect(() => { setTopic(''); }, [activeProject]);
-
-    const handleGenerate = useCallback(() => {
+    const handleGenerate = useCallback(async () => {
+        if (!ingestedText) {
+            addNotification('Please ingest some text first to provide context.', 'info');
+            return;
+        }
         if (!topic.trim()) {
             addNotification('Please enter a topic for the lesson plan.', 'info');
             return;
         }
-        generateLessonPlanForActiveProject(topic);
-    }, [topic, addNotification, generateLessonPlanForActiveProject]);
+        setIsLoading(true);
+        setLessonPlan(null);
+        try {
+            const plan = await generateLessonPlan(llm, ingestedText, topic, language);
+            setLessonPlan(plan);
+        } catch (e: any) {
+            addNotification(e.message);
+        } finally {
+            setIsLoading(false);
+        }
+    }, [ingestedText, topic, addNotification, language, llm]);
 
-    if (!projects.length) {
-        return <EmptyState title="AI-Powered Lesson Planner" message="For educators: Ingest a textbook chapter or article, then enter a topic to instantly generate a structured 50-minute lesson plan." />;
-    }
-    
-    if (!activeProject) {
-        return <EmptyState title="Select a Study" message="Please select a study from the sidebar to create a lesson plan, or start a new one." />;
+    if (!ingestedText) {
+        return <EmptyState
+            title="AI-Powered Lesson Planner"
+            message="For educators: Ingest a textbook chapter or article, then enter a topic to instantly generate a structured 50-minute lesson plan."
+        />;
     }
 
     return (
@@ -77,14 +87,14 @@ export const LessonPlanner: React.FC = () => {
                         onChange={(e) => setTopic(e.target.value)}
                         placeholder="Enter the main topic for the lesson..."
                         className="w-full bg-slate-900 border border-slate-700 rounded-md p-3 text-slate-300 focus:ring-2 focus:ring-red-500 focus:outline-none transition"
-                        disabled={isGeneratingLessonPlan}
+                        disabled={isLoading}
                     />
-                    <Button onClick={handleGenerate} disabled={!topic.trim() || isGeneratingLessonPlan} className="w-full sm:w-auto flex-shrink-0">
-                        {isGeneratingLessonPlan ? 'Generating...' : 'Generate Lesson Plan'}
+                    <Button onClick={handleGenerate} disabled={!topic.trim() || isLoading} className="w-full sm:w-auto flex-shrink-0">
+                        {isLoading ? 'Generating...' : 'Generate Lesson Plan'}
                     </Button>
                 </div>
-                {isGeneratingLessonPlan && <Loader />}
-                {lessonPlan && !isGeneratingLessonPlan && (
+                {isLoading && <Loader />}
+                {lessonPlan && (
                     <div className="fade-in mt-4">
                         <LessonPlanDisplay plan={lessonPlan} />
                     </div>

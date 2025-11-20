@@ -1,6 +1,4 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-
-// Define the interface for the SpeechRecognition API, which may not be typed in all environments
 interface ISpeechRecognition extends EventTarget {
   continuous: boolean;
   interimResults: boolean;
@@ -12,7 +10,6 @@ interface ISpeechRecognition extends EventTarget {
   onend: () => void;
 }
 
-// Extend the Window interface to include prefixed versions of SpeechRecognition
 declare global {
   interface Window {
     SpeechRecognition: { new(): ISpeechRecognition };

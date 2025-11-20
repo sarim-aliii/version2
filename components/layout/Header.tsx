@@ -1,15 +1,11 @@
 import React from 'react';
 import { useAppContext } from '../../context/AppContext';
 import { Tab } from '../../types';
-import { Button } from '../ui/Button';
-import { AVATARS } from '../ui/avatars';
 
-const tabs = Object.values(Tab).filter(t => t !== Tab.Profile);
+const tabs = Object.values(Tab);
 
 export const Header: React.FC = () => {
-  const { activeTab, setActiveTab, currentUser } = useAppContext();
-  
-  const AvatarComponent = currentUser?.avatar ? AVATARS[currentUser.avatar] : null;
+  const { activeTab, setActiveTab } = useAppContext();
 
   return (
     <header className="bg-slate-950/80 backdrop-blur-sm sticky top-0 z-10 border-b border-slate-800">
@@ -38,7 +34,7 @@ export const Header: React.FC = () => {
             </svg>
             <h1 className="text-3xl font-bold text-slate-100 tracking-wider whitespace-nowrap">Kairon AI</h1>
           </div>
-          <nav className="flex-1 w-full overflow-hidden flex items-center justify-between">
+          <nav className="flex-1 w-full overflow-hidden">
             <div className="flex items-center flex-nowrap overflow-x-auto gap-x-2 md:gap-x-4 text-sm font-semibold uppercase tracking-wider pb-2">
               {tabs.map((tab) => (
                 <button
@@ -55,19 +51,6 @@ export const Header: React.FC = () => {
                 </button>
               ))}
             </div>
-            {currentUser && (
-                <div className="ml-auto pl-4 flex-shrink-0">
-                    <Button
-                        onClick={() => setActiveTab(Tab.Profile)}
-                        variant={activeTab === Tab.Profile ? 'primary' : 'secondary'}
-                        className="!py-1.5 !px-3 text-sm flex-shrink-0 flex items-center gap-2"
-                        aria-label="Open profile page"
-                    >
-                        {AvatarComponent ? <AvatarComponent className="h-5 w-5 text-slate-100" /> : <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" /></svg>}
-                        <span className="hidden sm:inline truncate max-w-[150px]">{currentUser.email}</span>
-                    </Button>
-                </div>
-            )}
           </nav>
         </div>
       </div>

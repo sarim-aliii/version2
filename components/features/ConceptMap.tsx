@@ -1,249 +1,333 @@
-import React, { useEffect, useRef, useMemo, useState } from 'react';
-import * as d3 from 'd3';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
+import {
+    select,
+    forceSimulation,
+    forceLink,
+    forceManyBody,
+    forceCenter,
+    scaleOrdinal,
+    schemeCategory10,
+    zoom,
+    drag,
+    Simulation,
+    SimulationNodeDatum
+} from 'd3';
 import { useAppContext } from '../../context/AppContext';
+import { generateConceptMapData, generateConceptMapForTopic } from '../../services/geminiService';
 import { Button } from '../ui/Button';
 import { Card } from '../ui/Card';
 import { Loader } from '../ui/Loader';
-import { EmptyState } from '../ui/EmptyState';
 import { ConceptMapData, ConceptNode, ConceptLink } from '../../types';
+import { EmptyState } from '../ui/EmptyState';
 
-interface D3ConceptMapProps {
+interface D3GraphProps {
   data: ConceptMapData;
+  isFullscreen: boolean;
 }
 
-const D3Graph: React.FC<D3ConceptMapProps> = ({ data }) => {
-    const svgRef = useRef<SVGSVGElement | null>(null);
-    const containerRef = useRef<HTMLDivElement | null>(null);
-    const [isFullscreen, setIsFullscreen] = useState(false);
+const D3Graph: React.FC<D3GraphProps> = ({ data, isFullscreen }) => {
+    const ref = useRef<SVGSVGElement>(null);
 
     useEffect(() => {
-        if (!data || !svgRef.current || !containerRef.current) return;
+        if (!data || !ref.current || data.nodes.length === 0) return;
 
-        const svg = d3.select(svgRef.current);
-        const container = d3.select(containerRef.current);
+        const svg = select(ref.current);
+        svg.selectAll("*").remove();
 
-        // Deep copy data as simulation mutates it
-        const { nodes, links }: { nodes: ConceptNode[], links: ConceptLink[] } = JSON.parse(JSON.stringify(data));
+        const parent = ref.current.parentElement;
+        const width = parent?.clientWidth || 800;
+        const height = parent?.clientHeight || 600;
         
-        const color = d3.scaleOrdinal(d3.schemeReds[5].slice(2));
+        const tooltip = select("body").append("div")
+            .attr("class", "absolute p-2 text-sm bg-slate-950 border border-slate-700 rounded-md pointer-events-none opacity-0 transition-opacity text-slate-200")
+            .style("z-index", "10");
 
-        const render = () => {
-            const width = containerRef.current!.clientWidth;
-            const height = containerRef.current!.clientHeight;
+        svg.attr('viewBox', [0, 0, width, height].join(' '));
 
-            svg.attr('width', width).attr('height', height).attr('viewBox', [-width / 2, -height / 2, width, height]);
-            
-            svg.selectAll('*').remove(); // Clear previous render
+        const g = svg.append("g"); 
 
-            const link = svg.append('g')
-                .attr('class', 'links')
-                .selectAll('line')
-                .data(links)
-                .join('line')
-                .attr('stroke-width', d => Math.sqrt(d.value))
-                .attr('class', 'concept-link');
+        const simulation = forceSimulation<ConceptNode>(data.nodes)
+            .force("link", forceLink<ConceptNode, ConceptLink>(data.links).id((d: any) => d.id).distance(100))
+            .force("charge", forceManyBody().strength(-300))
+            .force("center", forceCenter(width / 2, height / 2));
 
-            const node = svg.append('g')
-                .attr('class', 'nodes')
-                .selectAll('g')
-                .data(nodes)
-                .join('g')
-                .attr('class', 'concept-node-group');
+        const link = g.append("g")
+            .attr("stroke", "#999")
+            .attr("stroke-opacity", 0.6)
+            .selectAll("line")
+            .data(data.links)
+            .join("line")
+            .attr("stroke-width", d => Math.sqrt(d.value));
 
-            node.append('circle')
-                .attr('r', 12)
-                .attr('fill', d => color(d.group.toString()))
-                .attr('class', 'concept-node-circle');
-
-            node.append('text')
-                .text(d => d.id)
-                .attr('x', 18)
-                .attr('y', 5)
-                .attr('class', 'concept-node-label');
-
-            const simulation = d3.forceSimulation(nodes)
-                .force('link', d3.forceLink<ConceptNode, ConceptLink>(links).id(d => d.id).distance(120))
-                .force('charge', d3.forceManyBody().strength(-500))
-                .force('center', d3.forceCenter(0, 0))
-                .force('collide', d3.forceCollide().radius(50));
-
-            // --- Interactivity ---
-            const linkedByIndex = new Map<string, Set<string>>();
-            links.forEach(d => {
-                // FIX: Before simulation, source and target can be string IDs. Accessing .id would cause a runtime error. This checks the type before accessing properties.
-                const sourceId = typeof d.source === 'string' ? d.source : (d.source as ConceptNode).id;
-                const targetId = typeof d.target === 'string' ? d.target : (d.target as ConceptNode).id;
-                if (!linkedByIndex.has(sourceId)) linkedByIndex.set(sourceId, new Set());
-                if (!linkedByIndex.has(targetId)) linkedByIndex.set(targetId, new Set());
-                linkedByIndex.get(sourceId)!.add(targetId);
-                linkedByIndex.get(targetId)!.add(sourceId);
-            });
-
-            const isConnected = (a: ConceptNode, b: ConceptNode) => {
-                return linkedByIndex.get(a.id)?.has(b.id) || linkedByIndex.get(b.id)?.has(a.id) || a.id === b.id;
-            }
-
-            const fade = (opacity: number) => (event: MouseEvent, d: ConceptNode) => {
-                node.transition().duration(200).style('opacity', n => isConnected(d, n) ? 1 : opacity);
-                link.transition().duration(200).style('opacity', l => (l.source as ConceptNode).id === d.id || (l.target as ConceptNode).id === d.id ? 1 : opacity);
-            };
-
-            node.on('mouseover', fade(0.1)).on('mouseout', fade(1));
-
-            const drag = (simulation: d3.Simulation<ConceptNode, undefined>) => {
-                const dragstarted = (event: d3.D3DragEvent<any, any, any>) => {
-                    if (!event.active) simulation.alphaTarget(0.3).restart();
-                    event.subject.fx = event.subject.x;
-                    event.subject.fy = event.subject.y;
-                }
-                const dragged = (event: d3.D3DragEvent<any, any, any>) => {
-                    event.subject.fx = event.x;
-                    event.subject.fy = event.y;
-                }
-                const dragended = (event: d3.D3DragEvent<any, any, any>) => {
-                    if (!event.active) simulation.alphaTarget(0);
-                    event.subject.fx = null;
-                    event.subject.fy = null;
-                }
-                return d3.drag<any, ConceptNode>().on('start', dragstarted).on('drag', dragged).on('end', dragended);
-            }
-            node.call(drag(simulation));
-
-            // --- Zoom ---
-            const zoom = d3.zoom<SVGSVGElement, unknown>()
-                .scaleExtent([0.2, 5])
-                .on('zoom', (event) => {
-                    svg.selectAll('g').attr('transform', event.transform);
-                });
-            svg.call(zoom);
-
-            simulation.on('tick', () => {
-                link
-                    // FIX: The d3 simulation adds x/y properties at runtime.
-                    // Casting to `any` helps TypeScript handle these dynamic properties which exist on the node objects after simulation starts.
-                    .attr('x1', d => (d.source as any).x!)
-                    .attr('y1', d => (d.source as any).y!)
-                    .attr('x2', d => (d.target as any).x!)
-                    .attr('y2', d => (d.target as any).y!);
-                node.attr('transform', d => `translate(${d.x},${d.y})`);
-            });
-        };
+        let selectedNode: ConceptNode | null = null;
         
-        render();
+        const node = g.append("g")
+            .attr("stroke", "#fff")
+            .attr("stroke-width", 1.5)
+            .selectAll("g")
+            .data(data.nodes)
+            .join("g")
+            .call(createDragHandler(simulation) as any)
+            .on("mouseover", (event, d) => {
+                tooltip.transition().duration(200).style("opacity", .9);
+                tooltip.html(`<strong>${d.id}</strong><br/>Group: ${d.group}`)
+                    .style("left", (event.pageX + 10) + "px")
+                    .style("top", (event.pageY - 28) + "px");
+            })
+            .on("mouseout", () => {
+                tooltip.transition().duration(500).style("opacity", 0);
+            })
+            .on("click", clickHandler);
 
-        const resizeObserver = new ResizeObserver(render);
-        resizeObserver.observe(containerRef.current!);
-
-        return () => {
-            resizeObserver.disconnect();
-        };
-
-    }, [data, isFullscreen]); // Re-render on data change or fullscreen toggle
-
-     const toggleFullscreen = () => {
-        const elem = containerRef.current;
-        if (!elem) return;
-
-        if (!document.fullscreenElement) {
-            elem.requestFullscreen().then(() => setIsFullscreen(true)).catch(err => {
-                alert(`Error attempting to enable full-screen mode: ${err.message} (${err.name})`);
-            });
-        } else {
-            document.exitFullscreen().then(() => setIsFullscreen(false));
+        function resetHighlights() {
+            selectedNode = null;
+            node.transition().duration(300).style('opacity', 1);
+            link.transition().duration(300).style('opacity', 0.6);
         }
-    };
-    
-    useEffect(() => {
-        const onFullscreenChange = () => setIsFullscreen(!!document.fullscreenElement);
-        document.addEventListener('fullscreenchange', onFullscreenChange);
-        return () => document.removeEventListener('fullscreenchange', onFullscreenChange);
-    }, []);
 
-    return (
-        <div ref={containerRef} className="relative w-full h-[600px] bg-slate-900 rounded-md border border-slate-700 overflow-hidden group">
-            <style>{`
-                .concept-node-circle {
-                    stroke: #f87171;
-                    stroke-width: 2px;
-                    animation: pulse 4s infinite;
+        function clickHandler(event: MouseEvent, d: ConceptNode) {
+            event.stopPropagation();
+            const isReselecting = selectedNode && selectedNode.id === d.id;
+            
+            if (isReselecting) {
+                resetHighlights();
+                return;
+            }
+
+            selectedNode = d;
+            const connectedNodes = new Set<string>();
+            connectedNodes.add(d.id);
+
+            link.each(function(l) {
+                const source = l.source as ConceptNode;
+                const target = l.target as ConceptNode;
+                if (source.id === d.id || target.id === d.id) {
+                    connectedNodes.add(source.id);
+                    connectedNodes.add(target.id);
                 }
-                .concept-node-group { cursor: grab; }
-                .concept-node-group:active { cursor: grabbing; }
-                .concept-node-label {
-                    fill: #cbd5e1;
-                    font-size: 13px;
-                    paint-order: stroke;
-                    stroke: #020617;
-                    stroke-width: 3px;
-                    stroke-linecap: butt;
-                    stroke-linejoin: miter;
-                    pointer-events: none;
-                }
-                .concept-link {
-                    stroke: #ef4444;
-                    stroke-opacity: 0.5;
-                    stroke-dasharray: 10 5;
-                    animation: energy-flow 1s linear infinite;
-                }
-            `}</style>
-            <svg ref={svgRef}></svg>
-            <Button
-                onClick={toggleFullscreen}
-                variant="secondary"
-                className="absolute bottom-3 right-3 opacity-50 group-hover:opacity-100 transition-opacity !p-2"
-                aria-label={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
-            >
-                {isFullscreen ? (
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M5 10a1 1 0 011-1h8a1 1 0 110 2H6a1 1 0 01-1-1z" clipRule="evenodd" /><path fillRule="evenodd" d="M10 5a1 1 0 011 1v8a1 1 0 11-2 0V6a1 1 0 011-1z" clipRule="evenodd" /></svg>
-                ) : (
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M4 10a1 1 0 011-1h10a1 1 0 110 2H5a1 1 0 01-1-1z" clipRule="evenodd" /></svg>
-                )}
-            </Button>
-        </div>
-    );
+            });
+
+            node.transition().duration(300).style("opacity", n => connectedNodes.has(n.id) ? 1 : 0.15);
+            link.transition().duration(300).style("opacity", l => {
+                const source = l.source as ConceptNode;
+                const target = l.target as ConceptNode;
+                return source.id === d.id || target.id === d.id ? 1 : 0.1;
+            });
+        }
+        
+        svg.on('click', resetHighlights);
+
+        const color = scaleOrdinal(schemeCategory10);
+        
+        node.append("circle")
+            .attr("r", 10)
+            .attr("fill", d => color(d.group.toString()));
+
+        node.append("text")
+            .attr("x", 12)
+            .attr("y", "0.31em")
+            .text(d => d.id)
+            .attr("fill", "#ccc")
+            .attr("stroke", "none")
+            .style("font-size", "12px");
+
+        simulation.on("tick", () => {
+            link
+                .attr("x1", d => (d.source as SimulationNodeDatum).x!)
+                .attr("y1", d => (d.source as SimulationNodeDatum).y!)
+                .attr("x2", d => (d.target as SimulationNodeDatum).x!)
+                .attr("y2", d => (d.target as SimulationNodeDatum).y!);
+            node
+                .attr("transform", d => `translate(${(d as SimulationNodeDatum).x!},${(d as SimulationNodeDatum).y!})`);
+        });
+
+        const zoomBehavior = zoom<SVGSVGElement, unknown>()
+            .scaleExtent([0.1, 4])
+            .on("zoom", (event) => g.attr("transform", event.transform));
+        svg.call(zoomBehavior);
+
+        function createDragHandler(simulation: Simulation<ConceptNode, undefined>) {
+            function dragstarted(event: any) {
+                if (!event.active) simulation.alphaTarget(0.3).restart();
+                event.subject.fx = event.subject.x;
+                event.subject.fy = event.subject.y;
+            }
+            function dragged(event: any) {
+                event.subject.fx = event.x;
+                event.subject.fy = event.y;
+            }
+            function dragended(event: any) {
+                if (!event.active) simulation.alphaTarget(0);
+                event.subject.fx = null;
+                event.subject.fy = null;
+            }
+            return drag()
+                .on("start", dragstarted)
+                .on("drag", dragged)
+                .on("end", dragended);
+        }
+        
+        return () => {
+            tooltip.remove();
+        };
+
+    }, [data, isFullscreen]);
+
+    return <svg ref={ref} className="w-full h-full min-h-[600px] bg-slate-950/50 rounded-md border border-slate-700 cursor-pointer"></svg>;
 };
 
 export const ConceptMap: React.FC = () => {
-    const { 
-        activeProject, projects,
-        isGeneratingConceptMap, generateConceptMapForActiveProject
-    } = useAppContext();
+    const { ingestedText, addNotification, language, llm } = useAppContext();
+    const [mapData, setMapData] = useState<ConceptMapData | null>(null);
+    const [isLoading, setIsLoading] = useState(false);
+    const [topic, setTopic] = useState('');
+    const [activeGenerator, setActiveGenerator] = useState<'text' | 'topic' | null>(null);
+    const [isFullscreen, setIsFullscreen] = useState(false);
+    const mapContainerRef = useRef<HTMLDivElement>(null);
 
-    const conceptMapData = useMemo(() => activeProject?.conceptMapData, [activeProject]);
+    useEffect(() => {
+        const handleFullscreenChange = () => {
+            setIsFullscreen(document.fullscreenElement !== null);
+        };
+        document.addEventListener('fullscreenchange', handleFullscreenChange);
+        return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+    }, []);
 
-    if (!projects.length) {
-        return <EmptyState 
-          title="Visualize Concepts"
-          message="Understand complex topics at a glance. Ingest your study material to automatically generate a concept map that shows the relationships between key ideas."
-        />;
+    const toggleFullscreen = () => {
+        if (!mapContainerRef.current) return;
+        if (!isFullscreen) {
+            mapContainerRef.current.requestFullscreen().catch(err => {
+                addNotification(`Error entering fullscreen mode: ${err.message}`, 'error');
+            });
+        } else {
+            document.exitFullscreen();
+        }
+    };
+
+    const handleBuildMap = useCallback(async () => {
+        if (!ingestedText) {
+            addNotification('Please ingest some text first.', 'info');
+            return;
+        }
+        setIsLoading(true);
+        setActiveGenerator('text');
+        setMapData(null);
+        try {
+            const result = await generateConceptMapData(llm, ingestedText, language);
+            if (result && result.nodes && result.links) {
+                const nodeIds = new Set(result.nodes.map(n => n.id));
+                const sanitizedLinks = result.links.filter(link => 
+                    nodeIds.has(link.source as string) && nodeIds.has(link.target as string)
+                );
+                setMapData({ nodes: result.nodes, links: sanitizedLinks });
+            } else {
+                setMapData(result);
+            }
+        } catch (e: any) {
+            addNotification(e.message);
+        } finally {
+            setIsLoading(false);
+            setActiveGenerator(null);
+        }
+    }, [ingestedText, addNotification, language, llm]);
+
+    const handleGenerateFromTopic = useCallback(async () => {
+        if (!topic.trim()) {
+            addNotification('Please enter a topic.', 'info');
+            return;
+        }
+        setIsLoading(true);
+        setActiveGenerator('topic');
+        setMapData(null);
+        try {
+            const result = await generateConceptMapForTopic(llm, topic, language);
+            if (result && result.nodes && result.links) {
+                const nodeIds = new Set(result.nodes.map(n => n.id));
+                const sanitizedLinks = result.links.filter(link => 
+                    nodeIds.has(link.source as string) && nodeIds.has(link.target as string)
+                );
+                setMapData({ nodes: result.nodes, links: sanitizedLinks });
+            } else {
+                setMapData(result);
+            }
+        } catch (e: any) {
+            addNotification(e.message);
+        } finally {
+            setIsLoading(false);
+            setActiveGenerator(null);
+        }
+    }, [topic, addNotification, language, llm]);
+
+    const isTextLoading = isLoading && activeGenerator === 'text';
+    const isTopicLoading = isLoading && activeGenerator === 'topic';
+
+    if (!ingestedText && !mapData) {
+        return (
+            <Card title="Concept Map">
+                 <div className="space-y-6">
+                    <div className="flex flex-col sm:flex-row gap-4 items-center">
+                        <Button onClick={handleBuildMap} disabled={true} className="w-full sm:w-auto">
+                            Build from Ingested Text
+                        </Button>
+                        <div className="w-full flex items-center gap-2">
+                            <input
+                                type="text"
+                                value={topic}
+                                onChange={(e) => setTopic(e.target.value)}
+                                placeholder="Generate map from a topic..."
+                                className="w-full bg-slate-900 border border-slate-700 rounded-md p-2 text-slate-300 focus:ring-2 focus:ring-red-500 focus:outline-none transition"
+                                disabled={isLoading}
+                            />
+                            <Button onClick={handleGenerateFromTopic} variant="secondary" disabled={!topic.trim() || isLoading} className="flex-shrink-0">
+                                {isTopicLoading ? 'Building...' : 'Generate'}
+                            </Button>
+                        </div>
+                    </div>
+                     <EmptyState 
+                        title="Visualize Your Notes"
+                        message="Ingest text to generate a concept map, or enter a topic above to create one from scratch."
+                    />
+                 </div>
+            </Card>
+        )
     }
-    
-    if (!activeProject) {
-        return <EmptyState 
-          title="Select a Study"
-          message="Please select a study from the sidebar to visualize its concept map, or create a new one."
-        />;
-    }
-    
-    const hasData = !!conceptMapData;
 
     return (
         <Card title="Concept Map">
             <div className="space-y-6">
-                <div>
-                    <Button onClick={generateConceptMapForActiveProject} disabled={isGeneratingConceptMap}>
-                        {isGeneratingConceptMap ? 'Generating...' : hasData ? 'Re-generate Map' : 'Generate Concept Map'}
+                <div className="flex flex-col sm:flex-row gap-4 items-center">
+                    <Button onClick={handleBuildMap} disabled={!ingestedText || isLoading} className="w-full sm:w-auto">
+                        {isTextLoading ? 'Building from text...' : 'Build from Ingested Text'}
                     </Button>
-                </div>
-                {isGeneratingConceptMap && (
-                    <div className="flex flex-col items-center gap-4 py-8">
-                        <Loader />
-                        <p className="text-slate-400">Analyzing relationships and building map...</p>
+                    <div className="w-full flex items-center gap-2">
+                        <input
+                            type="text"
+                            value={topic}
+                            onChange={(e) => setTopic(e.target.value)}
+                            placeholder="Or generate map from a topic..."
+                            className="w-full bg-slate-900 border border-slate-700 rounded-md p-2 text-slate-300 focus:ring-2 focus:ring-red-500 focus:outline-none transition"
+                            disabled={isLoading}
+                        />
+                        <Button onClick={handleGenerateFromTopic} variant="secondary" disabled={!topic.trim() || isLoading} className="flex-shrink-0">
+                            {isTopicLoading ? 'Building...' : 'Generate'}
+                        </Button>
                     </div>
-                )}
-                {hasData && !isGeneratingConceptMap && (
-                    <div className="fade-in">
-                        <D3Graph data={conceptMapData} />
+                </div>
+                {isLoading && <Loader />}
+                {mapData && mapData.nodes.length > 0 && (
+                    <div ref={mapContainerRef} className="relative fade-in bg-slate-950">
+                        <button onClick={toggleFullscreen} className="absolute top-2 right-2 z-10 p-2 bg-slate-800/50 hover:bg-red-600 rounded-full text-slate-300 hover:text-white transition-colors" aria-label={isFullscreen ? 'Exit full-screen' : 'Enter full-screen'}>
+                            {isFullscreen ? (
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                  <path fillRule="evenodd" d="M5 5a1 1 0 011-1h2a1 1 0 110 2H6v1a1 1 0 11-2 0V5zm10 0a1 1 0 011 1v1a1 1 0 11-2 0V6h-1a1 1 0 110-2h2zM5 15a1 1 0 011 1h1a1 1 0 110 2H6a1 1 0 01-1-1v-2a1 1 0 112 0v1zm11-1a1 1 0 10-2 0v1h-1a1 1 0 100 2h2a1 1 0 001-1v-2z" clipRule="evenodd" />
+                                </svg>
+                            ) : (
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fillRule="evenodd" d="M3 5a1 1 0 011-1h2a1 1 0 110 2H5v1a1 1 0 11-2 0V5zm12 0a1 1 0 011 1v2a1 1 0 11-2 0V6h-1a1 1 0 110-2h2zM5 13a1 1 0 100 2h1v1a1 1 0 102 0v-2a1 1 0 00-1-1H5zm11-1a1 1 0 10-2 0v2a1 1 0 001 1h2a1 1 0 100-2h-1v-1z" clipRule="evenodd" />
+                                </svg>
+                            )}
+                        </button>
+                        <D3Graph data={mapData} isFullscreen={isFullscreen} />
                     </div>
                 )}
             </div>

@@ -1,36 +1,45 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { useAppContext } from '../../context/AppContext';
-import { performSemanticSearch } from '../../services/api';
+import { performSemanticSearch } from '../../services/geminiService';
 import { Button } from '../ui/Button';
 import { Card } from '../ui/Card';
 import { Loader } from '../ui/Loader';
 import { Slider } from '../ui/Slider';
 import { EmptyState } from '../ui/EmptyState';
 
+const SEARCH_HISTORY_KEY = 'semanticSearchHistory';
+
 export const SemanticSearch: React.FC = () => {
-  const { activeProject, updateActiveProjectData, addNotification, llm, projects } = useAppContext();
-  const searchHistory = activeProject?.semanticSearchHistory || [];
-  
+  const { ingestedText, addNotification, llm } = useAppContext();
   const [query, setQuery] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [topK, setTopK] = useState(4);
   const [results, setResults] = useState<string[]>([]);
   const [searchAttempted, setSearchAttempted] = useState(false);
+  const [searchHistory, setSearchHistory] = useState<string[]>([]);
 
   useEffect(() => {
-    setQuery('');
-    setResults([]);
-    setSearchAttempted(false);
-  }, [activeProject]);
+    try {
+      const storedHistory = localStorage.getItem(SEARCH_HISTORY_KEY);
+      if (storedHistory) {
+        setSearchHistory(JSON.parse(storedHistory));
+      }
+    } catch (error) {
+      console.error("Failed to parse search history from localStorage", error);
+    }
+  }, []);
 
   const updateSearchHistory = (newQuery: string) => {
     const updatedHistory = [newQuery, ...searchHistory.filter(item => item.toLowerCase() !== newQuery.toLowerCase())].slice(0, 10);
-    updateActiveProjectData({ semanticSearchHistory: updatedHistory });
+    setSearchHistory(updatedHistory);
+    localStorage.setItem(SEARCH_HISTORY_KEY, JSON.stringify(updatedHistory));
   };
 
   const runSearch = useCallback(async (currentQuery: string) => {
-    if (!activeProject) return;
-    
+    if (!ingestedText) {
+      addNotification('Please ingest some text first.', 'info');
+      return;
+    }
     if (!currentQuery.trim()) {
       addNotification('Please enter a search query.', 'info');
       return;
@@ -40,14 +49,14 @@ export const SemanticSearch: React.FC = () => {
     setResults([]);
     try {
       updateSearchHistory(currentQuery);
-      const searchResults = await performSemanticSearch(llm, activeProject.ingestedText, currentQuery, topK);
+      const searchResults = await performSemanticSearch(llm, ingestedText, currentQuery, topK);
       setResults(searchResults);
     } catch (e: any) {
       addNotification(e.message);
     } finally {
       setIsLoading(false);
     }
-  }, [activeProject, topK, addNotification, llm, updateActiveProjectData]);
+  }, [ingestedText, topK, addNotification, searchHistory, llm]);
   
   const handleSearch = () => {
     runSearch(query);
@@ -59,23 +68,16 @@ export const SemanticSearch: React.FC = () => {
   };
 
   const clearHistory = () => {
-    updateActiveProjectData({ semanticSearchHistory: [] });
+    setSearchHistory([]);
+    localStorage.removeItem(SEARCH_HISTORY_KEY);
   };
 
-  if (!projects.length) {
+  if (!ingestedText) {
     return <EmptyState 
       title="Semantic Search"
       message="Find the most relevant information in your notes. Ingest your study material to enable powerful, meaning-based search."
     />;
   }
-  
-  if (!activeProject) {
-    return <EmptyState 
-      title="Select a Study"
-      message="Please select a study from the sidebar to perform a search, or create a new one."
-    />;
-  }
-
 
   return (
     <Card title="Semantic Search">

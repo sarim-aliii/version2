@@ -35,13 +35,11 @@ export const TodoList: React.FC = () => {
     };
     
     const handleDeleteTodo = (id: number) => {
-        // Add deleting flag for animation
         setTodos(
             todos.map(todo =>
                 todo.id === id ? { ...todo, deleting: true } : todo
             )
         );
-        // Remove from state after animation
         setTimeout(() => {
             setTodos(prevTodos => prevTodos.filter(todo => todo.id !== id));
         }, 500);

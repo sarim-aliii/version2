@@ -1,4 +1,3 @@
-
 import React from 'react';
 
 export const Loader: React.FC<{ spinnerClassName?: string }> = ({ spinnerClassName = 'w-16 h-16' }) => {

@@ -1,5 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import { useAppContext } from '../../context/AppContext';
+import { generateStudyPlan } from '../../services/geminiService';
 import { Button } from '../ui/Button';
 import { Card } from '../ui/Card';
 import { Loader } from '../ui/Loader';
@@ -27,24 +28,33 @@ const StudyPlanDisplay: React.FC<{ plan: StudyPlan }> = ({ plan }) => (
 );
 
 export const StudyPlanner: React.FC = () => {
-    const { 
-        activeProject, projects, 
-        isGeneratingStudyPlan, generateStudyPlanForActiveProject
-    } = useAppContext();
-    const studyPlan = activeProject?.studyPlan ?? null;
-    
+    const { ingestedText, addNotification, language, llm } = useAppContext();
     const [days, setDays] = useState(7);
+    const [isLoading, setIsLoading] = useState(false);
+    const [studyPlan, setStudyPlan] = useState<StudyPlan | null>(null);
 
-    const handleGenerate = useCallback(() => {
-        generateStudyPlanForActiveProject(days);
-    }, [days, generateStudyPlanForActiveProject]);
+    const handleGenerate = useCallback(async () => {
+        if (!ingestedText) {
+            addNotification('Please ingest your study material first.', 'info');
+            return;
+        }
+        setIsLoading(true);
+        setStudyPlan(null);
+        try {
+            const plan = await generateStudyPlan(llm, ingestedText, days, language);
+            setStudyPlan(plan);
+        } catch (e: any) {
+            addNotification(e.message);
+        } finally {
+            setIsLoading(false);
+        }
+    }, [ingestedText, days, addNotification, language, llm]);
 
-    if (!projects.length) {
-        return <EmptyState title="Personalized Study Planner" message="Beat procrastination. Ingest your notes, set your study timeframe, and get a custom day-by-day plan to prepare for your exam." />;
-    }
-    
-    if (!activeProject) {
-        return <EmptyState title="Select a Study" message="Please select a study from the sidebar to create a study plan, or start a new one." />;
+    if (!ingestedText) {
+        return <EmptyState
+            title="Personalized Study Planner"
+            message="Beat procrastination. Ingest your notes, set your study timeframe, and get a custom day-by-day plan to prepare for your exam."
+        />;
     }
 
     return (
@@ -54,12 +64,12 @@ export const StudyPlanner: React.FC = () => {
                     <div className="w-full sm:w-1/2">
                        <Slider label="How many days to study?" min={1} max={30} value={days} onChange={setDays} />
                     </div>
-                    <Button onClick={handleGenerate} disabled={isGeneratingStudyPlan} className="w-full sm:w-auto flex-shrink-0">
-                        {isGeneratingStudyPlan ? 'Generating...' : 'Generate Study Plan'}
+                    <Button onClick={handleGenerate} disabled={isLoading} className="w-full sm:w-auto flex-shrink-0">
+                        {isLoading ? 'Generating...' : 'Generate Study Plan'}
                     </Button>
                 </div>
-                {isGeneratingStudyPlan && <Loader />}
-                {studyPlan && !isGeneratingStudyPlan && (
+                {isLoading && <Loader />}
+                {studyPlan && (
                     <div className="fade-in mt-4">
                         <StudyPlanDisplay plan={studyPlan} />
                     </div>

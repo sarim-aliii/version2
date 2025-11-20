@@ -1,18 +1,22 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { useAppContext } from '../../context/AppContext';
+import { generateFlashcards } from '../../services/geminiService';
 import { Button } from '../ui/Button';
 import { Card } from '../ui/Card';
 import { Loader } from '../ui/Loader';
 import { SRFlashcard } from '../../types';
 import { EmptyState } from '../ui/EmptyState';
+import useLocalStorage from '../../hooks/useLocalStorage';
 
 type StudyQuality = 0 | 1 | 2 | 3; // 0: Again, 1: Hard, 2: Good, 3: Easy
+
+const SRS_KEY = 'srs-flashcards';
 
 const Flashcard: React.FC<{ card: SRFlashcard; onGraded: (quality: StudyQuality) => void; isStudySession: boolean; }> = ({ card, onGraded, isStudySession }) => {
     const [isFlipped, setIsFlipped] = useState(false);
 
     useEffect(() => {
-        setIsFlipped(false); // Reset flip state when card changes
+        setIsFlipped(false);
     }, [card]);
 
     return (
@@ -44,13 +48,9 @@ const Flashcard: React.FC<{ card: SRFlashcard; onGraded: (quality: StudyQuality)
 };
 
 export const Flashcards: React.FC = () => {
-    const { 
-        activeProject, projects, addNotification, updateProjectData,
-        isGeneratingFlashcards, generateFlashcardsForActiveProject,
-    } = useAppContext();
-    const srsCards = activeProject?.srsFlashcards || [];
-    
-    // Local UI state
+    const { ingestedText, addNotification, language, llm } = useAppContext();
+    const [srsCards, setSrsCards] = useLocalStorage<SRFlashcard[]>(SRS_KEY, []);
+    const [isLoading, setIsLoading] = useState(false);
     const [isStudying, setIsStudying] = useState(false);
     const [studyQueue, setStudyQueue] = useState<SRFlashcard[]>([]);
     const [currentCardIndex, setCurrentCardIndex] = useState(0);
@@ -74,17 +74,49 @@ export const Flashcards: React.FC = () => {
         setIsStudying(true);
     };
 
+    const handleGenerateFlashcards = useCallback(async () => {
+        if (!ingestedText) {
+            addNotification('Please ingest some text first.', 'info');
+            return;
+        }
+        setIsLoading(true);
+        try {
+            const results = await generateFlashcards(llm, ingestedText, language);
+            const now = new Date().toISOString();
+            const newCards: SRFlashcard[] = results.map(r => ({
+                ...r,
+                id: r.question,
+                easeFactor: 2.5,
+                interval: 0,
+                dueDate: now,
+            }));
+            setSrsCards(prev => [...prev.filter(pc => !newCards.some(nc => nc.id === pc.id)), ...newCards]);
+            addNotification("New flashcards have been added to your deck.", "success");
+        } 
+        catch (e: any) {
+            addNotification(e.message);
+        } finally {
+            setIsLoading(false);
+        }
+    }, [ingestedText, addNotification, language, llm, setSrsCards]);
+
     const gradeCard = (quality: StudyQuality) => {
-        if (!activeProject) return;
-        
         const card = studyQueue[currentCardIndex];
         let { easeFactor, interval } = card;
 
-        if (quality < 2) { interval = 1; } 
+        if (quality < 2) { 
+            interval = 1;
+        } 
         else {
-            if (interval === 0) interval = 1;
-            else if (interval === 1) interval = 6;
-            else interval = Math.round(interval * easeFactor);
+            if (interval === 0) {
+                interval = 1;
+            } 
+            else if (interval === 1) {
+                interval = 6;
+            } 
+            else {
+                interval = Math.round(interval * easeFactor);
+            }
         }
         
         easeFactor = easeFactor + (0.1 - (3 - quality) * (0.08 + (3 - quality) * 0.02));
@@ -92,31 +124,24 @@ export const Flashcards: React.FC = () => {
 
         const dueDate = new Date();
         dueDate.setDate(dueDate.getDate() + interval);
+
         const updatedCard: SRFlashcard = { ...card, easeFactor, interval, dueDate: dueDate.toISOString() };
-        
-        const updatedDeck = srsCards.map(c => c.id === updatedCard.id ? updatedCard : c);
-        // FIX: Ensure the correct project identifier `_id` is used when updating data.
-        updateProjectData(activeProject._id, { srsFlashcards: updatedDeck });
+
+        setSrsCards(srsCards.map(c => c.id === updatedCard.id ? updatedCard : c));
 
         if (currentCardIndex < studyQueue.length - 1) {
             setCurrentCardIndex(currentCardIndex + 1);
-        } else {
+        } 
+        else {
             setIsStudying(false);
             addNotification("Study session complete!", "success");
         }
     };
 
-    if (!projects.length) {
+    if (!ingestedText && srsCards.length === 0) {
         return <EmptyState 
           title="SRS Flashcards"
           message="Upload or paste your study material in the 'Ingest' tab to automatically create smart flashcards that optimize your study sessions for long-term memory."
-        />;
-    }
-
-    if (!activeProject) {
-        return <EmptyState 
-          title="Select a Study"
-          message="Please select a study from the sidebar to view its flashcards, or create a new one."
         />;
     }
 
@@ -133,14 +158,14 @@ export const Flashcards: React.FC = () => {
         <Card title="SRS Flashcards">
             <div className="space-y-6">
                 <div className="flex flex-col sm:flex-row gap-4">
-                    <Button onClick={generateFlashcardsForActiveProject} disabled={isGeneratingFlashcards}>
-                        {isGeneratingFlashcards ? 'Generating...' : 'Generate from Ingested Text'}
+                    <Button onClick={handleGenerateFlashcards} disabled={isLoading || !ingestedText}>
+                        {isLoading ? 'Generating...' : 'Generate from Ingested Text'}
                     </Button>
                     <Button onClick={startStudySession} disabled={cardsDueCount === 0}>
                         Study Due Cards ({cardsDueCount})
                     </Button>
                 </div>
-                {isGeneratingFlashcards && <Loader />}
+                {isLoading && <Loader />}
                 
                 <div className="fade-in">
                     <h3 className="text-xl font-semibold text-slate-200 mb-2">Full Deck ({srsCards.length} cards)</h3>

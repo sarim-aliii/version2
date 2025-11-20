@@ -6,12 +6,10 @@ const Toast: React.FC<{ notification: Notification; onDismiss: (id: number) => v
     const [isVisible, setIsVisible] = useState(false);
 
     useEffect(() => {
-        // Mount animation
         setIsVisible(true);
-        // Set up unmount animation
         const timer = setTimeout(() => {
             setIsVisible(false);
-        }, 4500); // Start fade out 500ms before removal
+        }, 4500);
 
         return () => clearTimeout(timer);
     }, []);
