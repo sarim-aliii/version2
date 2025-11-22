@@ -1,8 +1,7 @@
-// sarim-aliii/version2/version2-1493846b30acdc91c679cab38a402d8b18ff91c6/services/api.ts
 import axios from 'axios';
 import { LoginCredentials, SignupCredentials, StudyProject, Flashcard, MCQ as MCQType } from '../types';
 
-const API_URL = '/api'; // Using proxy to point to the backend server
+const API_URL = '/api';
 
 const api = axios.create({
   baseURL: API_URL,
@@ -20,14 +19,11 @@ export const setAuthToken = (token: string | null) => {
   }
 };
 
-// Interceptor to handle API errors globally
 api.interceptors.response.use(
   (response) => response,
   (error) => {
     const message =
       error.response?.data?.message || error.message || 'An unknown error occurred';
-    // Optionally log the error to a service
-    // logError(error);
     return Promise.reject(new Error(message));
   }
 );
@@ -44,13 +40,11 @@ export const signup = async (credentials: SignupCredentials) => {
   return data;
 };
 
-// ADDED: googleLogin
 export const googleLogin = async (idToken: string) => {
   const { data } = await api.post('/auth/google', { idToken });
   return data;
 };
 
-// ADDED: githubLogin
 export const githubLogin = async (idToken: string) => {
   const { data } = await api.post('/auth/github', { idToken });
   return data;
@@ -81,8 +75,6 @@ export const deleteProject = async (id: string) => {
     await api.delete(`/projects/${id}`);
 };
 
-// --- Gemini AI ---
-// ... (rest of the file is unchanged) ...
 export const generateContent = async (
     projectId: string, 
     feature: 'summary' | 'flashcards' | 'tutor' | 'concept-map' | 'lesson-plan' | 'study-plan', 
@@ -107,15 +99,11 @@ export const generatePersonalizedStudyGuide = async (llm: string, text: string, 
     return data;
 };
 
-// ... (existing functions: login, signup, getProfile, projects, generateContent, extractTextFromFile) ...
-
-// --- Functions for Ingest.tsx ---
 export const fetchTopicInfo = async (llm: string, topic: string, language: string): Promise<string> => {
   const { data } = await api.post('/gemini/topic-info', { llm, topic, language });
   return data;
 };
 
-// --- Functions for VoiceQA.tsx ---
 export const transcribeAudio = async (llm: string, base64Data: string, fileType: string): Promise<string> => {
     const { data } = await api.post('/gemini/transcribe', { llm, base64Data, fileType });
     return data;
@@ -136,11 +124,29 @@ export const generateAnswer = async (llm: string, text: string, question: string
     return data;
 };
 
-// --- Functions for SemanticSearch.tsx ---
 export const performSemanticSearch = async (llm: string, text: string, query: string, topK: number): Promise<string[]> => {
     const { data } = await api.post('/gemini/semantic-search', { text, query, topK });
     return data as string[];
 };
 
-// Export the configured instance if direct use is needed elsewhere
+export const updateProfile = async (userData: { name?: string; avatar?: string }) => {
+  const { data } = await api.put('/auth/profile', userData);
+  return data;
+};
+
+export const verifyEmail = async (token: string) => {
+  const { data } = await api.post('/auth/verify-email', { token });
+  return data;
+};
+
+export const forgotPassword = async (email: string) => {
+  const { data } = await api.post('/auth/forgot-password', { email });
+  return data;
+};
+
+export const resetPassword = async (token: string, password: string) => {
+  const { data } = await api.post('/auth/reset-password', { token, password });
+  return data;
+};
+
 export default api;

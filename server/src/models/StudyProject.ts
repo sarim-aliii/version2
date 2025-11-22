@@ -6,10 +6,9 @@ import {
     EssayOutline, 
     ConceptMapData, 
     LessonPlan, 
-    StudyPlan 
+    StudyPlan,
 } from '../../../types';
 
-// Interface for StudyProject document properties
 interface IStudyProject {
   name: string;
   owner: mongoose.Schema.Types.ObjectId;
@@ -26,7 +25,8 @@ interface IStudyProject {
   conceptMapData?: ConceptMapData;
   lessonPlan?: LessonPlan;
   studyPlan?: StudyPlan;
-  chunks?: StudyPlan;
+  chunks?: string[];
+  embeddings?: number[][];
 }
 
 
@@ -61,7 +61,7 @@ const studyProjectSchema = new Schema<IStudyProjectDocument, IStudyProjectModel>
   conceptMapData: { type: Object },
   lessonPlan: { type: Object },
   studyPlan: { type: Object },
-  chunks: { type: [String], default: [] },
+  chunks: { type: [String], default: [] }, 
   embeddings: { type: [[Number]], default: [] },
   srsFlashcards: [FlashcardSchema],
 }, {

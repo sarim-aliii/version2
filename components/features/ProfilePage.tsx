@@ -1,11 +1,13 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useAppContext } from '../../context/AppContext';
 import { Button } from '../ui/Button';
 import { Card } from '../ui/Card';
 import { AVATARS, AVATAR_KEYS } from '../ui/avatars';
 
 export const ProfilePage: React.FC = () => {
-    const { currentUser, logout, updateUserAvatar } = useAppContext();
+    const { currentUser, logout, updateUserAvatar, updateUserName } = useAppContext();
+    const [isEditing, setIsEditing] = useState(false);
+    const [newName, setNewName] = useState(currentUser?.name || '');
 
     if (!currentUser) {
         return null;
@@ -13,6 +15,13 @@ export const ProfilePage: React.FC = () => {
 
     const currentAvatarKey = currentUser.avatar || 'avatar-1';
     const CurrentAvatarComponent = AVATARS[currentAvatarKey];
+
+    const handleSaveName = async () => {
+        if (newName.trim() !== '') {
+            await updateUserName(newName);
+            setIsEditing(false);
+        }
+    };
 
     return (
         <Card title="Profile" className="max-w-3xl mx-auto fade-in">
@@ -24,10 +33,38 @@ export const ProfilePage: React.FC = () => {
                         </div>
                     </div>
 
-                    <div className="text-center sm:text-left">
-                        <h2 className="text-2xl font-semibold text-slate-100 break-all">{currentUser.email}</h2>
-                        <p className="text-sm text-slate-400">Kairon AI User</p>
+                    <div className="text-center sm:text-left flex-1">
+                        <div className="flex flex-col sm:items-start items-center gap-2">
+                            {isEditing ? (
+                                <div className="flex items-center gap-2">
+                                    <input 
+                                        type="text" 
+                                        value={newName}
+                                        onChange={(e) => setNewName(e.target.value)}
+                                        className="bg-slate-900 border border-slate-700 rounded px-3 py-1 text-slate-100 focus:ring-2 focus:ring-red-500 outline-none"
+                                    />
+                                    <button onClick={handleSaveName} className="text-green-400 hover:text-green-300 text-sm">Save</button>
+                                    <button onClick={() => setIsEditing(false)} className="text-slate-500 hover:text-slate-400 text-sm">Cancel</button>
+                                </div>
+                            ) : (
+                                <div className="flex items-center gap-3">
+                                    <h2 className="text-2xl font-semibold text-slate-100">
+                                        {currentUser.name || 'User'}
+                                    </h2>
+                                    <button 
+                                        onClick={() => { setIsEditing(true); setNewName(currentUser.name || ''); }}
+                                        className="text-slate-500 hover:text-red-400"
+                                    >
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                            <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+                                        </svg>
+                                    </button>
+                                </div>
+                            )}
+                            <p className="text-sm text-slate-400 break-all">{currentUser.email}</p>
+                        </div>
                     </div>
+                    
                      <div className="w-full sm:w-auto sm:ml-auto">
                          <Button onClick={logout} variant="secondary" className="w-full">
                             Logout

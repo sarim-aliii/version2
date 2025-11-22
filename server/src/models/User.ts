@@ -1,16 +1,19 @@
-// sarim-aliii/version2/version2-1493846b30acdc91c679cab38a402d8b18ff91c6/server/src/models/User.ts
 import mongoose, { Document, Model } from 'mongoose';
 import bcrypt from 'bcryptjs';
 
-// Interface for User document properties
+
 interface IUser {
   email: string;
-  password?: string; // <-- Made password optional
+  password?: string; 
+  name?: string;
   avatar?: string;
-  authMethod?: 'email' | 'google' | 'github'; // <-- Added authMethod
+  authMethod?: 'email' | 'google' | 'github';
+  isVerified?: boolean;
+  verificationToken?: string;
+  resetPasswordToken?: string;
+  resetPasswordExpire?: Date;
 }
 
-// Interface for User document methods
 interface IUserMethods {
   matchPassword(enteredPassword: string): Promise<boolean>;
 }
@@ -29,24 +32,30 @@ const userSchema = new mongoose.Schema<IUserDocument, IUserModel>({
   },
   password: {
     type: String,
-    required: false, // <-- Set to false
+    required: false,
   },
   avatar: {
     type: String,
     default: 'avatar-1',
   },
-  authMethod: { // <-- Added authMethod to schema
+  name: {
+    type: String,
+    default: 'Kairon User', 
+  },
+  authMethod: {
     type: String,
     enum: ['email', 'google', 'github'],
     default: 'email',
   },
+  isVerified: { type: Boolean, default: false },
+  verificationToken: String,
+  resetPasswordToken: String,
+  resetPasswordExpire: Date,
 }, {
   timestamps: true,
 });
 
-// Middleware to hash password before saving
 userSchema.pre<IUserDocument>('save', async function (next) {
-  // Only hash if password exists and is modified
   if (!this.isModified('password') || !this.password) {
     return next();
   }
@@ -55,9 +64,9 @@ userSchema.pre<IUserDocument>('save', async function (next) {
   next();
 });
 
-// Method to compare entered password with hashed password
+
 userSchema.methods.matchPassword = async function (enteredPassword: string) {
-  if (!this.password) return false; // <-- Handle users with no password
+  if (!this.password) return false;
   return await bcrypt.compare(enteredPassword, this.password);
 };
 

@@ -122,6 +122,7 @@ export interface StudyPlan {
 export interface User {
     _id: string;
     email: string;
+    name: string;
     avatar?: string;
 }
 
@@ -132,7 +133,6 @@ export interface StudyProject {
   createdAt: string; // ISO string
   ingestedText: string;
   status?: 'processing' | 'ready' | 'error';
-  // Store generated data for each feature
   summary?: string;
   srsFlashcards?: SRFlashcard[];
   mcqAttempts?: MCQAttempt[];
@@ -146,7 +146,6 @@ export interface StudyProject {
   studyPlan?: StudyPlan;
 }
 
-// FIX: Add missing type definitions for credentials and AI options.
 export interface LoginCredentials {
     email: string;
     password: string;

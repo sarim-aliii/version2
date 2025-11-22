@@ -17,9 +17,8 @@ export const Sidebar: React.FC = () => {
                         onChange={(e) => setLlm(e.target.value)}
                         className="w-full text-sm text-slate-200 bg-slate-800 p-2 rounded border border-slate-700 focus:ring-2 focus:ring-red-500 focus:outline-none"
                     >
-                        {/* FIX: Changed from 2.5 to 1.5 which is the current stable version */}
-                        <option value="gemini-1.5-flash">gemini-1.5-flash</option>
-                        <option value="gemini-1.5-pro">gemini-1.5-pro</option>
+                        <option value="gemini-1.5-flash-latest">gemini-1.5-flash</option>
+                        <option value="gemini-1.5-pro-latest">gemini-1.5-pro</option>
                     </select>
                     <p className="text-xs text-slate-500 mt-1">Using the recommended model for optimal performance and quality.</p>
                 </div>

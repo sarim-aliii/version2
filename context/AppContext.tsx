@@ -7,7 +7,6 @@ import {
     StudyProject, 
     ChatMessage, 
     Flashcard, 
-    EssayOutline, 
     LessonPlan, 
     StudyPlan,
     ConceptMapData,
@@ -30,13 +29,16 @@ interface AppContextType {
     signup: (credentials: SignupCredentials) => Promise<void>;
     logout: () => void;
     verifyEmail: (token: string) => Promise<void>;
+    requestPasswordReset: (email: string) => Promise<void>;
     resetPassword: (token: string, newPassword: string) => Promise<void>;
     updateUserAvatar: (avatar: string) => Promise<void>;
+    updateUserName: (name: string) => Promise<void>;
 
     // Projects
     projects: StudyProject[];
     activeProjectId: string | null;
     activeProject: StudyProject | null;
+    ingestedText: string; // <--- ADDED THIS
     loadProject: (id: string) => void;
     startNewStudy: () => Promise<void>;
     renameProject: (id: string, newName: string) => Promise<void>;
@@ -94,7 +96,7 @@ export const AppProvider: React.FC<{children: ReactNode}> = ({ children }) => {
     const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     const [notifications, setNotifications] = useState<Notification[]>([]);
     
-    const [llm, setLlm] = useLocalStorage('llm', 'gemini-2.5-flash');
+    const [llm, setLlm] = useLocalStorage('llm', 'gemini-1.5-flash'); 
     const [language, setLanguage] = useLocalStorage('language', 'English');
     
     // Loading states
@@ -106,7 +108,9 @@ export const AppProvider: React.FC<{children: ReactNode}> = ({ children }) => {
     const [isGeneratingStudyPlan, setIsGeneratingStudyPlan] = useState(false);
     
     const isAuthenticated = !!userToken && !!currentUser;
+    
     const activeProject = projects.find(p => p._id === activeProjectId) || null;
+    const ingestedText = activeProject?.ingestedText || ''; 
 
     // Notifications
     const addNotification = useCallback((message: string, type: NotificationType = 'error') => {
@@ -121,14 +125,27 @@ export const AppProvider: React.FC<{children: ReactNode}> = ({ children }) => {
         setNotifications(prev => prev.filter(n => n.id !== id));
     }, []);
 
+    const updateUserName = async (name: string) => {
+        if (!currentUser) return;
+        try {
+            const updatedUser = await api.updateProfile({ name });
+            setCurrentUser(updatedUser);
+            addNotification("Username updated!", "success");
+        } catch (error: any) {
+            addNotification(error.message || "Failed to update username");
+        }
+    };
+
     // Auth
     const login = async (credentials: LoginCredentials) => {
         try {
             const data = await api.login(credentials);
             setUserToken(data.token);
-            setCurrentUser({ _id: data._id, email: data.email, avatar: data.avatar });
+            setCurrentUser({ _id: data._id, name:data.name, email: data.email, avatar: data.avatar });
             api.setAuthToken(data.token);
-            await fetchProjects();
+            const fetchedProjects = await api.getProjects();
+            setProjects(fetchedProjects);
+            if (fetchedProjects.length > 0) setActiveProjectId(fetchedProjects[0]._id);
         } catch (error: any) {
             addNotification(error.message || 'Login failed.');
             throw error;
@@ -139,7 +156,7 @@ export const AppProvider: React.FC<{children: ReactNode}> = ({ children }) => {
         try {
             const data = await api.signup(credentials);
             setUserToken(data.token);
-            setCurrentUser({ _id: data._id, email: data.email, avatar: data.avatar });
+            setCurrentUser({ _id: data._id, name:data.name, email: data.email, avatar: data.avatar });
             api.setAuthToken(data.token);
             setProjects([]);
             setActiveProjectId(null);
@@ -149,21 +166,23 @@ export const AppProvider: React.FC<{children: ReactNode}> = ({ children }) => {
         }
     };
     
-    const logout = () => {
+    const logout = useCallback(() => {
         setUserToken(null);
         setCurrentUser(null);
         setProjects([]);
         setActiveProjectId(null);
         api.setAuthToken(null);
         setActiveTab(Tab.Ingest);
-    };
+    }, [setUserToken, setActiveProjectId, setActiveTab]);
 
-    // Generic handler for successful social login
     const handleSocialLoginSuccess = (data: any, providerName: string) => {
         setUserToken(data.token);
-        setCurrentUser({ _id: data._id, email: data.email, avatar: data.avatar });
+        setCurrentUser({ _id: data._id, name:data.name, email: data.email, avatar: data.avatar });
         api.setAuthToken(data.token);
-        fetchProjects(); // Don't await, let it load in background
+        api.getProjects().then(projects => {
+             setProjects(projects);
+             if(projects.length > 0) setActiveProjectId(projects[0]._id);
+        });
         addNotification(`Logged in with ${providerName}!`, 'success');
     };
     
@@ -172,15 +191,9 @@ export const AppProvider: React.FC<{children: ReactNode}> = ({ children }) => {
             const provider = new GoogleAuthProvider();
             const result = await signInWithPopup(auth, provider);
             const idToken = await result.user.getIdToken();
-
-            // Send the Firebase token to your backend
-            const data = await api.googleLogin(idToken); // Use named api function
-
-            // Log in to your custom app using your backend's response
+            const data = await api.googleLogin(idToken);
             handleSocialLoginSuccess(data, 'Google');
-
-        } 
-        catch (error: any) {
+        } catch (error: any) {
             addNotification(error.message || 'Google login failed.');
             throw error;
         }
@@ -192,21 +205,43 @@ export const AppProvider: React.FC<{children: ReactNode}> = ({ children }) => {
             provider.addScope('user:email');
             const result = await signInWithPopup(auth, provider);
             const idToken = await result.user.getIdToken();
-
-            // Send the Firebase token to your backend
-            const data = await api.githubLogin(idToken); // Use named api function
-
-            // Log in to your custom app using your backend's response
+            const data = await api.githubLogin(idToken);
             handleSocialLoginSuccess(data, 'GitHub');
-
         } catch (error: any) {
             addNotification(error.message || 'GitHub login failed.');
             throw error;
         }
     };
     
-    const verifyEmail = async (token: string) => { /* Implement API call */ };
-    const resetPassword = async (token: string, newPassword: string) => { /* Implement API call */ };
+    const verifyEmail = async (token: string) => {
+        try {
+            await api.verifyEmail(token);
+            addNotification('Email verified successfully! You can now log in.', 'success');
+        } catch (error: any) {
+            addNotification(error.message || 'Email verification failed.');
+            throw error;
+        }
+    };
+
+    const requestPasswordReset = async (email: string) => {
+        try {
+            await api.forgotPassword(email);
+            addNotification('If an account exists, a reset email has been sent.', 'success');
+        } catch (error: any) {
+            addNotification(error.message || 'Failed to request password reset.');
+            throw error;
+        }
+    };
+
+    const resetPassword = async (token: string, newPassword: string) => {
+        try {
+            await api.resetPassword(token, newPassword);
+            addNotification('Password reset successfully! Please log in.', 'success');
+        } catch (error: any) {
+            addNotification(error.message || 'Password reset failed.');
+            throw error;
+        }
+    };
 
     const updateUserAvatar = async (avatar: string) => {
         if (!currentUser) return;
@@ -220,17 +255,14 @@ export const AppProvider: React.FC<{children: ReactNode}> = ({ children }) => {
             try {
                 const fetchedProjects = await api.getProjects();
                 setProjects(fetchedProjects);
-                if (fetchedProjects.length > 0 && !fetchedProjects.find(p => p._id === activeProjectId)) {
+                if (fetchedProjects.length > 0 && !activeProjectId) {
                     setActiveProjectId(fetchedProjects[0]._id);
-                } else if (fetchedProjects.length === 0) {
-                    setActiveProjectId(null);
                 }
             } catch (error: any) {
-                addNotification(error.message || "Could not fetch projects.");
                 if (error.response?.status === 401) logout();
             }
         }
-    }, [userToken, activeProjectId, addNotification]); // addNotification was missing dependency
+    }, [userToken, activeProjectId, logout, setActiveProjectId]);
 
     useEffect(() => {
         if (userToken) {
@@ -240,7 +272,7 @@ export const AppProvider: React.FC<{children: ReactNode}> = ({ children }) => {
                 fetchProjects();
             }).catch(() => logout());
         }
-    }, [userToken, fetchProjects]); // fetchProjects was missing dependency
+    }, [userToken, fetchProjects, logout]);
 
     const loadProject = (id: string) => setActiveProjectId(id);
 
@@ -252,7 +284,7 @@ export const AppProvider: React.FC<{children: ReactNode}> = ({ children }) => {
         try {
             const newProject = await api.createProject({ name, ingestedText: text });
             setProjects(prev => [newProject, ...prev]);
-            setActiveProjectId(newProject._id);
+            setActiveProjectId(newProject._id); // Set active immediately
             addNotification(`Study "${name}" created!`, 'success');
             setActiveTab(Tab.Summary);
         } catch (error: any) {
@@ -369,7 +401,6 @@ export const AppProvider: React.FC<{children: ReactNode}> = ({ children }) => {
         finally { setIsGeneratingStudyPlan(false); }
     };
 
-
     const value = {
         isAuthenticated,
         currentUser,
@@ -379,11 +410,13 @@ export const AppProvider: React.FC<{children: ReactNode}> = ({ children }) => {
         signup,
         logout,
         verifyEmail,
+        requestPasswordReset,
         resetPassword,
         updateUserAvatar,
         projects,
         activeProjectId,
         activeProject,
+        ingestedText,
         loadProject,
         startNewStudy,
         ingestText,
@@ -391,6 +424,7 @@ export const AppProvider: React.FC<{children: ReactNode}> = ({ children }) => {
         deleteProject,
         updateActiveProjectData,
         updateProjectData,
+        updateUserName,
         activeTab,
         setActiveTab,
         isSidebarCollapsed,
