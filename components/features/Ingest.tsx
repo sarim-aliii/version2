@@ -4,12 +4,11 @@ import { Button } from '../ui/Button';
 import { Card } from '../ui/Card';
 import { FileUploader } from '../ui/FileUploader';
 import { Slider } from '../ui/Slider';
-import { Tab } from '../../types';
 import { fetchTopicInfo, extractTextFromFile } from '../../services/geminiService';
 import { Loader } from '../ui/Loader';
 
 export const Ingest: React.FC = () => {
-  const { setIngestedText, setActiveTab, addNotification, language, llm } = useAppContext();
+  const { ingestText, addNotification, language, llm } = useAppContext();
   const [pastedText, setPastedText] = useState('');
   const [fileNames, setFileNames] = useState<string[]>([]);
   const [chunkWords, setChunkWords] = useState(837);
@@ -96,13 +95,23 @@ export const Ingest: React.FC = () => {
     }
   };
 
-  const handleIngest = () => {
+  const handleIngest = async () => {
     if (!pastedText.trim()) {
       addNotification('Please upload a file or paste some text to ingest.', 'info');
       return;
     }
-    setIngestedText(pastedText);
-    setActiveTab(Tab.Summary);
+    
+    let projectName = "Study Project";
+    if (topic.trim()) {
+        projectName = topic;
+    } else if (fileNames.length > 0) {
+        projectName = fileNames[0];
+        if (fileNames.length > 1) projectName += ` + ${fileNames.length - 1} others`;
+    } else {
+        projectName = `Notes ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}`;
+    }
+
+    await ingestText(projectName, pastedText);
   };
 
   return (
