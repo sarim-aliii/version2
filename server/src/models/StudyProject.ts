@@ -26,15 +26,26 @@ interface IStudyProject {
   conceptMapData?: ConceptMapData;
   lessonPlan?: LessonPlan;
   studyPlan?: StudyPlan;
+  chunks?: StudyPlan;
 }
 
-// Interface for StudyProject document methods (if any)
+
 interface IStudyProjectMethods {}
 
-// Combine properties and methods into a single document interface
 export interface IStudyProjectDocument extends IStudyProject, IStudyProjectMethods, Document {}
 
-// Interface for the StudyProject model (for static methods, if any)
+const FlashcardSchema = new Schema({
+    id: String,
+    question: String,
+    answer: String,
+    easeFactor: Number,
+    interval: Number,
+    dueDate: Date
+});
+
+// In StudyProjectSchema
+srsFlashcards: [FlashcardSchema],
+
 interface IStudyProjectModel extends Model<IStudyProjectDocument> {}
 
 const studyProjectSchema = new Schema<IStudyProjectDocument, IStudyProjectModel>({
@@ -43,12 +54,9 @@ const studyProjectSchema = new Schema<IStudyProjectDocument, IStudyProjectModel>
   ingestedText: { type: String, required: true },
   status: { type: String, enum: ['processing', 'ready', 'error'], default: 'ready' },
   summary: { type: String },
-  // FIX: Use [Object] to correctly type arrays of complex objects in the Mongoose schema.
   srsFlashcards: { type: [Object], default: [] },
-  // FIX: Use [Object] to correctly type arrays of complex objects in the Mongoose schema.
   mcqAttempts: { type: [Object], default: [] },
   semanticSearchHistory: { type: [String], default: [] },
-  // FIX: Use [Object] to correctly type arrays of complex objects in the Mongoose schema.
   aiTutorHistory: { type: [Object], default: [] },
   essayTopic: { type: String },
   essayOutline: { type: Object },
@@ -56,6 +64,9 @@ const studyProjectSchema = new Schema<IStudyProjectDocument, IStudyProjectModel>
   conceptMapData: { type: Object },
   lessonPlan: { type: Object },
   studyPlan: { type: Object },
+  chunks: { type: [String], default: [] },
+  embeddings: { type: [[Number]], default: [] },
+  srsFlashcards: [FlashcardSchema],
 }, {
   timestamps: true,
 });

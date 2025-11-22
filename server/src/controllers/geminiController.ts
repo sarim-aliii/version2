@@ -191,7 +191,9 @@ export const generateStudyPlan = async (req: Request, res: Response) => {
 };
 
 export const extractTextFromFile = async (req: Request, res: Response) => {
+    if (!req.file) return res.status(400).json({ message: "No file uploaded" });
     const { llm, base64Data, fileType } = req.body;
+    
     try {
         const genAIModel = genAI.getGenerativeModel({ model: llm || modelName, safetySettings });
         
@@ -363,30 +365,40 @@ export const generateAnswerFromText = async (req: Request, res: Response) => {
 };
 
 export const performSemanticSearch = async (req: Request, res: Response) => {
-    const { text, query, topK } = req.body;
+    // We now expect projectId, not raw text
+    const { projectId, query, topK } = req.body; 
     try {
-        const embeddingModel = genAI.getGenerativeModel({ model: "text-embedding-004" });
-        
-        const chunks = chunkText(text);
-        if (chunks.length === 0) return res.json([]);
+        const project = await StudyProject.findById(projectId);
+        if (!project || !project.embeddings || project.embeddings.length === 0) {
+            return res.status(400).json({ message: "Project index not ready." });
+        }
 
-        const chunkEmbeddings = await Promise.all(chunks.map(chunk => 
-            embeddingModel.embedContent(chunk)
-        ));
+        const model = genAI.getGenerativeModel({ model: "text-embedding-004" });
+        const queryResult = await model.embedContent(query);
+        const queryVector = queryResult.embedding.values;
 
-        const queryEmbeddingResult = await embeddingModel.embedContent(query);
-        const queryVector = queryEmbeddingResult.embedding.values;
-
-        const similarities = chunkEmbeddings.map((embResult, i) => ({
-          index: i,
-          score: cosineSimilarity(embResult.embedding.values, queryVector)
+        const similarities = project.embeddings.map((emb, i) => ({
+            index: i,
+            score: cosineSimilarity(emb, queryVector)
         }));
 
-        similarities.sort((a: { score: number }, b: { score: number }) => b.score - a.score);
-        const topResults = similarities.slice(0, topK).map((sim: { index: number }) => chunks[sim.index]);
-        res.json(topResults);
+        similarities.sort((a, b) => b.score - a.score);
+        const topResults = similarities.slice(0, topK).map(s => project.chunks[s.index]);
 
+        res.json(topResults);
     } catch (error: any) {
-        res.status(500).json({ message: `Failed to perform semantic search: ${error.message}` });
+        res.status(500).json({ message: error.message });
     }
+};
+
+export const processAndEmbedText = async (text: string) => {
+    const chunks = chunkText(text);
+    const model = genAI.getGenerativeModel({ model: "text-embedding-004" });
+
+    const embeddings = [];
+    for (const chunk of chunks) {
+        const result = await model.embedContent(chunk);
+        embeddings.push(result.embedding.values);
+    }
+    return { chunks, embeddings };
 };
