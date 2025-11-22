@@ -191,8 +191,11 @@ export const generateStudyPlan = async (req: Request, res: Response) => {
 };
 
 export const extractTextFromFile = async (req: Request, res: Response) => {
-    if (!req.file) return res.status(400).json({ message: "No file uploaded" });
     const { llm, base64Data, fileType } = req.body;
+    
+    if (!base64Data) {
+        return res.status(400).json({ message: "No file data provided." });
+    }
     
     try {
         const genAIModel = genAI.getGenerativeModel({ model: llm || modelName, safetySettings });
