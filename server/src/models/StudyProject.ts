@@ -43,9 +43,6 @@ const FlashcardSchema = new Schema({
     dueDate: Date
 });
 
-// In StudyProjectSchema
-srsFlashcards: [FlashcardSchema],
-
 interface IStudyProjectModel extends Model<IStudyProjectDocument> {}
 
 const studyProjectSchema = new Schema<IStudyProjectDocument, IStudyProjectModel>({
