@@ -21,7 +21,8 @@ import {
     getTutorResponseFromText,
     generateEssayOutlineFromText,
     generateEssayArgumentsFromText,
-    generateConceptMapForTopic        
+    generateConceptMapForTopic,
+    transcribeYoutubeVideo,      
 } from '../controllers/geminiController';
 import { protect } from '../middleware/authMiddleware';
 import multer from 'multer';
@@ -57,5 +58,6 @@ router.post('/tutor-from-text', protect, getTutorResponseFromText);
 router.post('/essay-outline-from-text', protect, generateEssayOutlineFromText);
 router.post('/essay-arguments-from-text', protect, generateEssayArgumentsFromText);
 router.post('/concept-map-from-topic', protect, generateConceptMapForTopic);
+router.post('/transcribe-youtube', protect, transcribeYoutubeVideo);
 
 export default router;

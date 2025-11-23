@@ -124,8 +124,13 @@ export const fetchTopicInfo = async (llm: string, topic: string, language: strin
   return data;
 };
 
-export const transcribeAudio = async (llm: string, base64Data: string, fileType: string): Promise<string> => {
-    const { data } = await api.post('/gemini/transcribe', { llm, base64Data, fileType });
+export const transcribeAudio = async (llm: string, file: File): Promise<string> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('llm', llm);
+    formData.append('fileType', file.type);
+
+    const { data } = await api.post('/gemini/transcribe', formData); 
     return data;
 };
 
@@ -181,6 +186,11 @@ export const generateEssayArgumentsFromText = async (llm: string, text: string, 
 
 export const generateConceptMapForTopic = async (llm: string, topic: string, language: string) => {
     const { data } = await api.post('/gemini/concept-map-from-topic', { llm, topic, language });
+    return data;
+};
+
+export const transcribeYoutube = async (llm: string, url: string): Promise<string> => {
+    const { data } = await api.post('/gemini/transcribe-youtube', { llm, url });
     return data;
 };
 

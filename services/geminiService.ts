@@ -17,7 +17,8 @@ export {
   performSemanticSearch,
   generateMCQs,
   generatePersonalizedStudyGuide,
-  extractTextFromFile
+  extractTextFromFile,
+  transcribeYoutube
 } from './api';
 
 

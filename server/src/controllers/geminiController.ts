@@ -8,6 +8,8 @@ import {
     Part,
     Content
 } from "@google/generative-ai";
+import { YoutubeTranscript } from 'youtube-transcript';
+
 
 if (!process.env.GEMINI_API_KEY) {
     throw new Error("GEMINI_API_KEY environment variable is not set.");
@@ -236,7 +238,14 @@ export const fetchTopicInfo = async (req: Request, res: Response) => {
 };
 
 export const transcribeAudio = async (req: Request, res: Response) => {
-    const { llm, base64Data, fileType } = req.body;
+    const { llm } = req.body;
+    const file = req.file;
+
+    if (!file) return res.status(400).json({ message: "No file uploaded" });
+
+    const base64Data = file.buffer.toString('base64'); 
+    const fileType = file.mimetype;
+
     try {
         const model = getModel(llm);
         const parts: Part[] = [
@@ -453,5 +462,30 @@ export const generateConceptMapForTopic = async (req: Request, res: Response) =>
         res.json(JSON.parse(textRes));
     } catch (error: any) {
         res.status(500).json({ message: `Failed to generate concept map from topic: ${error.message}` });
+    }
+};
+
+export const transcribeYoutubeVideo = async (req: Request, res: Response) => {
+    const { url } = req.body;
+    
+    if (!url || !url.includes('youtube.com') && !url.includes('youtu.be')) {
+        return res.status(400).json({ message: "Invalid YouTube URL." });
+    }
+
+    try {
+        // Fetch transcript
+        const transcriptItems = await YoutubeTranscript.fetchTranscript(url);
+        
+        if (!transcriptItems || transcriptItems.length === 0) {
+            return res.status(404).json({ message: "No captions found for this video." });
+        }
+
+        // Combine all lines into one string
+        const fullText = transcriptItems.map(item => item.text).join(' ');
+        
+        res.json(fullText);
+    } catch (error: any) {
+        console.error("YouTube Transcript Error:", error);
+        res.status(500).json({ message: "Failed to fetch transcript. The video might not have captions enabled." });
     }
 };

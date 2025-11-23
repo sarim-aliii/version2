@@ -4,7 +4,7 @@ import { Button } from '../ui/Button';
 import { FileUploader } from '../ui/FileUploader';
 import { useAppContext } from '../../context/AppContext';
 import { EmptyState } from '../ui/EmptyState';
-import { transcribeAudio, generateSummary, generateFlashcards, generateAnswer } from '../../services/geminiService';
+import { transcribeAudio, transcribeYoutube, generateSummary, generateFlashcards, generateAnswer } from '../../services/geminiService';
 import { Loader } from '../ui/Loader';
 import { Flashcard as FlashcardType } from '../../types';
 
@@ -24,7 +24,14 @@ const fileToBase64 = (file: File): Promise<string> => {
 
 export const AudioAnalysis: React.FC = () => {
   const { addNotification, language, llm } = useAppContext();
+  
+  // Media File State
   const [mediaFile, setMediaFile] = useState<File | null>(null);
+  
+  // YouTube Link State
+  const [youtubeLink, setYoutubeLink] = useState('');
+  
+  // General State
   const [transcribedText, setTranscribedText] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [currentAction, setCurrentAction] = useState<AnalysisAction | null>(null);
@@ -55,15 +62,14 @@ export const AudioAnalysis: React.FC = () => {
   const handleFileUpload = (files: File[]) => {
     if (files.length > 0) {
         setMediaFile(files[0]);
+        setYoutubeLink('');
         resetState();
     }
   };
-  
-  const handleTranscribe = useCallback(async () => {
-    if (!mediaFile) {
-        addNotification('Please upload an audio or video file first.', 'info');
-        return;
-    }
+
+  // Handle File Transcription
+  const handleTranscribeFile = useCallback(async () => {
+    if (!mediaFile) return;
     setIsLoading(true);
     resetState();
     try {
@@ -76,6 +82,24 @@ export const AudioAnalysis: React.FC = () => {
         setIsLoading(false);
     }
   }, [mediaFile, addNotification, llm]);
+
+  // Handle YouTube Transcription
+  const handleTranscribeYoutube = useCallback(async () => {
+    if (!youtubeLink.trim()) {
+        addNotification('Please enter a YouTube URL.', 'info');
+        return;
+    }
+    setIsLoading(true);
+    resetState();
+    try {
+        const transcription = await transcribeYoutube(llm, youtubeLink);
+        setTranscribedText(transcription);
+    } catch (e: any) {
+        addNotification(e.message);
+    } finally {
+        setIsLoading(false);
+    }
+  }, [youtubeLink, addNotification, llm]);
 
   const handleAction = async (action: AnalysisAction) => {
     if (!transcribedText) return;
@@ -116,70 +140,141 @@ export const AudioAnalysis: React.FC = () => {
   return (
     <div className="space-y-6">
         <Card title="Audio & Video Analysis">
-            <div className="space-y-4">
-                <FileUploader 
-                    onFileUpload={handleFileUpload} 
-                    acceptedMimeTypes={acceptedMimeTypes} 
-                    multiple={false}
-                    unsupportedFormatError="Unsupported format. Please upload a WAV, MP3, M4A, MP4, MOV or WEBM file."
-                    onError={addNotification}
-                />
-                {mediaFile && <p className="text-sm text-slate-400">Selected file: <strong>{mediaFile.name}</strong></p>}
-                <div className="flex justify-end">
-                    <Button onClick={handleTranscribe} disabled={!mediaFile || isLoading}>
-                        {isLoading && !transcribedText ? 'Transcribing...' : 'Transcribe Media'}
+            <div className="space-y-6">
+                
+                <div className={`transition-opacity ${youtubeLink ? 'opacity-50' : 'opacity-100'}`}>
+                    <FileUploader 
+                        onFileUpload={handleFileUpload} 
+                        acceptedMimeTypes={acceptedMimeTypes} 
+                        multiple={false}
+                        unsupportedFormatError="Unsupported format."
+                        onError={addNotification}
+                    />
+                    {mediaFile && (
+                        <div className="flex items-center justify-between mt-3 p-3 bg-slate-900 rounded-md border border-slate-700">
+                             <p className="text-sm text-slate-300 truncate">Selected: <strong>{mediaFile.name}</strong></p>
+                             <Button onClick={handleTranscribeFile} disabled={isLoading} className="text-sm py-1 px-3">
+                                {isLoading && !transcribedText ? 'Transcribing...' : 'Transcribe File'}
+                            </Button>
+                        </div>
+                    )}
+                </div>
+
+                <div className="relative">
+                    <div className="absolute inset-0 flex items-center">
+                        <div className="w-full border-t border-slate-700"></div>
+                    </div>
+                    <div className="relative flex justify-center text-sm">
+                        <span className="px-2 bg-slate-800 text-slate-400">OR USE YOUTUBE</span>
+                    </div>
+                </div>
+
+                <div className={`flex flex-col sm:flex-row gap-3 transition-opacity ${mediaFile ? 'opacity-50' : 'opacity-100'}`}>
+                    <input 
+                        type="text" 
+                        value={youtubeLink}
+                        onChange={(e) => {
+                            setYoutubeLink(e.target.value);
+                            setMediaFile(null);
+                            resetState();
+                        }}
+                        placeholder="Paste YouTube Video URL here..." 
+                        className="flex-1 bg-slate-900 border border-slate-700 rounded-md p-3 text-slate-300 focus:ring-2 focus:ring-red-500 focus:outline-none transition"
+                        disabled={isLoading}
+                    />
+                    <Button onClick={handleTranscribeYoutube} disabled={!youtubeLink.trim() || isLoading} className="sm:w-auto">
+                        {isLoading && !transcribedText ? 'Fetching...' : 'Transcribe YouTube'}
                     </Button>
                 </div>
+
             </div>
         </Card>
 
-        {isLoading && !transcribedText && <div className="flex flex-col items-center gap-4"><Loader /><p className="text-slate-400">Transcribing media, this may take a moment...</p></div>}
+        {/* Loading Indicator */}
+        {isLoading && !transcribedText && (
+            <div className="flex flex-col items-center gap-4 py-8">
+                <Loader />
+                <p className="text-slate-400">Processing content...</p>
+            </div>
+        )}
         
+        {/* Results Section */}
         {transcribedText && (
-            <Card title="Transcription & Analysis" className="fade-in">
+            <Card title="Analysis Results" className="fade-in">
                 <div className="space-y-6">
                     <div>
-                        <h3 className="text-xl font-semibold text-slate-200 mb-2">Full Transcript</h3>
-                        <p className="text-slate-300 whitespace-pre-wrap leading-relaxed bg-slate-900 p-4 rounded-md border border-slate-700 max-h-60 overflow-y-auto">{transcribedText}</p>
+                        <h3 className="text-xl font-semibold text-slate-200 mb-2">Transcript</h3>
+                        <div className="bg-slate-900 p-4 rounded-md border border-slate-700 max-h-60 overflow-y-auto custom-scrollbar">
+                            <p className="text-slate-300 whitespace-pre-wrap leading-relaxed">{transcribedText}</p>
+                        </div>
                     </div>
+                    
                     <hr className="border-slate-700"/>
+                    
                     <div>
-                         <h3 className="text-xl font-semibold text-slate-200 mb-4">Analyze Content</h3>
-                         <div className="space-y-4">
-                            {/* Summary */}
+                         <h3 className="text-xl font-semibold text-slate-200 mb-4">AI Tools</h3>
+                         <div className="grid grid-cols-1 gap-4">
+                            
+                            {/* Summary Tool */}
                             <div className="p-4 bg-slate-800/50 rounded-lg border border-slate-700">
-                                <Button onClick={() => handleAction('summary')} disabled={isLoading}>Generate Summary</Button>
-                                {isLoading && currentAction === 'summary' && <div className="mt-4"><Loader /></div>}
-                                {summary && <p className="text-slate-300 mt-4 whitespace-pre-wrap fade-in">{summary}</p>}
+                                <div className="flex justify-between items-center mb-3">
+                                    <h4 className="font-semibold text-slate-300">Summary</h4>
+                                    <Button onClick={() => handleAction('summary')} disabled={isLoading} variant="secondary" className="text-xs">Generate</Button>
+                                </div>
+                                {isLoading && currentAction === 'summary' && <Loader spinnerClassName="w-6 h-6" />}
+                                {summary && <p className="text-slate-300 text-sm whitespace-pre-wrap fade-in">{summary}</p>}
                             </div>
-                            {/* Flashcards */}
+
+                            {/* Flashcards Tool */}
                              <div className="p-4 bg-slate-800/50 rounded-lg border border-slate-700">
-                                <Button onClick={() => handleAction('flashcards')} disabled={isLoading}>Generate Flashcards</Button>
-                                {isLoading && currentAction === 'flashcards' && <div className="mt-4"><Loader /></div>}
+                                <div className="flex justify-between items-center mb-3">
+                                    <h4 className="font-semibold text-slate-300">Flashcards</h4>
+                                    <Button onClick={() => handleAction('flashcards')} disabled={isLoading} variant="secondary" className="text-xs">Generate</Button>
+                                </div>
+                                {isLoading && currentAction === 'flashcards' && <Loader spinnerClassName="w-6 h-6" />}
                                 {flashcards.length > 0 && (
-                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-4 fade-in">
-                                        {flashcards.map(fc => <div key={fc.question} className="p-3 bg-slate-700 rounded-md"><strong>Q:</strong> {fc.question}<br/><strong>A:</strong> {fc.answer}</div>)}
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-2 fade-in">
+                                        {flashcards.map((fc, i) => (
+                                            <div key={i} className="p-3 bg-slate-900/80 rounded border border-slate-600">
+                                                <p className="text-xs text-slate-400 mb-1">Q: {fc.question}</p>
+                                                <p className="text-sm text-slate-200">A: {fc.answer}</p>
+                                            </div>
+                                        ))}
                                     </div>
                                 )}
                             </div>
-                            {/* Q&A */}
+
+                            {/* Q&A Tool */}
                             <div className="p-4 bg-slate-800/50 rounded-lg border border-slate-700">
-                                <div className="flex flex-col sm:flex-row gap-4">
-                                    <input type="text" value={question} onChange={e => setQuestion(e.target.value)} placeholder="Ask a question about the transcript..." className="w-full bg-slate-900 border border-slate-700 rounded-md p-2 text-slate-300 focus:ring-2 focus:ring-red-500 focus:outline-none transition" />
+                                <h4 className="font-semibold text-slate-300 mb-3">Ask a Question</h4>
+                                <div className="flex gap-2">
+                                    <input 
+                                        type="text" 
+                                        value={question} 
+                                        onChange={e => setQuestion(e.target.value)} 
+                                        placeholder="What did the speaker say about..." 
+                                        className="flex-1 bg-slate-900 border border-slate-700 rounded text-sm p-2 text-slate-300 focus:ring-1 focus:ring-red-500 outline-none" 
+                                        onKeyDown={(e) => e.key === 'Enter' && handleAction('qa')}
+                                    />
                                     <Button onClick={() => handleAction('qa')} disabled={isLoading || !question.trim()}>Ask</Button>
                                 </div>
-                                {isLoading && currentAction === 'qa' && <div className="mt-4"><Loader /></div>}
-                                {answer && <p className="text-slate-300 mt-4 whitespace-pre-wrap fade-in">{answer}</p>}
+                                {isLoading && currentAction === 'qa' && <div className="mt-3"><Loader spinnerClassName="w-6 h-6" /></div>}
+                                {answer && (
+                                    <div className="mt-3 p-3 bg-slate-900/80 rounded border-l-2 border-red-500 fade-in">
+                                        <p className="text-slate-300 text-sm">{answer}</p>
+                                    </div>
+                                )}
                             </div>
+
                          </div>
                     </div>
                 </div>
             </Card>
         )}
 
-        {!mediaFile && <EmptyState 
-            title="Analyze Lecture Recordings"
-            message="Upload an audio or video file of a lecture or meeting. The AI will transcribe it, allowing you to summarize, create flashcards, or ask questions about the content."
+        {!mediaFile && !youtubeLink && !transcribedText && <EmptyState 
+            title="Audio & Video Analysis"
+            message="Upload a lecture recording or paste a YouTube link. Kairon AI will transcribe it, enabling you to summarize, study, and ask questions about the content."
         />}
     </div>
   );

@@ -40,7 +40,13 @@ export const AuthManager: React.FC = () => {
             case 'signup':
                 return <SignUpPage onSwitchToLogin={() => setView('login')} onSignUpSuccess={handleSignUpSuccess} />;
             case 'forgot-password':
-                return <ForgotPasswordPage onSuccess={handleForgotPasswordSuccess} onSwitchToLogin={() => setView('login')} />;
+                return (
+                    <ForgotPasswordPage 
+                        onSuccess={handleForgotPasswordSuccess} 
+                        onSwitchToLogin={() => setView('login')}
+                        onSwitchToSignUp={() => setView('signup')} 
+                    />
+                );
             case 'verify-email':
                 return <VerifyEmailPage email={userEmail} onSuccess={() => setView('login')} />;
             case 'reset-password':
