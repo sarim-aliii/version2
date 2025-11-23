@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { LoginPage } from './LoginPage';
 import { SignUpPage } from './SignUpPage';
@@ -10,8 +9,8 @@ type AuthView = 'login' | 'signup' | 'forgot-password' | 'verify-email' | 'reset
 
 export const AuthManager: React.FC = () => {
     const [view, setView] = useState<AuthView>('login');
-    const [userEmail, setUserEmail] = useState(''); // For passing email between views
-    const [resetToken, setResetToken] = useState(''); // For passing token to reset password view
+    const [userEmail, setUserEmail] = useState('');
+    const [resetToken, setResetToken] = useState('');
 
     const handleSignUpSuccess = (email: string) => {
         setUserEmail(email);
@@ -24,8 +23,6 @@ export const AuthManager: React.FC = () => {
 
     const handleForgotPasswordSuccess = (email: string) => {
         setUserEmail(email);
-        // Simulate receiving a token and navigating to the reset view
-        // In a real app, the user would click a link in their email.
         setTimeout(() => {
             setResetToken('valid-reset-token');
             setView('reset-password');

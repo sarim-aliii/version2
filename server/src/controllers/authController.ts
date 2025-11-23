@@ -173,26 +173,36 @@ export const githubLogin = async (req: Request, res: Response) => {
 // @route   PUT /api/auth/profile
 // @access  Private
 export const updateUserProfile = async (req: Request, res: Response) => {
-  const user = await User.findById(req.user?.id);
+  try {
+    const user = await User.findById(req.user?.id);
 
-  if (user) {
-    user.name = req.body.name || user.name;
-    user.avatar = req.body.avatar || user.avatar;
+    if (user) {
+      user.name = req.body.name || user.name;
+      user.avatar = req.body.avatar || user.avatar;
 
-    const updatedUser = await user.save();
+      if (req.body.password) {
+        user.password = req.body.password;
+      }
 
-    res.json({
-      _id: updatedUser._id,
-      name: updatedUser.name,
-      email: updatedUser.email,
-      avatar: updatedUser.avatar,
-      token: req.headers.authorization?.split(' ')[1],
-    });
+      const updatedUser = await user.save();
+
+      res.json({
+        _id: updatedUser._id,
+        name: updatedUser.name,
+        email: updatedUser.email,
+        avatar: updatedUser.avatar,
+      });
+    }
+    else {
+      res.status(404).json({ message: 'User not found' });
+    }
   }
-  else {
-    res.status(404).json({ message: 'User not found' });
+  catch (error) {
+    console.error("Update Profile Error:", error);
+    res.status(500).json({ message: 'Server Error during profile update' });
   }
 };
+
 
 // @desc    Verify User Email
 // @route   POST /api/auth/verify-email

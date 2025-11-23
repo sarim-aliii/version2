@@ -55,6 +55,26 @@ export const getProfile = async () => {
   return data;
 };
 
+export const updateProfile = async (userData: { name?: string; avatar?: string }) => {
+  const { data } = await api.put('/auth/profile', userData);
+  return data;
+};
+
+export const verifyEmail = async (token: string) => {
+  const { data } = await api.post('/auth/verify-email', { token });
+  return data;
+};
+
+export const forgotPassword = async (email: string) => {
+  const { data } = await api.post('/auth/forgot-password', { email });
+  return data;
+};
+
+export const resetPassword = async (token: string, password: string) => {
+  const { data } = await api.post('/auth/reset-password', { token, password });
+  return data;
+};
+
 // --- Projects ---
 export const getProjects = async (): Promise<StudyProject[]> => {
     const { data } = await api.get('/projects');
@@ -129,24 +149,39 @@ export const performSemanticSearch = async (llm: string, text: string, query: st
     return data as string[];
 };
 
-export const updateProfile = async (userData: { name?: string; avatar?: string }) => {
-  const { data } = await api.put('/auth/profile', userData);
-  return data;
+export const generateConceptMapFromText = async (llm: string, text: string, language: string) => {
+    const { data } = await api.post('/gemini/concept-map-from-text', { llm, text, language });
+    return data;
 };
 
-export const verifyEmail = async (token: string) => {
-  const { data } = await api.post('/auth/verify-email', { token });
-  return data;
+export const generateLessonPlanFromText = async (llm: string, text: string, topic: string, language: string) => {
+    const { data } = await api.post('/gemini/lesson-plan-from-text', { llm, text, topic, language });
+    return data;
 };
 
-export const forgotPassword = async (email: string) => {
-  const { data } = await api.post('/auth/forgot-password', { email });
-  return data;
+export const generateStudyPlanFromText = async (llm: string, text: string, days: number, language: string) => {
+    const { data } = await api.post('/gemini/study-plan-from-text', { llm, text, days, language });
+    return data;
 };
 
-export const resetPassword = async (token: string, password: string) => {
-  const { data } = await api.post('/auth/reset-password', { token, password });
-  return data;
+export const getTutorResponseFromText = async (llm: string, text: string, history: any[], message: string, language: string) => {
+    const { data } = await api.post('/gemini/tutor-from-text', { llm, text, history, message, language });
+    return data;
+};
+
+export const generateEssayOutlineFromText = async (llm: string, text: string, topic: string, language: string) => {
+    const { data } = await api.post('/gemini/essay-outline-from-text', { llm, text, topic, language });
+    return data;
+};
+
+export const generateEssayArgumentsFromText = async (llm: string, text: string, topic: string, language: string) => {
+    const { data } = await api.post('/gemini/essay-arguments-from-text', { llm, text, topic, language });
+    return data;
+};
+
+export const generateConceptMapForTopic = async (llm: string, topic: string, language: string) => {
+    const { data } = await api.post('/gemini/concept-map-from-topic', { llm, topic, language });
+    return data;
 };
 
 export default api;

@@ -5,7 +5,6 @@ export interface Flashcard {
   answer: string;
 }
 
-// Spaced Repetition Flashcard
 export interface SRFlashcard extends Flashcard {
   id: string;
   easeFactor: number;
@@ -32,7 +31,6 @@ export interface ConceptNode extends SimulationNodeDatum {
     group: number;
 }
 
-// FIX: Use `SimulationLinkDatum` for links, as `SimulationNodeDatum` is not a generic type for links.
 export interface ConceptLink extends SimulationLinkDatum<ConceptNode> {
     source: string | ConceptNode;
     target: string | ConceptNode;
@@ -113,6 +111,7 @@ export interface StudyDay {
     topic: string;
     tasks: string[];
 }
+
 export interface StudyPlan {
     title: string;
     durationDays: number;

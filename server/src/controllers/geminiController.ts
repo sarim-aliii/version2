@@ -1,12 +1,12 @@
 import { Request, Response } from 'express';
 import StudyProject from '../models/StudyProject';
 import {
-  GoogleGenerativeAI,
-  HarmCategory,
-  HarmBlockThreshold,
-  GenerationConfig,
-  Part,
-  Content
+    GoogleGenerativeAI,
+    HarmCategory,
+    HarmBlockThreshold,
+    GenerationConfig,
+    Part,
+    Content
 } from "@google/generative-ai";
 
 if (!process.env.GEMINI_API_KEY) {
@@ -14,20 +14,20 @@ if (!process.env.GEMINI_API_KEY) {
 }
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-const defaultModelName = 'gemini-1.5-flash-latest';
+const defaultModelName = 'gemini-flash-latest';
 
 const safetySettings = [
-  { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
-  { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
-  { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
-  { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
+    { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
+    { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
+    { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
+    { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
 ];
 
 const generationConfig: GenerationConfig = {
-  temperature: 0.7,
-  topK: 1,
-  topP: 1,
-  maxOutputTokens: 8192,
+    temperature: 0.7,
+    topK: 1,
+    topP: 1,
+    maxOutputTokens: 8192,
 };
 
 const getProjectForUser = async (projectId: string, userId: string) => {
@@ -43,10 +43,22 @@ const getProjectForUser = async (projectId: string, userId: string) => {
 
 // Helper to get model dynamic instance
 const getModel = (llm: string, responseMimeType?: string) => {
-    return genAI.getGenerativeModel({ 
-        model: llm || defaultModelName, 
-        safetySettings, 
-        generationConfig: responseMimeType ? { ...generationConfig, responseMimeType } : generationConfig 
+    let modelName = llm;
+
+    if (!modelName || modelName.includes('flash')) {
+        modelName = 'gemini-flash-latest';
+    }
+    else if (modelName.includes('pro')) {
+        modelName = 'gemini-pro-latest';
+    }
+    else {
+        modelName = defaultModelName;
+    }
+
+    return genAI.getGenerativeModel({
+        model: modelName,
+        safetySettings,
+        generationConfig: responseMimeType ? { ...generationConfig, responseMimeType } : generationConfig
     });
 }
 
@@ -56,7 +68,7 @@ export const generateSummary = async (req: Request, res: Response) => {
     try {
         const project = await getProjectForUser(projectId, req.user.id);
         const prompt = `Summarize the following text in ${language}. Provide a concise but comprehensive overview of the key points.\n\nTEXT:\n${project.ingestedText}`;
-        
+
         const model = getModel(llm);
         const result = await model.generateContent(prompt);
         res.json(result.response.text());
@@ -64,6 +76,7 @@ export const generateSummary = async (req: Request, res: Response) => {
         res.status(error.status || 500).json({ message: error.message || 'Failed to generate summary' });
     }
 };
+
 
 export const generateFlashcards = async (req: Request, res: Response) => {
     if (!req.user) return res.status(401).json({ message: 'Not authorized' });
@@ -77,17 +90,18 @@ export const generateFlashcards = async (req: Request, res: Response) => {
         const text = result.response.text().replace(/```json/g, '').replace(/```/g, '');
         res.json(JSON.parse(text));
     } catch (error: any) {
-         res.status(error.status || 500).json({ message: error.message || 'Failed to generate flashcards' });
+        res.status(error.status || 500).json({ message: error.message || 'Failed to generate flashcards' });
     }
 };
+
 
 export const getTutorResponse = async (req: Request, res: Response) => {
     if (!req.user) return res.status(401).json({ message: 'Not authorized' });
     const { projectId, message, history, language, llm } = req.body;
-     try {
+    try {
         const project = await getProjectForUser(projectId, req.user.id);
-        const context = `CONTEXT: ${project.ingestedText.substring(0, 20000)}\n\n`;
-        
+        const context = `CONTEXT: ${project.ingestedText.substring(0, 500000)}\n\n`;
+
         const chatHistory: Content[] = (history || []).map((h: any) => ({
             role: h.role,
             parts: [{ text: h.content }]
@@ -99,10 +113,11 @@ export const getTutorResponse = async (req: Request, res: Response) => {
         const result = await chat.sendMessage(prompt);
         res.json(result.response.text());
     } catch (error: any) {
-         res.status(error.status || 500).json({ message: error.message || 'Tutor failed to respond' });
+        res.status(error.status || 500).json({ message: error.message || 'Tutor failed to respond' });
     }
 };
 
+// ... (Include the rest of your existing export functions exactly as they were, they are fine)
 export const generateConceptMap = async (req: Request, res: Response) => {
     if (!req.user) return res.status(401).json({ message: 'Not authorized' });
     const { projectId, llm } = req.body;
@@ -141,7 +156,7 @@ export const generateStudyPlan = async (req: Request, res: Response) => {
     try {
         const project = await getProjectForUser(projectId, req.user.id);
         const prompt = `Create a ${days}-day study plan based on the provided text. The output should be a JSON object with 'title', 'durationDays', and a 'schedule' array. Each item in the schedule should be an object with 'day' (number), 'topic' (string), and 'tasks' (array of strings).\n\nTEXT:\n${project.ingestedText}`;
-        
+
         const model = getModel(llm, "application/json");
         const result = await model.generateContent(prompt);
         const text = result.response.text().replace(/```json/g, '').replace(/```/g, '');
@@ -157,8 +172,8 @@ export const extractTextFromFile = async (req: Request, res: Response) => {
     try {
         const model = getModel(llm);
         const parts: Part[] = [
-          { inlineData: { mimeType: fileType, data: base64Data } },
-          { text: "Extract all text from this file. Respond only with the extracted text." },
+            { inlineData: { mimeType: fileType, data: base64Data } },
+            { text: "Extract all text from this file. Respond only with the extracted text." },
         ];
         const result = await model.generateContent({ contents: [{ role: 'user', parts }] });
         res.json(result.response.text());
@@ -183,7 +198,7 @@ export const generateMCQs = async (req: Request, res: Response) => {
 export const generatePersonalizedStudyGuide = async (req: Request, res: Response) => {
     const { llm, text, incorrectMCQs, language } = req.body;
     try {
-        const incorrectReview = incorrectMCQs.map((mcq: any) => 
+        const incorrectReview = incorrectMCQs.map((mcq: any) =>
             `Question: ${mcq.question}\nCorrect Answer: ${mcq.correctAnswer}\nExplanation: ${mcq.explanation}`
         ).join('\n\n');
         const prompt = `A student took a quiz based on the provided text and got the following questions wrong. Create a personalized study guide in ${language} that focuses on these incorrect topics. Explain the concepts clearly and relate them back to the main text.\n\NORIGINAL TEXT:\n${text}\n\NINCORRECT QUESTIONS:\n${incorrectReview}`;
@@ -197,15 +212,15 @@ export const generatePersonalizedStudyGuide = async (req: Request, res: Response
 
 // Semantic Search Helper functions
 function cosineSimilarity(vecA: number[], vecB: number[]): number {
-  let dotProduct = 0;
-  let normA = 0;
-  let normB = 0;
-  for (let i = 0; i < vecA.length; i++) {
-    dotProduct += vecA[i] * vecB[i];
-    normA += vecA[i] * vecA[i];
-    normB += vecB[i] * vecB[i];
-  }
-  return dotProduct / (Math.sqrt(normA) * Math.sqrt(normB));
+    let dotProduct = 0;
+    let normA = 0;
+    let normB = 0;
+    for (let i = 0; i < vecA.length; i++) {
+        dotProduct += vecA[i] * vecB[i];
+        normA += vecA[i] * vecA[i];
+        normB += vecB[i] * vecB[i];
+    }
+    return dotProduct / (Math.sqrt(normA) * Math.sqrt(normB));
 }
 
 export const fetchTopicInfo = async (req: Request, res: Response) => {
@@ -225,12 +240,12 @@ export const transcribeAudio = async (req: Request, res: Response) => {
     try {
         const model = getModel(llm);
         const parts: Part[] = [
-          { inlineData: { mimeType: fileType, data: base64Data } },
-          { text: "Transcribe the audio from this file. Respond only with the full transcription." },
+            { inlineData: { mimeType: fileType, data: base64Data } },
+            { text: "Transcribe the audio from this file. Respond only with the full transcription." },
         ];
         const result = await model.generateContent({ contents: [{ role: 'user', parts }] });
         res.json(result.response.text());
-    } 
+    }
     catch (error: any) {
         res.status(500).json({ message: `Failed to transcribe audio: ${error.message}` });
     }
@@ -273,32 +288,170 @@ export const generateAnswerFromText = async (req: Request, res: Response) => {
     }
 };
 
+
+function chunkText(text: string, chunkSize: number = 1000): string[] {
+    if (!text) return [];
+    const chunks = [];
+    let currentChunk = "";
+    const sentences = text.split(/(?<=[.?!])\s+/);
+
+    for (const sentence of sentences) {
+        if ((currentChunk + sentence).length > chunkSize) {
+            chunks.push(currentChunk);
+            currentChunk = sentence;
+        } else {
+            currentChunk += (currentChunk ? " " : "") + sentence;
+        }
+    }
+    if (currentChunk) chunks.push(currentChunk);
+    return chunks;
+}
+
 export const performSemanticSearch = async (req: Request, res: Response) => {
-    const { projectId, query, topK } = req.body;
+    const { text, query, topK } = req.body;
+
+    if (!text || !query) {
+        return res.status(400).json({ message: "Text and query are required." });
+    }
+
     try {
-        const project = await StudyProject.findById(projectId);
-        // Validate chunks existence as well
-        if (!project || !project.embeddings || project.embeddings.length === 0 || !project.chunks) {
-            return res.status(400).json({ message: "Project index not ready." });
+        const chunks = chunkText(text);
+
+        if (chunks.length === 0) {
+            return res.json([]);
         }
 
-        const model = genAI.getGenerativeModel({ model: "text-embedding-004" });
-        const queryResult = await model.embedContent(query);
+        const embeddingModel = genAI.getGenerativeModel({ model: "text-embedding-004" });
+
+        const queryResult = await embeddingModel.embedContent(query);
         const queryVector = queryResult.embedding.values;
 
-        // Explicitly type 'emb' to avoid implicit 'any' error
-        const similarities = project.embeddings.map((emb: number[], i: number) => ({
-            index: i,
-            score: cosineSimilarity(emb, queryVector)
-        }));
+        const chunksToProcess = chunks.slice(0, 50);
+        const scoredChunks = [];
 
-        similarities.sort((a, b) => b.score - a.score);
+        for (const chunk of chunksToProcess) {
+            await new Promise(resolve => setTimeout(resolve, 100));
 
-        // Use the non-null assertion operator (!) or check existence because we verified chunks above
-        const topResults = similarities.slice(0, topK).map(s => project.chunks![s.index]);
+            try {
+                const chunkResult = await embeddingModel.embedContent(chunk);
+                const chunkVector = chunkResult.embedding.values;
+                const score = cosineSimilarity(queryVector, chunkVector);
+                scoredChunks.push({ chunk, score });
+            }
+            catch (err) {
+                console.warn("Failed to embed chunk:", err);
+            }
+        }
+
+        scoredChunks.sort((a, b) => b.score - a.score);
+        const topResults = scoredChunks.slice(0, topK || 4).map(item => item.chunk);
 
         res.json(topResults);
+
+    }
+    catch (error: any) {
+        console.error("Semantic Search Error:", error);
+        res.status(500).json({ message: `Search failed: ${error.message}` });
+    }
+};
+
+
+export const generateConceptMapFromText = async (req: Request, res: Response) => {
+    const { llm, text, language } = req.body;
+    try {
+        const prompt = `Analyze the following text and generate a concept map. Identify the main concepts and their relationships. Return a JSON object with 'nodes' and 'links'. Each node should have an 'id' (the concept name) and a 'group' (a number for color-coding related concepts). Each link should have a 'source' (node id), a 'target' (node id), and a 'value' (representing the strength of the connection, from 1 to 10).\n\nTEXT:\n${text}`;
+
+        const model = getModel(llm, "application/json");
+        const result = await model.generateContent(prompt);
+        const textRes = result.response.text().replace(/```json/g, '').replace(/```/g, '');
+        res.json(JSON.parse(textRes));
     } catch (error: any) {
-        res.status(500).json({ message: error.message });
+        res.status(500).json({ message: `Failed to generate concept map: ${error.message}` });
+    }
+};
+
+export const generateLessonPlanFromText = async (req: Request, res: Response) => {
+    const { llm, text, topic, language } = req.body;
+    try {
+        const prompt = `Based on the following text content, create a detailed 50-minute lesson plan about "${topic}". The plan should be structured as a JSON object with keys: 'title', 'objective', 'duration' (string), 'materials' (array of strings), 'activities' (array of objects with 'name', 'duration', and 'description'), and 'assessment'.\n\nTEXT:\n${text}`;
+
+        const model = getModel(llm, "application/json");
+        const result = await model.generateContent(prompt);
+        const textRes = result.response.text().replace(/```json/g, '').replace(/```/g, '');
+        res.json(JSON.parse(textRes));
+    } catch (error: any) {
+        res.status(500).json({ message: `Failed to generate lesson plan: ${error.message}` });
+    }
+};
+
+export const generateStudyPlanFromText = async (req: Request, res: Response) => {
+    const { llm, text, days, language } = req.body;
+    try {
+        const prompt = `Create a ${days}-day study plan based on the provided text. The output should be a JSON object with 'title', 'durationDays', and a 'schedule' array. Each item in the schedule should be an object with 'day' (number), 'topic' (string), and 'tasks' (array of strings).\n\nTEXT:\n${text}`;
+
+        const model = getModel(llm, "application/json");
+        const result = await model.generateContent(prompt);
+        const textRes = result.response.text().replace(/```json/g, '').replace(/```/g, '');
+        res.json(JSON.parse(textRes));
+    } catch (error: any) {
+        res.status(500).json({ message: `Failed to generate study plan: ${error.message}` });
+    }
+};
+
+export const getTutorResponseFromText = async (req: Request, res: Response) => {
+    const { llm, text, message, history, language } = req.body;
+    try {
+        const context = `CONTEXT: ${text.substring(0, 500000)}\n\n`;
+
+        const chatHistory: Content[] = (history || []).map((h: any) => ({
+            role: h.role,
+            parts: [{ text: h.content }]
+        }));
+
+        const prompt = `${context}Based on the context above and our conversation history, answer my latest question in ${language}.\n\nLATEST QUESTION:\n${message}`;
+        const model = getModel(llm);
+        const chat = model.startChat({ history: chatHistory });
+        const result = await chat.sendMessage(prompt);
+        res.json(result.response.text());
+    } catch (error: any) {
+        res.status(500).json({ message: `Tutor failed to respond: ${error.message}` });
+    }
+};
+
+export const generateEssayOutlineFromText = async (req: Request, res: Response) => {
+    const { llm, text, topic, language } = req.body;
+    try {
+        const prompt = `Create a detailed essay outline about "${topic}" based on the following text. Return a JSON object with 'title', 'introduction', 'body' (array of objects with 'heading' and 'points'), and 'conclusion'.\n\nTEXT:\n${text}`;
+        const model = getModel(llm, "application/json");
+        const result = await model.generateContent(prompt);
+        const textRes = result.response.text().replace(/```json/g, '').replace(/```/g, '');
+        res.json(JSON.parse(textRes));
+    } catch (error: any) {
+        res.status(500).json({ message: `Failed to generate essay outline: ${error.message}` });
+    }
+};
+
+export const generateEssayArgumentsFromText = async (req: Request, res: Response) => {
+    const { llm, text, topic, language } = req.body;
+    try {
+        const prompt = `Based on the text provided, generate a list of strong arguments and potential counter-arguments for an essay on the topic: "${topic}". Format the output in clear Markdown.\n\nTEXT:\n${text}`;
+        const model = getModel(llm);
+        const result = await model.generateContent(prompt);
+        res.json(result.response.text());
+    } catch (error: any) {
+        res.status(500).json({ message: `Failed to generate arguments: ${error.message}` });
+    }
+};
+
+export const generateConceptMapForTopic = async (req: Request, res: Response) => {
+    const { llm, topic, language } = req.body;
+    try {
+        const prompt = `Generate a concept map for the topic "${topic}". Return a JSON object with 'nodes' and 'links'. Nodes should have 'id' and 'group'. Links should have 'source', 'target', and 'value'.\n`;
+        const model = getModel(llm, "application/json");
+        const result = await model.generateContent(prompt);
+        const textRes = result.response.text().replace(/```json/g, '').replace(/```/g, '');
+        res.json(JSON.parse(textRes));
+    } catch (error: any) {
+        res.status(500).json({ message: `Failed to generate concept map from topic: ${error.message}` });
     }
 };

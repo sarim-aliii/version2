@@ -18,8 +18,10 @@ router.post('/register', registerUser);
 router.post('/login', loginUser);
 router.post('/google', googleLogin);
 router.post('/github', githubLogin);
+
 router.get('/profile', protect, getUserProfile);
-router.get('/profile', protect, updateUserProfile);
+router.put('/profile', protect, updateUserProfile);
+
 router.post('/verify-email', verifyEmail);
 router.post('/forgot-password', forgotPassword);
 router.post('/reset-password', resetPassword);

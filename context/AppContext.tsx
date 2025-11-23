@@ -19,6 +19,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { auth } from '../firebase';
 import { GoogleAuthProvider, GithubAuthProvider, signInWithPopup } from 'firebase/auth';
 
+
 interface AppContextType {
     // Auth
     isAuthenticated: boolean;
@@ -38,7 +39,7 @@ interface AppContextType {
     projects: StudyProject[];
     activeProjectId: string | null;
     activeProject: StudyProject | null;
-    ingestedText: string; // <--- ADDED THIS
+    ingestedText: string; 
     loadProject: (id: string) => void;
     startNewStudy: () => Promise<void>;
     renameProject: (id: string, newName: string) => Promise<void>;
@@ -189,11 +190,16 @@ export const AppProvider: React.FC<{children: ReactNode}> = ({ children }) => {
     const loginWithGoogle = async () => {
         try {
             const provider = new GoogleAuthProvider();
+            provider.setCustomParameters({
+                prompt: 'select_account'
+            });
             const result = await signInWithPopup(auth, provider);
             const idToken = await result.user.getIdToken();
             const data = await api.googleLogin(idToken);
             handleSocialLoginSuccess(data, 'Google');
-        } catch (error: any) {
+        } 
+        catch (error: any) {
+            if (error.code === 'auth/popup-closed-by-user') return;
             addNotification(error.message || 'Google login failed.');
             throw error;
         }
@@ -203,11 +209,14 @@ export const AppProvider: React.FC<{children: ReactNode}> = ({ children }) => {
         try {
             const provider = new GithubAuthProvider();
             provider.addScope('user:email');
+            provider.addScope('read:user');
+            
             const result = await signInWithPopup(auth, provider);
             const idToken = await result.user.getIdToken();
             const data = await api.githubLogin(idToken);
             handleSocialLoginSuccess(data, 'GitHub');
         } catch (error: any) {
+            if (error.code === 'auth/popup-closed-by-user') return;
             addNotification(error.message || 'GitHub login failed.');
             throw error;
         }
@@ -258,8 +267,12 @@ export const AppProvider: React.FC<{children: ReactNode}> = ({ children }) => {
                 if (fetchedProjects.length > 0 && !activeProjectId) {
                     setActiveProjectId(fetchedProjects[0]._id);
                 }
-            } catch (error: any) {
-                if (error.response?.status === 401) logout();
+            } 
+            catch (error: any) {
+                console.error("Failed to fetch projects", error);
+                if (error.message && (error.message.includes('401') || error.message.includes('Not authorized'))) {
+                    logout();
+                }
             }
         }
     }, [userToken, activeProjectId, logout, setActiveProjectId]);
@@ -270,7 +283,10 @@ export const AppProvider: React.FC<{children: ReactNode}> = ({ children }) => {
             api.getProfile().then(user => {
                 setCurrentUser(user);
                 fetchProjects();
-            }).catch(() => logout());
+            }).catch((error) => {
+                console.error("Profile check failed", error);
+                logout();
+            });
         }
     }, [userToken, fetchProjects, logout]);
 
@@ -284,7 +300,7 @@ export const AppProvider: React.FC<{children: ReactNode}> = ({ children }) => {
         try {
             const newProject = await api.createProject({ name, ingestedText: text });
             setProjects(prev => [newProject, ...prev]);
-            setActiveProjectId(newProject._id); // Set active immediately
+            setActiveProjectId(newProject._id);
             addNotification(`Study "${name}" created!`, 'success');
             setActiveTab(Tab.Summary);
         } catch (error: any) {

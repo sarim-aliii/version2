@@ -81,16 +81,15 @@ export const AudioAnalysis: React.FC = () => {
     if (!transcribedText) return;
     setCurrentAction(action);
     setIsLoading(true);
-    setSummary(null);
-    setFlashcards([]);
-    setAnswer(null);
 
     try {
         if (action === 'summary') {
+            setSummary(null);
             const result = await generateSummary(llm, transcribedText, language);
             setSummary(result);
         } 
         else if (action === 'flashcards') {
+            setFlashcards([]);
             const result = await generateFlashcards(llm, transcribedText, language);
             setFlashcards(result);
         } 
@@ -100,6 +99,7 @@ export const AudioAnalysis: React.FC = () => {
                 setIsLoading(false);
                 return;
             }
+            setAnswer(null);
             const result = await generateAnswer(llm, transcribedText, question, language);
             setAnswer(result);
         }
@@ -109,6 +109,7 @@ export const AudioAnalysis: React.FC = () => {
     } 
     finally {
         setIsLoading(false);
+        setCurrentAction(null);
     }
   };
 

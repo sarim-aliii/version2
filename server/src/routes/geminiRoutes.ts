@@ -14,14 +14,24 @@ import {
     generateSummaryFromText,        
     generateFlashcardsFromText,       
     generateAnswerFromText,          
-    performSemanticSearch           
+    performSemanticSearch,
+    generateConceptMapFromText,
+    generateLessonPlanFromText,
+    generateStudyPlanFromText,
+    getTutorResponseFromText,
+    generateEssayOutlineFromText,
+    generateEssayArgumentsFromText,
+    generateConceptMapForTopic        
 } from '../controllers/geminiController';
 import { protect } from '../middleware/authMiddleware';
 import multer from 'multer';
 
 
 const router = express.Router();
-const upload = multer({ storage: multer.memoryStorage() });
+const upload = multer({ 
+    storage: multer.memoryStorage(),
+    limits: { fileSize: 200 * 1024 * 1024 }
+});
 
 
 router.post('/summary', protect, generateSummary);
@@ -40,5 +50,12 @@ router.post('/generate-study-guide', protect, generatePersonalizedStudyGuide);
 router.post('/extract-text', protect, extractTextFromFile);
 router.post('/transcribe', protect, upload.single('file'), transcribeAudio);
 
+router.post('/concept-map-from-text', protect, generateConceptMapFromText);
+router.post('/lesson-plan-from-text', protect, generateLessonPlanFromText);
+router.post('/study-plan-from-text', protect, generateStudyPlanFromText);
+router.post('/tutor-from-text', protect, getTutorResponseFromText);
+router.post('/essay-outline-from-text', protect, generateEssayOutlineFromText);
+router.post('/essay-arguments-from-text', protect, generateEssayArgumentsFromText);
+router.post('/concept-map-from-topic', protect, generateConceptMapForTopic);
 
 export default router;
