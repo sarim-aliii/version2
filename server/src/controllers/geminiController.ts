@@ -8,7 +8,7 @@ import {
     Part,
     Content
 } from "@google/generative-ai";
-import { YoutubeTranscript } from 'youtube-transcript';
+import ytdl from '@distube/ytdl-core';
 
 
 if (!process.env.GEMINI_API_KEY) {
@@ -63,6 +63,31 @@ const getModel = (llm: string, responseMimeType?: string) => {
         generationConfig: responseMimeType ? { ...generationConfig, responseMimeType } : generationConfig
     });
 }
+
+const downloadAudioBuffer = async (url: string): Promise<{ buffer: Buffer, mimeType: string }> => {
+    if (!ytdl.validateURL(url)) {
+        throw new Error("Invalid YouTube URL");
+    }
+
+    const info = await ytdl.getInfo(url);
+    const format = ytdl.chooseFormat(info.formats, { quality: 'lowestaudio', filter: 'audioonly' });
+    const mimeType = format.mimeType?.split(';')[0] || 'audio/mp3';
+
+    const stream = ytdl(url, { 
+        quality: 'lowestaudio', 
+        filter: 'audioonly' 
+    });
+
+    const chunks: Uint8Array[] = [];
+    for await (const chunk of stream) {
+        chunks.push(chunk);
+    }
+    
+    return {
+        buffer: Buffer.concat(chunks),
+        mimeType: mimeType
+    };
+};
 
 export const generateSummary = async (req: Request, res: Response) => {
     if (!req.user) return res.status(401).json({ message: 'Not authorized' });
@@ -466,26 +491,36 @@ export const generateConceptMapForTopic = async (req: Request, res: Response) =>
 };
 
 export const transcribeYoutubeVideo = async (req: Request, res: Response) => {
-    const { url } = req.body;
+    const { url, llm } = req.body;
     
-    if (!url || !url.includes('youtube.com') && !url.includes('youtu.be')) {
+    if (!url || (!url.includes('youtube.com') && !url.includes('youtu.be'))) {
         return res.status(400).json({ message: "Invalid YouTube URL." });
     }
 
     try {
-        // Fetch transcript
-        const transcriptItems = await YoutubeTranscript.fetchTranscript(url);
+        const { buffer, mimeType } = await downloadAudioBuffer(url);
+        const base64Data = buffer.toString('base64');
+        const model = getModel(llm || 'gemini-1.5-flash');
         
-        if (!transcriptItems || transcriptItems.length === 0) {
-            return res.status(404).json({ message: "No captions found for this video." });
+        const parts: Part[] = [
+            { inlineData: { mimeType: mimeType, data: base64Data } },
+            { text: "Transcribe the audio from this file. Respond only with the full transcription." },
+        ];
+
+        const result = await model.generateContent({ contents: [{ role: 'user', parts }] });
+        
+        res.json(result.response.text());
+
+    } 
+    catch (error: any) {
+        console.error("YouTube Transcription Error:", error);
+        
+        if (error.message.includes('403') || error.message.includes('Sign in')) {
+             return res.status(500).json({ 
+                message: "YouTube blocked the download (403 Forbidden). This is common with server-side downloaders. Please try downloading the file manually and using the 'Upload' tab." 
+            });
         }
 
-        // Combine all lines into one string
-        const fullText = transcriptItems.map(item => item.text).join(' ');
-        
-        res.json(fullText);
-    } catch (error: any) {
-        console.error("YouTube Transcript Error:", error);
-        res.status(500).json({ message: "Failed to fetch transcript. The video might not have captions enabled." });
+        res.status(500).json({ message: `Failed to transcribe video: ${error.message}` });
     }
 };

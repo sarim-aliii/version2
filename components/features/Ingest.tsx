@@ -7,6 +7,7 @@ import { Slider } from '../ui/Slider';
 import { fetchTopicInfo, extractTextFromFile } from '../../services/geminiService';
 import { Loader } from '../ui/Loader';
 
+
 export const Ingest: React.FC = () => {
   const { ingestText, addNotification, language, llm } = useAppContext();
   const [pastedText, setPastedText] = useState('');
@@ -20,6 +21,8 @@ export const Ingest: React.FC = () => {
   const acceptedMimeTypes = {
     'application/pdf': ['.pdf'],
     'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'],
+    'application/vnd.openxmlformats-officedocument.presentationml.presentation': ['.pptx'],
+    'application/vnd.ms-powerpoint': ['.ppt'],
     'text/plain': ['.txt'],
   };
 
@@ -34,7 +37,7 @@ export const Ingest: React.FC = () => {
       reader.onerror = error => reject(error);
     });
   };
-  
+
   const handleFilesUpload = async (files: File[]) => {
     setFileNames(files.map(f => f.name));
     setPastedText('');
@@ -51,28 +54,38 @@ export const Ingest: React.FC = () => {
               reader.onerror = () => rej(new Error(`Failed to read ${file.name}.`));
               reader.readAsText(file);
             });
-          } else if (file.type === 'application/pdf' || file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
-              const base64Data = await fileToBase64(file);
-              fileText = await extractTextFromFile(llm, base64Data, file.type);
-          } else {
-              addNotification(`Skipping unsupported file type: ${file.name}.`, 'info');
-              resolve('');
-              return;
+          }
+          else if (
+            file.type === 'application/pdf' ||
+            file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
+            file.type === 'application/vnd.openxmlformats-officedocument.presentationml.presentation' ||
+            file.type === 'application/vnd.ms-powerpoint'
+          ) {
+            const base64Data = await fileToBase64(file);
+            fileText = await extractTextFromFile(llm, base64Data, file.type);
+          }
+          else {
+            addNotification(`Skipping unsupported file type: ${file.name}.`, 'info');
+            resolve('');
+            return;
           }
           resolve(`\n\n--- START OF FILE: ${file.name} ---\n\n${fileText}\n\n--- END OF FILE: ${file.name} ---\n\n`);
-        } catch (e: any) {
+        }
+        catch (e: any) {
           reject(e);
         }
       });
     });
 
     try {
-        const allTextContents = await Promise.all(fileProcessingPromises);
-        setPastedText(allTextContents.join('').trim());
-    } catch (e: any) {
-        addNotification(e.message);
-    } finally {
-        setIsExtracting(false);
+      const allTextContents = await Promise.all(fileProcessingPromises);
+      setPastedText(allTextContents.join('').trim());
+    }
+    catch (e: any) {
+      addNotification(e.message);
+    }
+    finally {
+      setIsExtracting(false);
     }
   };
 
@@ -86,10 +99,10 @@ export const Ingest: React.FC = () => {
       const notes = await fetchTopicInfo(llm, topic, language);
       setPastedText(notes);
       setFileNames([`notes_on_${topic.replace(/\s+/g, '_')}.txt`]);
-    } 
+    }
     catch (e: any) {
       addNotification(e.message);
-    } 
+    }
     finally {
       setIsSeeding(false);
     }
@@ -100,15 +113,15 @@ export const Ingest: React.FC = () => {
       addNotification('Please upload a file or paste some text to ingest.', 'info');
       return;
     }
-    
+
     let projectName = "Study Project";
     if (topic.trim()) {
-        projectName = topic;
+      projectName = topic;
     } else if (fileNames.length > 0) {
-        projectName = fileNames[0];
-        if (fileNames.length > 1) projectName += ` + ${fileNames.length - 1} others`;
+      projectName = fileNames[0];
+      if (fileNames.length > 1) projectName += ` + ${fileNames.length - 1} others`;
     } else {
-        projectName = `Notes ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}`;
+      projectName = `Notes ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}`;
     }
 
     await ingestText(projectName, pastedText);
@@ -116,12 +129,12 @@ export const Ingest: React.FC = () => {
 
   return (
     <div className="space-y-8">
-      <Card title="Ingest study material (PDF / DOCX / TXT)">
+      <Card title="Ingest study material (PDF / DOCX / PPT / TXT)">
         <FileUploader 
             onFileUpload={handleFilesUpload} 
             acceptedMimeTypes={acceptedMimeTypes} 
             multiple={true} 
-            unsupportedFormatError="Please upload PDF, DOCX, or TXT files."
+            unsupportedFormatError="Please upload PDF, DOCX, PPT, or TXT files."
             onError={addNotification}
         />
         {isExtracting && (

@@ -3,12 +3,27 @@ import { TodoList } from '../features/TodoList';
 import { useAppContext } from '../../context/AppContext';
 import { ProjectHistory } from './ProjectHistory';
 
+
 export const Sidebar: React.FC = () => {
-    const { isSidebarCollapsed, language, setLanguage, llm, setLlm } = useAppContext();
+    const { isSidebarCollapsed, toggleSidebar, language, setLanguage, llm, setLlm } = useAppContext();
 
     return (
         <aside className={`w-full bg-slate-900 border-r border-slate-800 flex flex-col flex-shrink-0 transition-all duration-300 ease-in-out overflow-hidden ${isSidebarCollapsed ? 'md:w-0 border-transparent' : 'md:w-72 lg:w-80'}`}>
             <div className={`space-y-6 overflow-y-auto flex-1 transition-all duration-300 ease-in-out ${isSidebarCollapsed ? 'opacity-0 p-0' : 'p-6 opacity-100'}`}>
+                
+                {/* Collapse Button */}
+                <div className="flex justify-end">
+                    <button 
+                        onClick={toggleSidebar}
+                        className="p-1.5 text-slate-400 hover:text-white hover:bg-slate-800 rounded-md transition-colors"
+                        title="Collapse Sidebar"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                            <path fillRule="evenodd" d="M15.707 15.707a1 1 0 01-1.414 0l-5-5a1 1 0 010-1.414l5-5a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 010 1.414zm-6 0a1 1 0 01-1.414 0l-5-5a1 1 0 010-1.414l5-5a1 1 0 011.414 1.414L5.414 10l4.293 4.293a1 1 0 010 1.414z" clipRule="evenodd" />
+                        </svg>
+                    </button>
+                </div>
+
                 <div>
                     <h3 className="text-sm font-semibold text-slate-400 mb-1">LLM Model</h3>
                     <select
@@ -35,53 +50,99 @@ export const Sidebar: React.FC = () => {
                         onChange={(e) => setLanguage(e.target.value)}
                         className="w-full text-sm text-slate-200 bg-slate-800 p-2 rounded border border-slate-700 focus:ring-2 focus:ring-red-500 focus:outline-none"
                     >
-                        <option value="English">English</option>
+                        <option value="Afrikaans">Afrikaans</option>
+                        <option value="Albanian">Albanian</option>
+                        <option value="Amharic">Amharic</option>
                         <option value="Arabic">Arabic</option>
+                        <option value="Armenian">Armenian</option>
                         <option value="Assamese">Assamese</option>
+                        <option value="Azerbaijani">Azerbaijani</option>
+                        <option value="Basque">Basque</option>
                         <option value="Bengali">Bengali</option>
+                        <option value="Bosnian">Bosnian</option>
                         <option value="Bulgarian">Bulgarian</option>
+                        <option value="Burmese">Burmese</option>
+                        <option value="Cantonese">Cantonese</option>
                         <option value="Catalan">Catalan</option>
+                        <option value="Chinese (Traditional)">Chinese (Traditional)</option>
                         <option value="Croatian">Croatian</option>
                         <option value="Czech">Czech</option>
                         <option value="Danish">Danish</option>
                         <option value="Dutch">Dutch</option>
+                        <option value="English">English</option>
+                        <option value="Estonian">Estonian</option>
                         <option value="Filipino">Filipino</option>
                         <option value="Finnish">Finnish</option>
                         <option value="French">French</option>
+                        <option value="Galician">Galician</option>
+                        <option value="Georgian">Georgian</option>
                         <option value="German">German</option>
                         <option value="Greek">Greek</option>
                         <option value="Gujarati">Gujarati</option>
+                        <option value="Haitian Creole">Haitian Creole</option>
+                        <option value="Hausa">Hausa</option>
                         <option value="Hebrew">Hebrew</option>
                         <option value="Hindi">Hindi</option>
                         <option value="Hungarian">Hungarian</option>
+                        <option value="Icelandic">Icelandic</option>
+                        <option value="Igbo">Igbo</option>
                         <option value="Indonesian">Indonesian</option>
+                        <option value="Irish">Irish</option>
                         <option value="Italian">Italian</option>
                         <option value="Japanese">Japanese</option>
+                        <option value="Javanese">Javanese</option>
                         <option value="Kannada">Kannada</option>
+                        <option value="Kazakh">Kazakh</option>
+                        <option value="Khmer">Khmer</option>
                         <option value="Korean">Korean</option>
+                        <option value="Kurdish">Kurdish</option>
+                        <option value="Kyrgyz">Kyrgyz</option>
+                        <option value="Lao">Lao</option>
+                        <option value="Latvian">Latvian</option>
+                        <option value="Lithuanian">Lithuanian</option>
+                        <option value="Luxembourgish">Luxembourgish</option>
+                        <option value="Macedonian">Macedonian</option>
+                        <option value="Malagasy">Malagasy</option>
                         <option value="Malay">Malay</option>
                         <option value="Malayalam">Malayalam</option>
+                        <option value="Maltese">Maltese</option>
                         <option value="Mandarin Chinese">Mandarin Chinese</option>
+                        <option value="Maori">Maori</option>
                         <option value="Marathi">Marathi</option>
+                        <option value="Mongolian">Mongolian</option>
                         <option value="Nepali">Nepali</option>
                         <option value="Norwegian">Norwegian</option>
                         <option value="Odia">Odia</option>
+                        <option value="Pashto">Pashto</option>
+                        <option value="Persian">Persian</option>
                         <option value="Polish">Polish</option>
                         <option value="Portuguese">Portuguese</option>
                         <option value="Punjabi">Punjabi</option>
                         <option value="Romanian">Romanian</option>
                         <option value="Russian">Russian</option>
+                        <option value="Serbian">Serbian</option>
+                        <option value="Sinhala">Sinhala</option>
                         <option value="Slovak">Slovak</option>
+                        <option value="Slovenian">Slovenian</option>
+                        <option value="Somali">Somali</option>
                         <option value="Spanish">Spanish</option>
+                        <option value="Sundanese">Sundanese</option>
                         <option value="Swahili">Swahili</option>
                         <option value="Swedish">Swedish</option>
+                        <option value="Tajik">Tajik</option>
                         <option value="Tamil">Tamil</option>
                         <option value="Telugu">Telugu</option>
                         <option value="Thai">Thai</option>
                         <option value="Turkish">Turkish</option>
+                        <option value="Turkmen">Turkmen</option>
                         <option value="Ukrainian">Ukrainian</option>
                         <option value="Urdu">Urdu</option>
+                        <option value="Uzbek">Uzbek</option>
                         <option value="Vietnamese">Vietnamese</option>
+                        <option value="Welsh">Welsh</option>
+                        <option value="Xhosa">Xhosa</option>
+                        <option value="Yoruba">Yoruba</option>
+                        <option value="Zulu">Zulu</option>
                     </select>
                 </div>
 
