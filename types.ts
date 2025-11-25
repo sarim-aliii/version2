@@ -1,5 +1,23 @@
 import { SimulationLinkDatum, SimulationNodeDatum } from 'd3';
 
+
+export interface User {
+    _id: string;
+    email: string;
+    name: string;
+    avatar?: string;
+}
+
+export interface LoginCredentials {
+    email: string;
+    password: string;
+}
+
+export interface SignupCredentials {
+    email: string;
+    password: string;
+}
+
 export interface Flashcard {
   question: string;
   answer: string;
@@ -67,6 +85,7 @@ export enum Tab {
     ConceptMap = 'Concept Map',
     LessonPlanner = 'Lesson Planner',
     StudyPlanner = 'Study Planner',
+    CodeAnalysis = 'Code Analysis',
     Profile = 'Profile',
 }
 
@@ -118,13 +137,6 @@ export interface StudyPlan {
     schedule: StudyDay[];
 }
 
-export interface User {
-    _id: string;
-    email: string;
-    name: string;
-    avatar?: string;
-}
-
 export interface StudyProject {
   _id: string;
   name: string;
@@ -145,17 +157,13 @@ export interface StudyProject {
   studyPlan?: StudyPlan;
 }
 
-export interface LoginCredentials {
-    email: string;
-    password: string;
-}
-
-export interface SignupCredentials {
-    email: string;
-    password: string;
-}
-
 export interface AIGenerationOptions {
     llm: string;
     language: string;
+}
+
+export interface CodeAnalysisResult {
+    algorithm: string;
+    pseudocode: string;
+    flowchart: string;
 }

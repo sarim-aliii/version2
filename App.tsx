@@ -16,6 +16,8 @@ import { ProfilePage } from './components/features/ProfilePage';
 import { ToastContainer } from './components/ui/Toast';
 import { Tab } from './types';
 import { AuthManager } from './components/auth/AuthManager';
+import CodeAnalysis from './components/features/CodeAnalysis';
+
 
 const MainContent: React.FC = () => {
   const { activeTab } = useAppContext();
@@ -32,6 +34,7 @@ const MainContent: React.FC = () => {
       case Tab.AudioAnalysis: return <AudioAnalysis />;
       case Tab.LessonPlanner: return <LessonPlanner />;
       case Tab.StudyPlanner: return <StudyPlanner />;
+      case Tab.CodeAnalysis: return <CodeAnalysis />;
       case Tab.Profile: return <ProfilePage />;
       default: return <Ingest />;
     }

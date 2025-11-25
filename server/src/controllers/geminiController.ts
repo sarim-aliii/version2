@@ -144,7 +144,6 @@ export const getTutorResponse = async (req: Request, res: Response) => {
     }
 };
 
-// ... (Include the rest of your existing export functions exactly as they were, they are fine)
 export const generateConceptMap = async (req: Request, res: Response) => {
     if (!req.user) return res.status(401).json({ message: 'Not authorized' });
     const { projectId, llm } = req.body;
@@ -237,7 +236,6 @@ export const generatePersonalizedStudyGuide = async (req: Request, res: Response
     }
 };
 
-// Semantic Search Helper functions
 function cosineSimilarity(vecA: number[], vecB: number[]): number {
     let dotProduct = 0;
     let normA = 0;
@@ -321,7 +319,6 @@ export const generateAnswerFromText = async (req: Request, res: Response) => {
         res.status(500).json({ message: `Failed to generate answer: ${error.message}` });
     }
 };
-
 
 function chunkText(text: string, chunkSize: number = 1000): string[] {
     if (!text) return [];
@@ -522,5 +519,56 @@ export const transcribeYoutubeVideo = async (req: Request, res: Response) => {
         }
 
         res.status(500).json({ message: `Failed to transcribe video: ${error.message}` });
+    }
+};
+
+interface CodeAnalysisResult {
+    algorithm: string;
+    pseudocode: string;
+    flowchart: string;
+}
+
+// @desc    Generate algorithm, pseudocode, and flowchart from code
+// @route   POST /api/gemini/code-analysis/generate
+// @access  Private
+export const generateCodeAnalysis = async (req: Request, res: Response) => {
+    const { llm, code, language } = req.body;
+
+    if (!code || code.length < 10 || !/[{}();=]/.test(code)) {
+        return res.status(400).json({
+            message: "Input seems to be descriptive text, not code. Please provide a source code snippet."
+        });
+    }
+    
+    try {
+        const prompt = `Analyze the following code and generate three artifacts: 1. A detailed Algorithm (step-by-step instructions). 2. Pseudocode (language-agnostic steps). 3. A text-based representation of a Flowchart (e.g., using Markdown or Mermaid syntax). Return a JSON object with three properties: "algorithm" (string), "pseudocode" (string), and "flowchart" (string). Ensure all outputs are in ${language}.\n\nCODE:\n${code}`;
+        
+        const model = getModel(llm, "application/json");
+        const result = await model.generateContent(prompt);
+        const textRes = result.response.text().replace(/```json/g, '').replace(/```/g, '');
+        const jsonResult: CodeAnalysisResult = JSON.parse(textRes);
+        
+        res.json(jsonResult);
+    } catch (error: any) {
+        console.error("Code Analysis Generation Error:", error);
+        res.status(500).json({ message: `Failed to generate code analysis: ${error.message}` });
+    }
+};
+
+// @desc    Explain code/algorithm/pseudocode/flowchart
+// @route   POST /api/gemini/code-analysis/explain
+// @access  Private
+export const explainCodeAnalysis = async (req: Request, res: Response) => {
+    const { llm, artifact, language, explanationType } = req.body;
+    try {
+        const prompt = `Explain the following ${explanationType} in ${language} in a comprehensive and easy-to-understand manner. Focus on its purpose, how it works, and key concepts.\n\nCONTENT:\n${artifact}`;
+        
+        const model = getModel(llm);
+        const result = await model.generateContent(prompt);
+        
+        res.json(result.response.text());
+    } catch (error: any) {
+        console.error("Code Analysis Explanation Error:", error);
+        res.status(500).json({ message: `Failed to explain content: ${error.message}` });
     }
 };

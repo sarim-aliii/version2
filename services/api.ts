@@ -1,5 +1,12 @@
 import axios from 'axios';
-import { LoginCredentials, SignupCredentials, StudyProject, Flashcard, MCQ as MCQType } from '../types';
+import { 
+  LoginCredentials, 
+  SignupCredentials, 
+  StudyProject, 
+  Flashcard, 
+  MCQ as MCQType, 
+  CodeAnalysisResult 
+} from '../types';
 
 const API_URL = '/api';
 
@@ -10,7 +17,7 @@ const api = axios.create({
   },
 });
 
-// Function to set the auth token for all subsequent requests
+
 export const setAuthToken = (token: string | null) => {
   if (token) {
     api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
@@ -75,48 +82,49 @@ export const resetPassword = async (token: string, password: string) => {
   return data;
 };
 
+
 // --- Projects ---
 export const getProjects = async (): Promise<StudyProject[]> => {
-    const { data } = await api.get('/projects');
-    return data;
+  const { data } = await api.get('/projects');
+  return data;
 };
 
 export const createProject = async (projectData: { name: string, ingestedText: string }): Promise<StudyProject> => {
-    const { data } = await api.post('/projects', projectData);
-    return data;
+  const { data } = await api.post('/projects', projectData);
+  return data;
 };
 
 export const updateProject = async (id: string, projectData: Partial<StudyProject>): Promise<StudyProject> => {
-    const { data } = await api.put(`/projects/${id}`, projectData);
-    return data;
+  const { data } = await api.put(`/projects/${id}`, projectData);
+  return data;
 };
 
 export const deleteProject = async (id: string) => {
-    await api.delete(`/projects/${id}`);
+  await api.delete(`/projects/${id}`);
 };
 
 export const generateContent = async (
-    projectId: string, 
-    feature: 'summary' | 'flashcards' | 'tutor' | 'concept-map' | 'lesson-plan' | 'study-plan', 
-    options: any
+  projectId: string,
+  feature: 'summary' | 'flashcards' | 'tutor' | 'concept-map' | 'lesson-plan' | 'study-plan',
+  options: any
 ) => {
-    const { data } = await api.post(`/gemini/${feature}`, { projectId, ...options });
-    return data;
+  const { data } = await api.post(`/gemini/${feature}`, { projectId, ...options });
+  return data;
 };
 
 export const extractTextFromFile = async (llm: string, base64Data: string, fileType: string): Promise<string> => {
-    const { data } = await api.post('/gemini/extract-text', { llm, base64Data, fileType });
-    return data;
+  const { data } = await api.post('/gemini/extract-text', { llm, base64Data, fileType });
+  return data;
 };
 
 export const generateMCQs = async (llm: string, text: string, language: string, difficulty: string): Promise<any[]> => {
-    const { data } = await api.post('/gemini/generate-mcqs', { llm, text, language, difficulty });
-    return data;
+  const { data } = await api.post('/gemini/generate-mcqs', { llm, text, language, difficulty });
+  return data;
 };
 
 export const generatePersonalizedStudyGuide = async (llm: string, text: string, incorrectMCQs: any[], language: string): Promise<string> => {
-    const { data } = await api.post('/gemini/generate-study-guide', { llm, text, incorrectMCQs, language });
-    return data;
+  const { data } = await api.post('/gemini/generate-study-guide', { llm, text, incorrectMCQs, language });
+  return data;
 };
 
 export const fetchTopicInfo = async (llm: string, topic: string, language: string): Promise<string> => {
@@ -125,73 +133,83 @@ export const fetchTopicInfo = async (llm: string, topic: string, language: strin
 };
 
 export const transcribeAudio = async (llm: string, file: File): Promise<string> => {
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('llm', llm);
-    formData.append('fileType', file.type);
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('llm', llm);
+  formData.append('fileType', file.type);
 
-    const { data } = await api.post('/gemini/transcribe', formData); 
-    return data;
+  const { data } = await api.post('/gemini/transcribe', formData);
+  return data;
 };
 
 export const generateSummary = async (llm: string, text: string, language: string): Promise<string> => {
-    const { data } = await api.post('/gemini/summary-from-text', { llm, text, language });
-    return data;
+  const { data } = await api.post('/gemini/summary-from-text', { llm, text, language });
+  return data;
 };
 
 export const generateFlashcards = async (llm: string, text: string, language: string): Promise<Flashcard[]> => {
-    const { data } = await api.post('/gemini/flashcards-from-text', { llm, text, language });
-    return data as Flashcard[];
+  const { data } = await api.post('/gemini/flashcards-from-text', { llm, text, language });
+  return data as Flashcard[];
 };
 
 export const generateAnswer = async (llm: string, text: string, question: string, language: string): Promise<string> => {
-    const { data } = await api.post('/gemini/answer-from-text', { llm, text, question, language });
-    return data;
+  const { data } = await api.post('/gemini/answer-from-text', { llm, text, question, language });
+  return data;
 };
 
 export const performSemanticSearch = async (llm: string, text: string, query: string, topK: number): Promise<string[]> => {
-    const { data } = await api.post('/gemini/semantic-search', { text, query, topK });
-    return data as string[];
+  const { data } = await api.post('/gemini/semantic-search', { text, query, topK });
+  return data as string[];
 };
 
 export const generateConceptMapFromText = async (llm: string, text: string, language: string) => {
-    const { data } = await api.post('/gemini/concept-map-from-text', { llm, text, language });
-    return data;
+  const { data } = await api.post('/gemini/concept-map-from-text', { llm, text, language });
+  return data;
 };
 
 export const generateLessonPlanFromText = async (llm: string, text: string, topic: string, language: string) => {
-    const { data } = await api.post('/gemini/lesson-plan-from-text', { llm, text, topic, language });
-    return data;
+  const { data } = await api.post('/gemini/lesson-plan-from-text', { llm, text, topic, language });
+  return data;
 };
 
 export const generateStudyPlanFromText = async (llm: string, text: string, days: number, language: string) => {
-    const { data } = await api.post('/gemini/study-plan-from-text', { llm, text, days, language });
-    return data;
+  const { data } = await api.post('/gemini/study-plan-from-text', { llm, text, days, language });
+  return data;
 };
 
 export const getTutorResponseFromText = async (llm: string, text: string, history: any[], message: string, language: string) => {
-    const { data } = await api.post('/gemini/tutor-from-text', { llm, text, history, message, language });
-    return data;
+  const { data } = await api.post('/gemini/tutor-from-text', { llm, text, history, message, language });
+  return data;
 };
 
 export const generateEssayOutlineFromText = async (llm: string, text: string, topic: string, language: string) => {
-    const { data } = await api.post('/gemini/essay-outline-from-text', { llm, text, topic, language });
-    return data;
+  const { data } = await api.post('/gemini/essay-outline-from-text', { llm, text, topic, language });
+  return data;
 };
 
 export const generateEssayArgumentsFromText = async (llm: string, text: string, topic: string, language: string) => {
-    const { data } = await api.post('/gemini/essay-arguments-from-text', { llm, text, topic, language });
-    return data;
+  const { data } = await api.post('/gemini/essay-arguments-from-text', { llm, text, topic, language });
+  return data;
 };
 
 export const generateConceptMapForTopic = async (llm: string, topic: string, language: string) => {
-    const { data } = await api.post('/gemini/concept-map-from-topic', { llm, topic, language });
-    return data;
+  const { data } = await api.post('/gemini/concept-map-from-topic', { llm, topic, language });
+  return data;
 };
 
 export const transcribeYoutube = async (llm: string, url: string): Promise<string> => {
-    const { data } = await api.post('/gemini/transcribe-youtube', { llm, url });
-    return data;
+  const { data } = await api.post('/gemini/transcribe-youtube', { llm, url });
+  return data;
+};
+
+export const generateCodeAnalysis = async (llm: string, code: string, language: string): Promise<CodeAnalysisResult> => {
+  const { data } = await api.post('/gemini/code-analysis/generate', { llm, code, language });
+  return data as CodeAnalysisResult;
+};
+
+export const explainCodeAnalysis = async (llm: string, artifact: string, language: string, explanationType: string): Promise<string> => {
+  const { data } = await api.post('/gemini/code-analysis/explain', { llm, artifact, language, explanationType });
+  return data;
 };
 
 export default api;
