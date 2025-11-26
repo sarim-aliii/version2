@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useAppContext } from '../../context/AppContext';
 
+
 const Menu: React.FC<{ onRename: () => void, onDelete: () => void, onShare: () => void, isActive: boolean }> = ({ onRename, onDelete, onShare, isActive }) => {
     const [isOpen, setIsOpen] = useState(false);
     const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
@@ -48,7 +49,6 @@ const Menu: React.FC<{ onRename: () => void, onDelete: () => void, onShare: () =
     };
 
     return (
-        // Added z-index to this container (Menu) to ensure it sits above everything else in the li
         <div className="relative z-[100]" ref={menuRef}> 
             <button 
                 onClick={(e) => { e.stopPropagation(); setIsOpen(!isOpen); }} 
@@ -64,10 +64,9 @@ const Menu: React.FC<{ onRename: () => void, onDelete: () => void, onShare: () =
                 </svg>
             </button>
             
-            {/* Dropdown Menu - Increased width to w-64, explicitly solid bg, high z-index */}
             {isOpen && (
                 <div 
-                    className="absolute right-0 top-full mt-1 w-64 bg-slate-900 border border-slate-700 rounded-md shadow-xl z-[100] py-1 origin-top-right"
+                    className="absolute left-0 top-full mt-1 w-64 bg-slate-900 border border-slate-700 rounded-md shadow-xl z-[100] py-1 origin-top-left"
                     onClick={(e) => e.stopPropagation()}
                 >
                     <button 
@@ -92,7 +91,7 @@ const Menu: React.FC<{ onRename: () => void, onDelete: () => void, onShare: () =
                         onClick={handleDeleteClick} 
                         className={`flex items-center gap-3 w-full text-left px-3 py-2 text-sm transition-colors hover:bg-slate-800 ${isConfirmingDelete ? 'text-yellow-400 font-bold bg-yellow-400/10' : 'text-red-400 hover:text-red-300'}`}
                     >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 opacity-70" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002 2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" /></svg>
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 opacity-70" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" /></svg>
                         {isConfirmingDelete ? 'Confirm?' : 'Delete'}
                     </button>
                 </div>
@@ -180,8 +179,7 @@ export const ProjectHistory: React.FC = () => {
                                 <button
                                     onClick={() => loadProject(project._id)}
                                     disabled={project.status === 'processing'}
-                                    // FIXED: Added pr-12 to ensure 3-dot menu and its dropdown has enough space (was pr-6)
-                                    // Also added an explicit z-index of z-10 for stacking context of the button content
+                                    // Added pr-12 padding to ensure text doesn't overflow behind the 3-dot menu area
                                     className={`flex-1 text-left text-sm px-3 py-2 rounded-md transition-all duration-200 truncate flex items-center justify-between ${activeProjectId === project._id ? 'bg-slate-800 text-red-400 font-semibold shadow-sm border-l-2 border-red-500' : 'text-slate-300 hover:bg-slate-800/50 border-l-2 border-transparent'} disabled:cursor-wait disabled:opacity-60`}
                                     title={project.name}
                                 >
