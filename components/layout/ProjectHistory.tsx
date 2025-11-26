@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useAppContext } from '../../context/AppContext';
 
-const Menu: React.FC<{ onRename: () => void, onDelete: () => void, onShare: () => void }> = ({ onRename, onDelete, onShare }) => {
+const Menu: React.FC<{ onRename: () => void, onDelete: () => void, onShare: () => void, isActive: boolean }> = ({ onRename, onDelete, onShare, isActive }) => {
     const [isOpen, setIsOpen] = useState(false);
     const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
     const menuRef = useRef<HTMLDivElement>(null);
@@ -48,11 +48,12 @@ const Menu: React.FC<{ onRename: () => void, onDelete: () => void, onShare: () =
     };
 
     return (
-        <div className="relative" ref={menuRef}>
+        // Added z-index to this container (Menu) to ensure it sits above everything else in the li
+        <div className="relative z-[100]" ref={menuRef}> 
             <button 
                 onClick={(e) => { e.stopPropagation(); setIsOpen(!isOpen); }} 
                 className={`p-1.5 rounded-full focus:outline-none focus:ring-2 focus:ring-red-500 transition-all duration-200
-                    ${isOpen 
+                    ${isOpen || isActive 
                         ? 'opacity-100 bg-slate-700 text-white' 
                         : 'opacity-0 group-hover:opacity-100 text-slate-400 hover:bg-slate-700 hover:text-slate-200'
                     }`}
@@ -63,10 +64,10 @@ const Menu: React.FC<{ onRename: () => void, onDelete: () => void, onShare: () =
                 </svg>
             </button>
             
-            {/* Dropdown Menu */}
+            {/* Dropdown Menu - Increased width to w-64, explicitly solid bg, high z-index */}
             {isOpen && (
                 <div 
-                    className="absolute right-0 top-full mt-1 w-48 bg-slate-900 border border-slate-700 rounded-md shadow-xl z-50 py-1 origin-top-right"
+                    className="absolute right-0 top-full mt-1 w-64 bg-slate-900 border border-slate-700 rounded-md shadow-xl z-[100] py-1 origin-top-right"
                     onClick={(e) => e.stopPropagation()}
                 >
                     <button 
@@ -179,10 +180,12 @@ export const ProjectHistory: React.FC = () => {
                                 <button
                                     onClick={() => loadProject(project._id)}
                                     disabled={project.status === 'processing'}
+                                    // FIXED: Added pr-12 to ensure 3-dot menu and its dropdown has enough space (was pr-6)
+                                    // Also added an explicit z-index of z-10 for stacking context of the button content
                                     className={`flex-1 text-left text-sm px-3 py-2 rounded-md transition-all duration-200 truncate flex items-center justify-between ${activeProjectId === project._id ? 'bg-slate-800 text-red-400 font-semibold shadow-sm border-l-2 border-red-500' : 'text-slate-300 hover:bg-slate-800/50 border-l-2 border-transparent'} disabled:cursor-wait disabled:opacity-60`}
                                     title={project.name}
                                 >
-                                    <span className="truncate pr-6">{project.name}</span>
+                                    <span className="truncate pr-12 z-10 relative">{project.name}</span>
                                     {project.status === 'processing' && (
                                         <svg className="animate-spin h-3 w-3 text-slate-400 flex-shrink-0" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                                             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
@@ -197,6 +200,7 @@ export const ProjectHistory: React.FC = () => {
                                             onShare={() => handleShare(project._id, project.name)}
                                             onDelete={() => handleDelete(project._id, project.name)} 
                                             onRename={() => handleStartRename(project._id, project.name)} 
+                                            isActive={activeProjectId === project._id} 
                                         />
                                     )}
                                 </div>
