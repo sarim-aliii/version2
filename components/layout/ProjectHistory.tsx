@@ -1,11 +1,24 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useAppContext } from '../../context/AppContext';
 
+// Helper interface for the menu position
+interface MenuPosition {
+  top: number;
+  right: number;
+}
 
 const Menu: React.FC<{ onRename: () => void, onDelete: () => void, onShare: () => void, isActive: boolean }> = ({ onRename, onDelete, onShare, isActive }) => {
     const [isOpen, setIsOpen] = useState(false);
     const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
-    const menuRef = useRef<HTMLDivElement>(null);
+    
+    // Refs for the trigger button and the dropdown menu
+    const buttonRef = useRef<HTMLButtonElement>(null);
+    const dropdownRef = useRef<HTMLDivElement>(null);
+    
+    // State to hold the calculated position
+    const [position, setPosition] = useState<MenuPosition>({ top: 0, right: 0 });
+    
     const deleteTimeoutRef = useRef<number | null>(null);
 
     const closeMenu = (andResetDelete = true) => {
@@ -19,18 +32,46 @@ const Menu: React.FC<{ onRename: () => void, onDelete: () => void, onShare: () =
         }
     };
 
+    // Calculate position when opening
+    const toggleMenu = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        
+        if (!isOpen && buttonRef.current) {
+            const rect = buttonRef.current.getBoundingClientRect();
+            // Calculate position: right aligned with the button, slightly below it
+            setPosition({
+                top: rect.bottom + 5, // 5px gap
+                right: window.innerWidth - rect.right
+            });
+        }
+        setIsOpen(!isOpen);
+    };
+
     useEffect(() => {
         if (!isOpen) return;
 
         const handleClickOutside = (event: MouseEvent) => {
-            if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+            // Check if click is inside button OR dropdown (portal)
+            const target = event.target as Node;
+            const clickedButton = buttonRef.current && buttonRef.current.contains(target);
+            const clickedDropdown = dropdownRef.current && dropdownRef.current.contains(target);
+
+            if (!clickedButton && !clickedDropdown) {
                 closeMenu();
             }
         };
+
+        // Close menu if user scrolls the page or resizes window (keeps UI clean)
+        const handleScrollOrResize = () => closeMenu();
         
         window.addEventListener("mousedown", handleClickOutside);
+        window.addEventListener("resize", handleScrollOrResize);
+        window.addEventListener("scroll", handleScrollOrResize, true); // Capture phase for scrolling div
+
         return () => {
             window.removeEventListener("mousedown", handleClickOutside);
+            window.removeEventListener("resize", handleScrollOrResize);
+            window.removeEventListener("scroll", handleScrollOrResize, true);
             if (deleteTimeoutRef.current) clearTimeout(deleteTimeoutRef.current);
         };
     }, [isOpen]);
@@ -49,9 +90,10 @@ const Menu: React.FC<{ onRename: () => void, onDelete: () => void, onShare: () =
     };
 
     return (
-        <div className="relative z-[100]" ref={menuRef}> 
+        <> 
             <button 
-                onClick={(e) => { e.stopPropagation(); setIsOpen(!isOpen); }} 
+                ref={buttonRef}
+                onClick={toggleMenu} 
                 className={`p-1.5 rounded-full focus:outline-none focus:ring-2 focus:ring-red-500 transition-all duration-200
                     ${isOpen || isActive 
                         ? 'opacity-100 bg-slate-700 text-white' 
@@ -64,9 +106,16 @@ const Menu: React.FC<{ onRename: () => void, onDelete: () => void, onShare: () =
                 </svg>
             </button>
             
-            {isOpen && (
+            {isOpen && createPortal(
                 <div 
-                    className="absolute left-0 top-full mt-1 w-64 bg-slate-900 border border-slate-700 rounded-md shadow-xl z-[100] py-1 origin-top-left"
+                    ref={dropdownRef}
+                    style={{
+                        position: 'fixed',
+                        top: `${position.top}px`,
+                        right: `${position.right}px`,
+                        zIndex: 9999 // High z-index to float above everything
+                    }}
+                    className="w-48 bg-slate-900 border border-slate-700 rounded-md shadow-2xl py-1 fade-in origin-top-right"
                     onClick={(e) => e.stopPropagation()}
                 >
                     <button 
@@ -94,9 +143,10 @@ const Menu: React.FC<{ onRename: () => void, onDelete: () => void, onShare: () =
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 opacity-70" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" /></svg>
                         {isConfirmingDelete ? 'Confirm?' : 'Delete'}
                     </button>
-                </div>
+                </div>,
+                document.body
             )}
-        </div>
+        </>
     );
 }
 
@@ -179,7 +229,6 @@ export const ProjectHistory: React.FC = () => {
                                 <button
                                     onClick={() => loadProject(project._id)}
                                     disabled={project.status === 'processing'}
-                                    // Added pr-12 padding to ensure text doesn't overflow behind the 3-dot menu area
                                     className={`flex-1 text-left text-sm px-3 py-2 rounded-md transition-all duration-200 truncate flex items-center justify-between ${activeProjectId === project._id ? 'bg-slate-800 text-red-400 font-semibold shadow-sm border-l-2 border-red-500' : 'text-slate-300 hover:bg-slate-800/50 border-l-2 border-transparent'} disabled:cursor-wait disabled:opacity-60`}
                                     title={project.name}
                                 >

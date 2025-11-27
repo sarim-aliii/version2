@@ -79,13 +79,13 @@ export enum Tab {
     Summary = 'Summary',
     SRSFlashcards = 'SRS Flashcards',
     MCQ = 'MCQ',
+    CodeAnalysis = 'Code Analysis',
     SemanticSearch = 'Semantic Search',
     AITutor = 'AI Tutor',
     AudioAnalysis = 'Audio Analysis',
     ConceptMap = 'Concept Map',
     LessonPlanner = 'Lesson Planner',
     StudyPlanner = 'Study Planner',
-    CodeAnalysis = 'Code Analysis',
     Profile = 'Profile',
 }
 
