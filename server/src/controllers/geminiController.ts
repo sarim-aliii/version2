@@ -541,7 +541,20 @@ export const generateCodeAnalysis = async (req: Request, res: Response) => {
     }
     
     try {
-        const prompt = `Analyze the following code and generate three artifacts: 1. A detailed Algorithm (step-by-step instructions). 2. Pseudocode (language-agnostic steps). 3. A text-based representation of a Flowchart (e.g., using Markdown or Mermaid syntax). Return a JSON object with three properties: "algorithm" (string), "pseudocode" (string), and "flowchart" (string). Ensure all outputs are in ${language}.\n\nCODE:\n${code}`;
+        const prompt = `Analyze the following code and generate three artifacts: 
+        1. A detailed Algorithm (step-by-step instructions). 
+        2. Pseudocode (language-agnostic steps). 
+        3. A Flowchart using strict Mermaid.js syntax.
+        
+        Return a JSON object with three properties: "algorithm" (string), "pseudocode" (string), and "flowchart" (string). 
+        
+        CRITICAL MERMAID INSTRUCTIONS:
+        - Start with 'graph TD'.
+        - Enclose ALL node text in double quotes to handle special characters (especially parentheses). 
+        - Example: Use id1("Function(args)") instead of id1(Function(args)). 
+        - Do not use semicolons at the end of lines inside the mermaid string.
+        
+        Ensure all outputs are in ${language}.\n\nCODE:\n${code}`;
         
         const model = getModel(llm, "application/json");
         const result = await model.generateContent(prompt);

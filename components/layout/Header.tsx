@@ -8,7 +8,7 @@ export const Header: React.FC = () => {
   const { activeTab, setActiveTab, toggleSidebar } = useAppContext();
 
   return (
-    <header className="bg-slate-950/80 backdrop-blur-sm sticky top-0 z-10 border-b border-slate-800">
+    <header className="bg-white/80 dark:bg-slate-950/80 backdrop-blur-sm sticky top-0 z-10 border-b border-slate-200 dark:border-slate-800 transition-colors">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center py-4 gap-6">
           
@@ -16,7 +16,7 @@ export const Header: React.FC = () => {
             {/* Sidebar Toggle Button */}
             <button 
                 onClick={toggleSidebar}
-                className="p-2 -ml-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-md focus:outline-none focus:ring-2 focus:ring-slate-600 transition-colors"
+                className="p-2 -ml-2 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-slate-800 rounded-md focus:outline-none focus:ring-2 focus:ring-slate-400 dark:focus:ring-slate-600 transition-colors"
                 aria-label="Toggle Sidebar"
             >
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -46,7 +46,7 @@ export const Header: React.FC = () => {
                     <path d="M14.5 9L18 12L14.5 15" stroke="url(#kaironGradient)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
                     <circle cx="14.5" cy="12" r="2" fill="url(#kaironGradient)" filter="url(#glow)"/>
                 </svg>
-                <h1 className="text-3xl font-bold text-slate-100 tracking-wider whitespace-nowrap hidden sm:block">Kairon AI</h1>
+                <h1 className="text-3xl font-bold text-slate-800 dark:text-slate-100 tracking-wider whitespace-nowrap hidden sm:block">Kairon AI</h1>
             </div>
           </div>
 
@@ -58,12 +58,12 @@ export const Header: React.FC = () => {
                   onClick={() => setActiveTab(tab)}
                   className={`relative px-3 py-2 rounded-md whitespace-nowrap transition-colors duration-200 flex-shrink-0 ${
                     activeTab === tab
-                      ? 'text-red-400'
-                      : 'text-slate-400 hover:text-slate-200'
+                      ? 'text-red-500 dark:text-red-400'
+                      : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
                   }`}
                 >
                   {tab}
-                  <span className={`absolute bottom-0 left-0 right-0 h-0.5 bg-red-400 rounded-full shadow-[0_0_8px_theme(colors.red.400)] transition-opacity duration-300 ${ activeTab === tab ? 'opacity-100' : 'opacity-0' }`}></span>
+                  <span className={`absolute bottom-0 left-0 right-0 h-0.5 bg-red-500 dark:bg-red-400 rounded-full shadow-[0_0_8px_theme(colors.red.400)] transition-opacity duration-300 ${ activeTab === tab ? 'opacity-100' : 'opacity-0' }`}></span>
                 </button>
               ))}
             </div>
@@ -73,8 +73,8 @@ export const Header: React.FC = () => {
                 onClick={() => setActiveTab(Tab.Profile)}
                 className={`px-3 py-2 rounded-md whitespace-nowrap font-semibold text-sm transition-colors duration-200 flex items-center gap-2 ${
                   activeTab === Tab.Profile
-                    ? 'bg-slate-800 text-red-400'
-                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
+                    ? 'bg-gray-100 dark:bg-slate-800 text-red-500 dark:text-red-400'
+                    : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-800/50'
                 }`}
             >
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">

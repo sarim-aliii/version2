@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAppContext } from '../../context/AppContext';
 import { Button } from '../ui/Button';
 import { Card } from '../ui/Card';
@@ -7,9 +7,9 @@ import { Slider } from '../ui/Slider';
 import { fetchTopicInfo, extractTextFromFile } from '../../services/geminiService';
 import { Loader } from '../ui/Loader';
 
-
 export const Ingest: React.FC = () => {
-  const { ingestText, addNotification, language, llm } = useAppContext();
+  const { ingestText, addNotification, language, llm, ingestedText } = useAppContext();
+  
   const [pastedText, setPastedText] = useState('');
   const [fileNames, setFileNames] = useState<string[]>([]);
   const [chunkWords, setChunkWords] = useState(837);
@@ -17,6 +17,22 @@ export const Ingest: React.FC = () => {
   const [topic, setTopic] = useState('');
   const [isSeeding, setIsSeeding] = useState(false);
   const [isExtracting, setIsExtracting] = useState(false);
+
+  const extractFileNames = (text: string) => {
+    const regex = /--- START OF FILE: (.*?) ---/g;
+    const matches = [...text.matchAll(regex)];
+    return matches.map(m => m[1]);
+  };
+
+  useEffect(() => {
+    if (ingestedText) {
+      setPastedText(ingestedText);
+      const recoveredFiles = extractFileNames(ingestedText);
+      if (recoveredFiles.length > 0) {
+        setFileNames(recoveredFiles);
+      }
+    }
+  }, [ingestedText]);
 
   const acceptedMimeTypes = {
     'application/pdf': ['.pdf'],
@@ -147,7 +163,7 @@ export const Ingest: React.FC = () => {
             <div className="text-sm text-slate-400 mt-2">
                 <p className="font-semibold">Loaded file(s):</p>
                 <ul className="list-disc list-inside pl-2">
-                    {fileNames.map(name => <li key={name}>{name}</li>)}
+                    {fileNames.map((name, index) => <li key={index}>{name}</li>)}
                 </ul>
             </div>
         )}

@@ -57,7 +57,7 @@ const AppLayout: React.FC = () => {
   }
 
   return (
-    <div className="flex flex-col h-screen bg-slate-950 text-slate-200 overflow-hidden">
+    <div className="flex flex-col h-screen bg-gray-50 dark:bg-slate-950 text-slate-900 dark:text-slate-200 overflow-hidden transition-colors duration-300">
       <Header />
       <div className="flex flex-1 overflow-hidden">
         <Sidebar />

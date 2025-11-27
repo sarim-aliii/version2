@@ -53,6 +53,8 @@ interface AppContextType {
     setActiveTab: (tab: Tab) => void;
     isSidebarCollapsed: boolean;
     toggleSidebar: () => void;
+    theme: 'dark' | 'light';
+    toggleTheme: () => void;
     
     // AI Generation State & Functions
     llm: string;
@@ -99,6 +101,7 @@ export const AppProvider: React.FC<{children: ReactNode}> = ({ children }) => {
     
     const [llm, setLlm] = useLocalStorage('llm', 'gemini-1.5-flash'); 
     const [language, setLanguage] = useLocalStorage('language', 'English');
+    const [theme, setTheme] = useLocalStorage<'dark' | 'light'>('theme', 'dark');
     
     // Loading states
     const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
@@ -112,6 +115,19 @@ export const AppProvider: React.FC<{children: ReactNode}> = ({ children }) => {
     
     const activeProject = projects.find(p => p._id === activeProjectId) || null;
     const ingestedText = activeProject?.ingestedText || ''; 
+
+    // Theme effect
+    useEffect(() => {
+        if (theme === 'dark') {
+            document.documentElement.classList.add('dark');
+        } else {
+            document.documentElement.classList.remove('dark');
+        }
+    }, [theme]);
+
+    const toggleTheme = () => {
+        setTheme(prev => prev === 'dark' ? 'light' : 'dark');
+    };
 
     // Notifications
     const addNotification = useCallback((message: string, type: NotificationType = 'error') => {
@@ -464,6 +480,8 @@ export const AppProvider: React.FC<{children: ReactNode}> = ({ children }) => {
         generateLessonPlanForActiveProject,
         isGeneratingStudyPlan,
         generateStudyPlanForActiveProject,
+        theme,
+        toggleTheme,
     };
 
     return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

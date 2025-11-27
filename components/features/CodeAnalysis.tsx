@@ -4,7 +4,9 @@ import { generateCodeAnalysis, explainCodeAnalysis } from '../../services/gemini
 import { Button } from '../ui/Button';
 import { Card } from '../ui/Card';
 import { Loader } from '../ui/Loader';
+import { Mermaid } from '../ui/Mermaid';
 import { CodeAnalysisResult } from '../../types';
+
 
 type ArtifactType = 'code' | 'algorithm' | 'pseudocode' | 'flowchart';
 
@@ -88,13 +90,26 @@ const CodeAnalysis: React.FC = () => {
 
             {analysisResult && (
                 <Card title="Generated Artifacts" className="fade-in">
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         {Object.entries(analysisResult).map(([key, value]) => (
-                            <div key={key} className="space-y-2">
-                                <h3 className="text-xl font-semibold text-red-400">{key.charAt(0).toUpperCase() + key.slice(1)}</h3>
-                                <div className="bg-slate-900 p-3 rounded-md border border-slate-700 h-64 overflow-y-auto whitespace-pre-wrap text-sm text-slate-300 custom-scrollbar">
-                                    {value}
-                                </div>
+                            <div 
+                                key={key} 
+                                className={`space-y-2 ${key === 'flowchart' ? 'md:col-span-2' : ''}`}
+                            > 
+                                <h3 className="text-xl font-semibold text-red-400">
+                                    {key.charAt(0).toUpperCase() + key.slice(1)}
+                                </h3>
+                                
+                                {key === 'flowchart' ? (
+                                    <div className="bg-slate-900 p-3 rounded-md border border-slate-700 overflow-hidden">
+                                        <Mermaid chart={value} />
+                                    </div>
+                                ) : (
+                                    <div className="bg-slate-900 p-3 rounded-md border border-slate-700 h-64 overflow-y-auto whitespace-pre-wrap text-sm text-slate-300 custom-scrollbar">
+                                        {value}
+                                    </div>
+                                )}
+
                                 <Button onClick={() => copyToExplain(key as ArtifactType)} variant="secondary" className="text-xs w-full">
                                     Copy to Explain
                                 </Button>
