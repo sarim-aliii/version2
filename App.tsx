@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { AppProvider, useAppContext } from './context/AppContext';
 import { Header } from './components/layout/Header';
 import { Sidebar } from './components/layout/Sidebar';
@@ -17,6 +17,7 @@ import { ToastContainer } from './components/ui/Toast';
 import { Tab } from './types';
 import { AuthManager } from './components/auth/AuthManager';
 import CodeAnalysis from './components/features/CodeAnalysis';
+import { LandingPage } from './components/layout/LandingPage';
 
 
 const MainContent: React.FC = () => {
@@ -43,9 +44,6 @@ const MainContent: React.FC = () => {
   return (
     <main className="flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto">
       <div className="max-w-7xl mx-auto">
-        {/* The key prop forces React to destroy and recreate the div when 
-            the project or tab changes, triggering the 'fade-in' animation.
-        */}
         <div key={`${activeProjectId}-${activeTab}`} className="fade-in">
              {renderActiveTab()}
         </div>
@@ -56,21 +54,44 @@ const MainContent: React.FC = () => {
 
 const AppLayout: React.FC = () => {
   const { isAuthenticated } = useAppContext();
+  const [showAuth, setShowAuth] = useState(false);
 
-  if (!isAuthenticated) {
-    return <AuthManager />;
+  // 1. Authenticated View (Main App)
+  if (isAuthenticated) {
+    return (
+      <div className="flex flex-col h-screen bg-gray-50 dark:bg-slate-950 text-slate-900 dark:text-slate-200 overflow-hidden transition-colors duration-300">
+        <Header />
+        <div className="flex flex-1 overflow-hidden">
+          <Sidebar />
+          <MainContent />
+        </div>
+        <ToastContainer />
+      </div>
+    );
   }
 
-  return (
-    <div className="flex flex-col h-screen bg-gray-50 dark:bg-slate-950 text-slate-900 dark:text-slate-200 overflow-hidden transition-colors duration-300">
-      <Header />
-      <div className="flex flex-1 overflow-hidden">
-        <Sidebar />
-        <MainContent />
-      </div>
-      <ToastContainer />
-    </div>
-  );
+  // 2. Login/Signup View
+  if (showAuth) {
+    return (
+        <div className="relative">
+             {/* Optional: Back button to return to landing page from login */}
+             <button 
+                onClick={() => setShowAuth(false)}
+                className="absolute top-4 left-4 text-slate-500 hover:text-white z-50 flex items-center gap-2 text-sm font-medium transition-colors"
+             >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clipRule="evenodd" />
+                </svg>
+                Back
+             </button>
+             <AuthManager />
+             <ToastContainer />
+        </div>
+    );
+  }
+
+  // 3. Default View (Landing Page)
+  return <LandingPage onGetStarted={() => setShowAuth(true)} />;
 };
 
 const App: React.FC = () => {

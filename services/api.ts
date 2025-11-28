@@ -4,7 +4,6 @@ import {
   SignupCredentials, 
   StudyProject, 
   Flashcard, 
-  MCQ as MCQType, 
   CodeAnalysisResult 
 } from '../types';
 
@@ -16,7 +15,6 @@ const api = axios.create({
     'Content-Type': 'application/json',
   },
 });
-
 
 export const setAuthToken = (token: string | null) => {
   if (token) {
@@ -34,7 +32,6 @@ api.interceptors.response.use(
     return Promise.reject(new Error(message));
   }
 );
-
 
 // --- Auth ---
 export const login = async (credentials: LoginCredentials) => {
@@ -67,11 +64,6 @@ export const updateProfile = async (userData: { name?: string; avatar?: string }
   return data;
 };
 
-export const updateUserProgress = async (xpGained: number) => {
-  const { data } = await api.put('/auth/progress', { xpGained });
-  return data;
-};
-
 export const verifyEmail = async (token: string) => {
   const { data } = await api.post('/auth/verify-email', { token });
   return data;
@@ -85,6 +77,17 @@ export const forgotPassword = async (email: string) => {
 export const resetPassword = async (token: string, password: string) => {
   const { data } = await api.post('/auth/reset-password', { token, password });
   return data;
+};
+
+export const updateUserProgress = async (xpGained: number) => {
+  const { data } = await api.put('/auth/progress', { xpGained });
+  return data;
+};
+
+// --- Feedback ---
+export const sendFeedback = async (type: string, message: string) => {
+    const { data } = await api.post('/feedback', { type, message });
+    return data;
 };
 
 
@@ -108,6 +111,7 @@ export const deleteProject = async (id: string) => {
   await api.delete(`/projects/${id}`);
 };
 
+// --- Gemini AI ---
 export const generateContent = async (
   projectId: string,
   feature: 'summary' | 'flashcards' | 'tutor' | 'concept-map' | 'lesson-plan' | 'study-plan',
