@@ -2,6 +2,8 @@ import React from 'react';
 import { TodoList } from '../features/TodoList';
 import { useAppContext } from '../../context/AppContext';
 import { ProjectHistory } from './ProjectHistory';
+import { FocusTimer } from '../features/FocusTimer';
+
 
 export const Sidebar: React.FC = () => {
     const { isSidebarCollapsed, toggleSidebar, language, setLanguage, llm, setLlm, theme, toggleTheme, currentUser } = useAppContext();
@@ -35,6 +37,10 @@ export const Sidebar: React.FC = () => {
                     </div>
                     <p className="text-xs text-slate-500 dark:text-slate-400 text-right">{xpProgress} / 100 XP</p>
                 </div>
+
+                <FocusTimer />
+
+                <hr className="border-slate-200 dark:border-slate-800" />
                 
                 <div>
                     <h3 className="text-sm font-semibold text-slate-500 dark:text-slate-400 mb-1">LLM Model</h3>
