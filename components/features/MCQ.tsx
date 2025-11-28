@@ -71,23 +71,36 @@ const MCQItem: React.FC<MCQItemProps> = ({ mcq, index, onAnswer, userAnswer }) =
 
 
 export const MCQ: React.FC = () => {
-    const { ingestedText, addNotification, language, llm, activeProject, updateActiveProjectData } = useAppContext();
+    const { ingestedText, addNotification, language, llm, activeProject, updateActiveProjectData, updateProgress } = useAppContext();
+    
+    // Load persisted data from activeProject
     const [mcqs, setMcqs] = useState<MCQType[]>(activeProject?.currentMcqs || []);
     const [history, setHistory] = useState<MCQAttempt[]>(activeProject?.mcqAttempts || []);
+    
     const [isLoading, setIsLoading] = useState(false);
     const [userAnswers, setUserAnswers] = useState<Record<number, string>>({});
-    const [isGeneratingGuide, setIsGeneratingGuide] = useState(false);
-    const [personalizedGuide, setPersonalizedGuide] = useState<string | null>(null);
     const [difficulty, setDifficulty] = useState<Difficulty>('Medium');
 
-    // Sync when project changes
+    // State for Adaptive Learning
+    const [isGeneratingGuide, setIsGeneratingGuide] = useState(false);
+    const [personalizedGuide, setPersonalizedGuide] = useState<string | null>(null);
+
+    // Track project ID to prevent clearing answers when switching tabs within the same project
+    const [loadedProjectId, setLoadedProjectId] = useState<string | null>(activeProject?._id || null);
+
     useEffect(() => {
         if (activeProject) {
             setMcqs(activeProject.currentMcqs || []);
             setHistory(activeProject.mcqAttempts || []);
-            setUserAnswers({}); 
+            
+            // Only reset if we switched to a DIFFERENT project entirely
+            if (activeProject._id !== loadedProjectId) {
+                setUserAnswers({});
+                setPersonalizedGuide(null);
+                setLoadedProjectId(activeProject._id);
+            }
         }
-    }, [activeProject]);
+    }, [activeProject, loadedProjectId]);
 
     const isQuizFinished = useMemo(() => mcqs.length > 0 && Object.keys(userAnswers).length === mcqs.length, [mcqs, userAnswers]);
     
@@ -111,9 +124,11 @@ export const MCQ: React.FC = () => {
             return;
         }
         setIsLoading(true);
-        setMcqs([]);
+        // Explicitly reset answers when generating NEW questions
         setUserAnswers({});
         setPersonalizedGuide(null);
+        setMcqs([]); 
+        
         try {
             const result = await generateMCQs(llm, ingestedText, language, difficulty);
             setMcqs(result);
@@ -147,6 +162,11 @@ export const MCQ: React.FC = () => {
             
             const newHistory = [newAttempt, ...history].slice(0, 20);
             setHistory(newHistory);
+
+            // GAMIFICATION: Award XP for completing quiz
+            updateProgress(50); 
+            addNotification(`Quiz Complete! +50 XP`, 'success');
+
             // Save history to DB
             await updateActiveProjectData({ mcqAttempts: newHistory });
         }
@@ -224,13 +244,18 @@ export const MCQ: React.FC = () => {
             {isQuizFinished && (
                 <Card title="Quiz Results" className="fade-in">
                     <p className="text-lg text-slate-800 dark:text-slate-300">You scored <span className="font-bold text-red-600 dark:text-red-400">{score}</span> out of <span className="font-bold text-red-600 dark:text-red-400">{mcqs.length}</span>.</p>
-                    {incorrectMCQs.length > 0 && (
+                    
+                    {incorrectMCQs.length > 0 ? (
                          <div className="mt-6">
                             <h3 className="text-xl font-semibold text-slate-800 dark:text-slate-200 mb-3">Adaptive Learning Path</h3>
                             <p className="text-slate-600 dark:text-slate-400 mb-4">It looks like you had some trouble with a few concepts. Here's a personalized study guide to help you reinforce those weak areas.</p>
                             <Button onClick={handleGeneratePersonalizedGuide} disabled={isGeneratingGuide}>
                                 {isGeneratingGuide ? 'Generating Guide...' : 'Generate Personalized Study Guide'}
                             </Button>
+                        </div>
+                    ) : (
+                        <div className="mt-6">
+                            <p className="text-green-600 dark:text-green-400 font-semibold">Perfect score! Great job mastering these concepts.</p>
                         </div>
                     )}
                 </Card>

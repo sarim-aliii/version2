@@ -20,7 +20,7 @@ import CodeAnalysis from './components/features/CodeAnalysis';
 
 
 const MainContent: React.FC = () => {
-  const { activeTab } = useAppContext();
+  const { activeTab, activeProjectId } = useAppContext();
 
   const renderActiveTab = () => {
     switch (activeTab) {
@@ -43,7 +43,12 @@ const MainContent: React.FC = () => {
   return (
     <main className="flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto">
       <div className="max-w-7xl mx-auto">
-        {renderActiveTab()}
+        {/* The key prop forces React to destroy and recreate the div when 
+            the project or tab changes, triggering the 'fade-in' animation.
+        */}
+        <div key={`${activeProjectId}-${activeTab}`} className="fade-in">
+             {renderActiveTab()}
+        </div>
       </div>
     </main>
   );

@@ -8,7 +8,6 @@ import { fetchTopicInfo, extractTextFromFile } from '../../services/geminiServic
 import { Loader } from '../ui/Loader';
 import { Tab } from '../../types';
 
-
 export const Ingest: React.FC = () => {
   const { 
     ingestText, 
@@ -45,7 +44,6 @@ export const Ingest: React.FC = () => {
         setFileNames(recoveredFiles);
       }
     } else {
-      // If no ingested text (new project), clear fields
       setPastedText('');
       setFileNames([]);
     }
@@ -57,6 +55,11 @@ export const Ingest: React.FC = () => {
     'application/vnd.openxmlformats-officedocument.presentationml.presentation': ['.pptx'],
     'application/vnd.ms-powerpoint': ['.ppt'],
     'text/plain': ['.txt'],
+    // Image formats for Vision/OCR
+    'image/png': ['.png'],
+    'image/jpeg': ['.jpg', '.jpeg'],
+    'image/webp': ['.webp'],
+    'image/heic': ['.heic'],
   };
 
   const fileToBase64 = (file: File): Promise<string> => {
@@ -92,7 +95,8 @@ export const Ingest: React.FC = () => {
             file.type === 'application/pdf' ||
             file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
             file.type === 'application/vnd.openxmlformats-officedocument.presentationml.presentation' ||
-            file.type === 'application/vnd.ms-powerpoint'
+            file.type === 'application/vnd.ms-powerpoint' ||
+            file.type.startsWith('image/') // Handle Images
           ) {
             const base64Data = await fileToBase64(file);
             fileText = await extractTextFromFile(llm, base64Data, file.type);
@@ -157,15 +161,10 @@ export const Ingest: React.FC = () => {
       projectName = `Notes ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}`;
     }
 
-    // LOGIC FIX: Check if we are updating an existing project or creating a new one
     if (activeProjectId) {
-        // Update Existing Project
         try {
             await updateActiveProjectData({ 
                 ingestedText: pastedText,
-                // Optionally update name if user changed context significantly, 
-                // but usually better to keep old name or ask user. 
-                // For now, we will keep the old name to avoid confusion unless we add a rename input.
             });
             addNotification("Project updated successfully.", "success");
             setActiveTab(Tab.Summary);
@@ -173,25 +172,24 @@ export const Ingest: React.FC = () => {
             addNotification(e.message || "Failed to update project.");
         }
     } else {
-        // Create New Project
         await ingestText(projectName, pastedText);
     }
   };
 
   return (
     <div className="space-y-8">
-      <Card title="Ingest study material (PDF / DOCX / PPT / TXT)">
+      <Card title="Ingest study material (PDF / DOCX / Images / TXT)">
         <FileUploader 
             onFileUpload={handleFilesUpload} 
             acceptedMimeTypes={acceptedMimeTypes} 
             multiple={true} 
-            unsupportedFormatError="Please upload PDF, DOCX, PPT, or TXT files."
+            unsupportedFormatError="Supported formats: PDF, DOCX, PPT, TXT, PNG, JPG, WEBP."
             onError={addNotification}
         />
         {isExtracting && (
             <div className="flex items-center gap-2 text-slate-400 mt-2 text-sm p-2 bg-slate-900/50 rounded-md">
                 <Loader spinnerClassName="w-5 h-5" />
-                <span>Extracting text from {fileNames.length} file(s)... This may take a moment.</span>
+                <span>Extracting text/content from {fileNames.length} file(s)... This may take a moment.</span>
             </div>
         )}
         {fileNames.length > 0 && !isExtracting && (

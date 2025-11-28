@@ -4,11 +4,37 @@ import { useAppContext } from '../../context/AppContext';
 import { ProjectHistory } from './ProjectHistory';
 
 export const Sidebar: React.FC = () => {
-    const { isSidebarCollapsed, toggleSidebar, language, setLanguage, llm, setLlm, theme, toggleTheme } = useAppContext();
+    const { isSidebarCollapsed, toggleSidebar, language, setLanguage, llm, setLlm, theme, toggleTheme, currentUser } = useAppContext();
+
+    const currentXP = currentUser?.xp || 0;
+    const currentLevel = currentUser?.level || 1;
+    const xpForNextLevel = currentLevel * 100; 
+    const xpProgress = currentXP % 100;
 
     return (
         <aside className={`w-full bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 flex flex-col flex-shrink-0 transition-all duration-300 ease-in-out overflow-hidden ${isSidebarCollapsed ? 'md:w-0 border-transparent' : 'md:w-72 lg:w-80'}`}>
             <div className={`space-y-6 overflow-y-auto flex-1 transition-all duration-300 ease-in-out ${isSidebarCollapsed ? 'opacity-0 p-0' : 'p-6 opacity-100'}`}>
+
+                <div className="bg-slate-100 dark:bg-slate-800 rounded-lg p-4 border border-slate-200 dark:border-slate-700 shadow-sm">
+                    <div className="flex items-center justify-between mb-2">
+                        <span className="text-sm font-bold text-slate-700 dark:text-slate-200">Level {currentLevel}</span>
+                        <div className="flex items-center gap-1 text-orange-500" title="Daily Streak">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                <path fillRule="evenodd" d="M12.395 2.553a1 1 0 00-1.45-.385c-.345.23-.614.558-.822.88-.214.33-.403.713-.57 1.116-.334.804-.614 1.768-.84 2.734a31.365 31.365 0 00-.613 3.58 2.64 2.64 0 01-.945-1.067c-.328-.68-.398-1.534-.298-2.296a1 1 0 00-1.648-1.052c-.865 1.354-1.325 2.863-1.325 4.765 0 5.863 4.825 10.663 10.68 10.663 5.855 0 10.612-4.8 10.612-10.663 0-4.186-2.115-7.792-5.217-9.679a1 1 0 00-1.086.398 1 1 0 00.591 1.45 6.987 6.987 0 013.726 6.258 7.006 7.006 0 11-11.923-3.862c.158.31.334.618.526.917.24.376.518.716.828 1.015a1 1 0 001.477-1.414c-.42-.42-.766-.936-.99-1.518a10.96 10.96 0 01-.576-2.526z" clipRule="evenodd" />
+                            </svg>
+                            <span className="text-xs font-bold">{currentUser?.currentStreak || 0} Day Streak</span>
+                        </div>
+                    </div>
+                    
+                    {/* Progress Bar */}
+                    <div className="w-full bg-slate-300 dark:bg-slate-700 rounded-full h-2.5 mb-1">
+                        <div 
+                            className="bg-red-500 h-2.5 rounded-full transition-all duration-500" 
+                            style={{ width: `${xpProgress}%` }}
+                        ></div>
+                    </div>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 text-right">{xpProgress} / 100 XP</p>
+                </div>
                 
                 <div>
                     <h3 className="text-sm font-semibold text-slate-500 dark:text-slate-400 mb-1">LLM Model</h3>

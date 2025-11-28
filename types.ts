@@ -5,6 +5,9 @@ export interface User {
     email: string;
     name: string;
     avatar?: string;
+    xp?: number;
+    level?: number;
+    currentStreak?: number;
 }
 
 export interface LoginCredentials {

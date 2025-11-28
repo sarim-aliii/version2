@@ -1,7 +1,6 @@
 import { Request, Response } from 'express';
 import StudyProject from '../models/StudyProject';
 
-
 // @desc    Get all projects for a user
 // @route   GET /api/projects
 // @access  Private
@@ -87,6 +86,7 @@ export const updateProject = async (req: Request, res: Response) => {
       return;
     }
     
+    // Whitelist fields that can be updated
     const { 
         name, 
         ingestedText,
@@ -101,7 +101,7 @@ export const updateProject = async (req: Request, res: Response) => {
         conceptMapData,
         codeSnippet,
         codeAnalysis,
-        todos
+        todos // <--- ADD THIS
     } = req.body;
 
     if (name) project.name = name;
@@ -117,7 +117,7 @@ export const updateProject = async (req: Request, res: Response) => {
     if (conceptMapData) project.conceptMapData = conceptMapData;
     if (codeSnippet) project.codeSnippet = codeSnippet;
     if (codeAnalysis) project.codeAnalysis = codeAnalysis;
-    if (todos) project.todos = todos;
+    if (todos) project.todos = todos; // <--- AND THIS
 
     const updatedProject = await project.save();
     res.json(updatedProject);

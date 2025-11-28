@@ -23,12 +23,24 @@ const CodeAnalysis: React.FC = () => {
     const [explanationResult, setExplanationResult] = useState<string | null>(null);
     const [isExplaining, setIsExplaining] = useState(false);
 
+    // State for text fullscreen mode
+    const [expandedArtifact, setExpandedArtifact] = useState<{ title: string, content: string } | null>(null);
+
     useEffect(() => {
         if (activeProject) {
             setCode(activeProject.codeSnippet || '');
             setAnalysisResult(activeProject.codeAnalysis || null);
         }
     }, [activeProject]);
+
+    // Close fullscreen on Escape key
+    useEffect(() => {
+        const handleEsc = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') setExpandedArtifact(null);
+        };
+        window.addEventListener('keydown', handleEsc);
+        return () => window.removeEventListener('keydown', handleEsc);
+    }, []);
 
     const handleGenerate = useCallback(async () => {
         if (!code.trim()) {
@@ -78,6 +90,8 @@ const CodeAnalysis: React.FC = () => {
                 default: break;
             }
             setExplanationType(type);
+            // ADDED: Notification to inform user
+            addNotification(`${type.charAt(0).toUpperCase() + type.slice(1)} copied to Explanation Tool. Scroll down to view.`, 'success');
         }
     }
 
@@ -105,7 +119,7 @@ const CodeAnalysis: React.FC = () => {
                         value={code}
                         onChange={(e) => setCode(e.target.value)}
                         placeholder="// Paste your code here (e.g., Python, JavaScript, Java)..."
-                        className="w-full h-48 bg-gray-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-md p-3 text-slate-800 dark:text-slate-300 font-mono text-sm focus:ring-2 focus:ring-red-500 focus:outline-none transition"
+                        className="w-full h-48 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-md p-3 text-slate-800 dark:text-slate-300 font-mono text-sm focus:ring-2 focus:ring-red-500 focus:outline-none transition"
                         disabled={isLoading}
                     />
                     <Button onClick={handleGenerate} disabled={!code.trim() || isLoading} className="w-full">
@@ -125,7 +139,7 @@ const CodeAnalysis: React.FC = () => {
                                 className={`space-y-2 ${key === 'flowchart' ? 'md:col-span-2' : ''}`}
                             > 
                                 <div className="flex items-center justify-between">
-                                    <h3 className="text-xl font-semibold text-red-500 dark:text-red-400">
+                                    <h3 className="text-xl font-semibold text-red-600 dark:text-red-400">
                                         {key.charAt(0).toUpperCase() + key.slice(1)}
                                     </h3>
                                     {key === 'flowchart' && (
@@ -143,7 +157,7 @@ const CodeAnalysis: React.FC = () => {
                                         <Mermaid chart={value} theme={mermaidTheme} />
                                     </div>
                                 ) : (
-                                    <div className="bg-gray-50 dark:bg-slate-900 p-3 rounded-md border border-slate-200 dark:border-slate-700 h-64 overflow-y-auto whitespace-pre-wrap text-sm text-slate-700 dark:text-slate-300 custom-scrollbar">
+                                    <div className="bg-gray-50 dark:bg-slate-900 p-3 rounded-md border border-slate-200 dark:border-slate-700 h-64 overflow-y-auto whitespace-pre-wrap text-sm text-slate-700 dark:text-slate-300 custom-scrollbar font-mono">
                                         {value}
                                     </div>
                                 )}
@@ -152,13 +166,27 @@ const CodeAnalysis: React.FC = () => {
                                     <Button onClick={() => copyToExplain(key as ArtifactType)} variant="secondary" className="text-xs flex-1">
                                         Copy to Explain
                                     </Button>
-                                    {/* Add Download Button for Text Artifacts Only */}
+                                    {/* Action Buttons for Text Artifacts */}
                                     {key !== 'flowchart' && (
-                                        <Button onClick={() => downloadArtifact(key, value)} variant="secondary" className="text-xs px-3" title="Download as Text">
-                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                                                <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" />
-                                            </svg>
-                                        </Button>
+                                        <>
+                                            {/* Fullscreen Button */}
+                                            <Button 
+                                                onClick={() => setExpandedArtifact({ title: key, content: value })} 
+                                                variant="secondary" 
+                                                className="text-xs px-3" 
+                                                title="Fullscreen"
+                                            >
+                                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                                    <path fillRule="evenodd" d="M3 4a1 1 0 011-1h4a1 1 0 010 2H6.414l2.293 2.293a1 1 0 01-1.414 1.414L5 6.414V8a1 1 0 01-2 0V4zm9 1a1 1 0 010-2h4a1 1 0 011 1v4a1 1 0 01-2 0V6.414l-2.293 2.293a1 1 0 11-1.414-1.414L13.586 5H12zm-9 7a1 1 0 011 1v1.586l2.293-2.293a1 1 0 011.414 1.414L5.414 15H7a1 1 0 010 2H3a1 1 0 01-1-1v-4a1 1 0 011-1zm10 0a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 010-2h1.586l-2.293-2.293a1 1 0 011.414-1.414L15 13.586V12a1 1 0 011-1z" clipRule="evenodd" />
+                                                </svg>
+                                            </Button>
+                                            {/* Download Button */}
+                                            <Button onClick={() => downloadArtifact(key, value)} variant="secondary" className="text-xs px-3" title="Download as Text">
+                                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                                    <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" />
+                                                </svg>
+                                            </Button>
+                                        </>
                                     )}
                                 </div>
                             </div>
@@ -196,6 +224,27 @@ const CodeAnalysis: React.FC = () => {
                     )}
                  </div>
             </Card>
+
+            {/* FULLSCREEN MODAL */}
+            {expandedArtifact && (
+                <div className="fixed inset-0 z-50 bg-white/95 dark:bg-slate-950/95 backdrop-blur-sm flex flex-col p-4 md:p-8 animate-in fade-in duration-200">
+                    <div className="flex justify-between items-center mb-4">
+                        <h2 className="text-3xl font-bold text-red-600 dark:text-red-400 capitalize">{expandedArtifact.title}</h2>
+                        <button 
+                            onClick={() => setExpandedArtifact(null)}
+                            className="p-2 rounded-full bg-gray-200 dark:bg-slate-800 hover:bg-gray-300 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 transition-colors"
+                            title="Close (Esc)"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
+                    </div>
+                    <div className="flex-1 overflow-auto bg-gray-50 dark:bg-slate-900 p-6 rounded-lg border border-slate-200 dark:border-slate-700 font-mono text-base text-slate-800 dark:text-slate-300 whitespace-pre-wrap shadow-2xl">
+                        {expandedArtifact.content}
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

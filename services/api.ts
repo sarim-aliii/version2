@@ -67,6 +67,11 @@ export const updateProfile = async (userData: { name?: string; avatar?: string }
   return data;
 };
 
+export const updateUserProgress = async (xpGained: number) => {
+  const { data } = await api.put('/auth/progress', { xpGained });
+  return data;
+};
+
 export const verifyEmail = async (token: string) => {
   const { data } = await api.post('/auth/verify-email', { token });
   return data;

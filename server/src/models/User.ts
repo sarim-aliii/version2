@@ -12,6 +12,10 @@ interface IUser {
   verificationToken?: string;
   resetPasswordToken?: string;
   resetPasswordExpire?: Date;
+  xp: number;
+  level: number;
+  currentStreak: number;
+  lastStudyDate?: Date;
 }
 
 interface IUserMethods {
@@ -51,6 +55,10 @@ const userSchema = new mongoose.Schema<IUserDocument, IUserModel>({
   verificationToken: String,
   resetPasswordToken: String,
   resetPasswordExpire: Date,
+  xp: { type: Number, default: 0 },
+  level: { type: Number, default: 1 },
+  currentStreak: { type: Number, default: 0 },
+  lastStudyDate: { type: Date, default: null },
 }, {
   timestamps: true,
 });

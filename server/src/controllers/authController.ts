@@ -87,7 +87,6 @@ export const loginUser = async (req: Request, res: Response) => {
 // @route   GET /api/auth/profile
 // @access  Private
 export const getUserProfile = async (req: Request, res: Response) => {
-  const { email, password, name } = req.body;
   const user = await User.findById(req.user?.id).select('-password');
   if (user) {
     res.json({
@@ -95,6 +94,9 @@ export const getUserProfile = async (req: Request, res: Response) => {
       name: user.name,
       email: user.email,
       avatar: user.avatar,
+      xp: user.xp || 0,
+      level: user.level || 1,
+      currentStreak: user.currentStreak || 0,
     });
   }
   else {
@@ -302,4 +304,65 @@ export const resetPassword = async (req: Request, res: Response) => {
     console.error(error);
     res.status(500).json({ message: "Server Error" });
   }
+};
+
+// @desc    Update User Progress (XP & Streak)
+// @route   PUT /api/auth/progress
+// @access  Private
+export const updateUserProgress = async (req: Request, res: Response) => {
+    const { xpGained } = req.body;
+    
+    if (!req.user) return res.status(401).json({ message: 'Not authorized' });
+
+    try {
+        const user = await User.findById(req.user.id);
+        if (!user) return res.status(404).json({ message: 'User not found' });
+
+        // Streak Calculation
+        const today = new Date();
+        today.setHours(0, 0, 0, 0); // Normalize to midnight
+
+        let lastStudy = user.lastStudyDate ? new Date(user.lastStudyDate) : null;
+        if (lastStudy) lastStudy.setHours(0, 0, 0, 0);
+
+        if (!lastStudy) {
+            // First time studying
+            user.currentStreak = 1;
+        } else if (lastStudy.getTime() !== today.getTime()) {
+            const diffTime = Math.abs(today.getTime() - lastStudy.getTime());
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
+
+            if (diffDays === 1) {
+                // Consecutive day
+                user.currentStreak = (user.currentStreak || 0) + 1;
+            } else {
+                // Missed a day (or more), reset streak
+                user.currentStreak = 1;
+            }
+        }
+        // If lastStudy === today, do not increment streak, but still update XP/Time
+
+        user.lastStudyDate = new Date();
+
+        // XP & Level Logic
+        // Example: Level up every 100 XP
+        user.xp = (user.xp || 0) + xpGained;
+        user.level = Math.floor(user.xp / 100) + 1;
+
+        const updatedUser = await user.save();
+
+        res.json({
+            _id: updatedUser._id,
+            name: updatedUser.name,
+            email: updatedUser.email,
+            avatar: updatedUser.avatar,
+            xp: updatedUser.xp,
+            level: updatedUser.level,
+            currentStreak: updatedUser.currentStreak,
+        });
+
+    } catch (error) {
+        console.error("Progress Update Error:", error);
+        res.status(500).json({ message: 'Server Error' });
+    }
 };

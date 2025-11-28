@@ -192,15 +192,29 @@ export const generateStudyPlan = async (req: Request, res: Response) => {
     }
 };
 
+// @desc    Extract text/content from a file (PDF, Text, or Image)
+// @route   POST /api/gemini/extract-text
+// @access  Private
 export const extractTextFromFile = async (req: Request, res: Response) => {
     const { llm, base64Data, fileType } = req.body;
+    
     if (!base64Data) return res.status(400).json({ message: "No file data provided." });
+    
     try {
         const model = getModel(llm);
+        
+        let promptText = "Extract all text from this file. Respond only with the extracted text.";
+        
+        // Specialized prompt for images to handle handwriting and diagrams
+        if (fileType.startsWith('image/')) {
+            promptText = "Analyze this image. If it contains text or handwritten notes, transcribe them accurately. If it contains diagrams or charts, describe them in detail so the information can be used for study.";
+        }
+
         const parts: Part[] = [
             { inlineData: { mimeType: fileType, data: base64Data } },
-            { text: "Extract all text from this file. Respond only with the extracted text." },
+            { text: promptText },
         ];
+        
         const result = await model.generateContent({ contents: [{ role: 'user', parts }] });
         res.json(result.response.text());
     } catch (error: any) {
@@ -541,20 +555,7 @@ export const generateCodeAnalysis = async (req: Request, res: Response) => {
     }
     
     try {
-        const prompt = `Analyze the following code and generate three artifacts: 
-        1. A detailed Algorithm (step-by-step instructions). 
-        2. Pseudocode (language-agnostic steps). 
-        3. A Flowchart using strict Mermaid.js syntax.
-        
-        Return a JSON object with three properties: "algorithm" (string), "pseudocode" (string), and "flowchart" (string). 
-        
-        CRITICAL MERMAID INSTRUCTIONS:
-        - Start with 'graph TD'.
-        - Enclose ALL node text in double quotes to handle special characters (especially parentheses). 
-        - Example: Use id1("Function(args)") instead of id1(Function(args)). 
-        - Do not use semicolons at the end of lines inside the mermaid string.
-        
-        Ensure all outputs are in ${language}.\n\nCODE:\n${code}`;
+        const prompt = `Analyze the following code and generate three artifacts: 1. A detailed Algorithm (step-by-step instructions). 2. Pseudocode (language-agnostic steps). 3. A text-based representation of a Flowchart (e.g., using Markdown or Mermaid syntax). Return a JSON object with three properties: "algorithm" (string), "pseudocode" (string), and "flowchart" (string). Ensure all outputs are in ${language}.\n\nCODE:\n${code}`;
         
         const model = getModel(llm, "application/json");
         const result = await model.generateContent(prompt);

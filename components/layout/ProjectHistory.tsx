@@ -191,10 +191,11 @@ export const ProjectHistory: React.FC = () => {
         addNotification(`Link for "${name}" copied to clipboard!`, 'success');
     };
     
+    // UPDATED: Removed "h-full" from the outer div so it shrinks to fit content
     return (
-        <div className="flex flex-col h-full">
+        <div className="flex flex-col">
             <div className="flex items-center justify-between mb-3 px-1">
-                <h2 className="text-lg font-bold text-slate-100">Study History</h2>
+                <h2 className="text-lg font-bold text-slate-800 dark:text-slate-100 transition-colors">Study History</h2>
             </div>
             <button
                 onClick={startNewStudy}
@@ -206,7 +207,9 @@ export const ProjectHistory: React.FC = () => {
                 New Study
             </button>
             
-            <ul className="space-y-1 pr-2 overflow-y-auto custom-scrollbar flex-1 pb-24">
+            {/* UPDATED: Removed "flex-1" and "pb-24". Added "max-h-64".
+                This allows the list to shrink when empty, pulling the TodoList up. */}
+            <ul className="space-y-1 pr-2 overflow-y-auto custom-scrollbar max-h-64">
                 {projects.map(project => (
                     <li key={project._id} className="group relative">
                         {editingProjectId === project._id ? (
@@ -221,7 +224,7 @@ export const ProjectHistory: React.FC = () => {
                                         if (e.key === 'Enter') handleFinishRename();
                                         if (e.key === 'Escape') handleCancelRename();
                                     }}
-                                    className="w-full text-sm px-3 py-2 rounded-md bg-slate-800 border border-red-500 text-slate-100 focus:outline-none focus:ring-1 focus:ring-red-500"
+                                    className="w-full text-sm px-3 py-2 rounded-md bg-slate-100 dark:bg-slate-800 border border-red-500 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-red-500 transition-colors"
                                 />
                             </div>
                         ) : (
@@ -229,7 +232,7 @@ export const ProjectHistory: React.FC = () => {
                                 <button
                                     onClick={() => loadProject(project._id)}
                                     disabled={project.status === 'processing'}
-                                    className={`flex-1 text-left text-sm px-3 py-2 rounded-md transition-all duration-200 truncate flex items-center justify-between ${activeProjectId === project._id ? 'bg-slate-800 text-red-400 font-semibold shadow-sm border-l-2 border-red-500' : 'text-slate-300 hover:bg-slate-800/50 border-l-2 border-transparent'} disabled:cursor-wait disabled:opacity-60`}
+                                    className={`flex-1 text-left text-sm px-3 py-2 rounded-md transition-all duration-200 truncate flex items-center justify-between ${activeProjectId === project._id ? 'bg-slate-100 dark:bg-slate-800 text-red-600 dark:text-red-400 font-semibold shadow-sm border-l-2 border-red-500' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/50 border-l-2 border-transparent'} disabled:cursor-wait disabled:opacity-60`}
                                     title={project.name}
                                 >
                                     <span className="truncate pr-12 z-10 relative">{project.name}</span>
@@ -257,8 +260,8 @@ export const ProjectHistory: React.FC = () => {
                 ))}
                 {projects.length === 0 && (
                     <div className="py-8 text-center opacity-50">
-                        <p className="text-xs text-slate-400">No studies yet.</p>
-                        <p className="text-[10px] text-slate-600 mt-1">Start a new one above!</p>
+                        <p className="text-xs text-slate-500 dark:text-slate-400">No studies yet.</p>
+                        <p className="text-[10px] text-slate-400 dark:text-slate-600 mt-1">Start a new one above!</p>
                     </div>
                 )}
             </ul>
