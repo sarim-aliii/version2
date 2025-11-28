@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { useAppContext } from '../../context/AppContext';
 import { generateLessonPlan } from '../../services/geminiService';
 import { Button } from '../ui/Button';
@@ -6,6 +6,7 @@ import { Card } from '../ui/Card';
 import { Loader } from '../ui/Loader';
 import { EmptyState } from '../ui/EmptyState';
 import { LessonPlan } from '../../types';
+
 
 const LessonPlanDisplay: React.FC<{ plan: LessonPlan }> = ({ plan }) => (
     <div className="space-y-6 text-slate-300 bg-slate-900 p-6 rounded-md border border-slate-700">
@@ -44,10 +45,14 @@ const LessonPlanDisplay: React.FC<{ plan: LessonPlan }> = ({ plan }) => (
 );
 
 export const LessonPlanner: React.FC = () => {
-    const { ingestedText, addNotification, language, llm } = useAppContext();
+    const { ingestedText, addNotification, language, llm, activeProject, updateActiveProjectData } = useAppContext();
     const [topic, setTopic] = useState('');
     const [isLoading, setIsLoading] = useState(false);
-    const [lessonPlan, setLessonPlan] = useState<LessonPlan | null>(null);
+    const [lessonPlan, setLessonPlan] = useState<LessonPlan | null>(activeProject?.lessonPlan || null);
+
+    useEffect(() => {
+        setLessonPlan(activeProject?.lessonPlan || null);
+    }, [activeProject]);
 
     const handleGenerate = useCallback(async () => {
         if (!ingestedText) {
@@ -59,16 +64,17 @@ export const LessonPlanner: React.FC = () => {
             return;
         }
         setIsLoading(true);
-        setLessonPlan(null);
+
         try {
             const plan = await generateLessonPlan(llm, ingestedText, topic, language);
             setLessonPlan(plan);
+            await updateActiveProjectData({ lessonPlan: plan });
         } catch (e: any) {
             addNotification(e.message);
         } finally {
             setIsLoading(false);
         }
-    }, [ingestedText, topic, addNotification, language, llm]);
+    }, [ingestedText, topic, addNotification, language, llm, updateActiveProjectData]);
 
     if (!ingestedText) {
         return <EmptyState

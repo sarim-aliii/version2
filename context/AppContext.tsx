@@ -1,13 +1,13 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
-import { 
-    Tab, 
-    Notification, 
-    NotificationType, 
-    User, 
-    StudyProject, 
-    ChatMessage, 
-    Flashcard, 
-    LessonPlan, 
+import {
+    Tab,
+    Notification,
+    NotificationType,
+    User,
+    StudyProject,
+    ChatMessage,
+    Flashcard,
+    LessonPlan,
     StudyPlan,
     ConceptMapData,
     LoginCredentials,
@@ -39,13 +39,13 @@ interface AppContextType {
     projects: StudyProject[];
     activeProjectId: string | null;
     activeProject: StudyProject | null;
-    ingestedText: string; 
+    ingestedText: string;
     loadProject: (id: string) => void;
     startNewStudy: () => Promise<void>;
     renameProject: (id: string, newName: string) => Promise<void>;
     deleteProject: (id: string) => Promise<void>;
-    updateActiveProjectData: (data: Partial<StudyProject>) => void;
-    updateProjectData: (id: string, data: Partial<StudyProject>) => void;
+    updateActiveProjectData: (data: Partial<StudyProject>) => Promise<void>;
+    updateProjectData: (id: string, data: Partial<StudyProject>) => Promise<void>;
     ingestText: (name: string, text: string) => Promise<void>;
 
     // UI State
@@ -55,7 +55,7 @@ interface AppContextType {
     toggleSidebar: () => void;
     theme: 'dark' | 'light';
     toggleTheme: () => void;
-    
+
     // AI Generation State & Functions
     llm: string;
     setLlm: (model: string) => void;
@@ -67,13 +67,13 @@ interface AppContextType {
 
     isGeneratingFlashcards: boolean;
     generateFlashcardsForActiveProject: () => Promise<void>;
-    
+
     isTutorResponding: boolean;
     sendTutorMessage: (message: string) => Promise<string | undefined>;
-    
+
     isGeneratingConceptMap: boolean;
     generateConceptMapForActiveProject: () => Promise<void>;
-    
+
     isGeneratingLessonPlan: boolean;
     generateLessonPlanForActiveProject: (topic: string) => Promise<void>;
 
@@ -88,21 +88,21 @@ interface AppContextType {
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
-export const AppProvider: React.FC<{children: ReactNode}> = ({ children }) => {
+export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     const [userToken, setUserToken] = useLocalStorage<string | null>('authToken', null);
     const [currentUser, setCurrentUser] = useState<User | null>(null);
     const [activeTab, setActiveTab] = useLocalStorage<Tab>('activeTab', Tab.Ingest);
-    
+
     const [projects, setProjects] = useState<StudyProject[]>([]);
-    const [activeProjectId, setActiveProjectId] = useLocalStorage<string | null>('activeProjectId', null);
-    
+    const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
+
     const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     const [notifications, setNotifications] = useState<Notification[]>([]);
-    
-    const [llm, setLlm] = useLocalStorage('llm', 'gemini-1.5-flash'); 
+
+    const [llm, setLlm] = useLocalStorage('llm', 'gemini-1.5-flash');
     const [language, setLanguage] = useLocalStorage('language', 'English');
     const [theme, setTheme] = useLocalStorage<'dark' | 'light'>('theme', 'dark');
-    
+
     // Loading states
     const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
     const [isGeneratingFlashcards, setIsGeneratingFlashcards] = useState(false);
@@ -110,11 +110,11 @@ export const AppProvider: React.FC<{children: ReactNode}> = ({ children }) => {
     const [isGeneratingConceptMap, setIsGeneratingConceptMap] = useState(false);
     const [isGeneratingLessonPlan, setIsGeneratingLessonPlan] = useState(false);
     const [isGeneratingStudyPlan, setIsGeneratingStudyPlan] = useState(false);
-    
+
     const isAuthenticated = !!userToken && !!currentUser;
-    
+
     const activeProject = projects.find(p => p._id === activeProjectId) || null;
-    const ingestedText = activeProject?.ingestedText || ''; 
+    const ingestedText = activeProject?.ingestedText || '';
 
     // Theme effect
     useEffect(() => {
@@ -158,11 +158,9 @@ export const AppProvider: React.FC<{children: ReactNode}> = ({ children }) => {
         try {
             const data = await api.login(credentials);
             setUserToken(data.token);
-            setCurrentUser({ _id: data._id, name:data.name, email: data.email, avatar: data.avatar });
+            setCurrentUser({ _id: data._id, name: data.name, email: data.email, avatar: data.avatar });
             api.setAuthToken(data.token);
-            const fetchedProjects = await api.getProjects();
-            setProjects(fetchedProjects);
-            if (fetchedProjects.length > 0) setActiveProjectId(fetchedProjects[0]._id);
+            await fetchProjects();
         } catch (error: any) {
             addNotification(error.message || 'Login failed.');
             throw error;
@@ -173,7 +171,7 @@ export const AppProvider: React.FC<{children: ReactNode}> = ({ children }) => {
         try {
             const data = await api.signup(credentials);
             setUserToken(data.token);
-            setCurrentUser({ _id: data._id, name:data.name, email: data.email, avatar: data.avatar });
+            setCurrentUser({ _id: data._id, name: data.name, email: data.email, avatar: data.avatar });
             api.setAuthToken(data.token);
             setProjects([]);
             setActiveProjectId(null);
@@ -182,7 +180,7 @@ export const AppProvider: React.FC<{children: ReactNode}> = ({ children }) => {
             throw error;
         }
     };
-    
+
     const logout = useCallback(() => {
         setUserToken(null);
         setCurrentUser(null);
@@ -192,17 +190,14 @@ export const AppProvider: React.FC<{children: ReactNode}> = ({ children }) => {
         setActiveTab(Tab.Ingest);
     }, [setUserToken, setActiveProjectId, setActiveTab]);
 
-    const handleSocialLoginSuccess = (data: any, providerName: string) => {
+    const handleSocialLoginSuccess = async (data: any, providerName: string) => {
         setUserToken(data.token);
-        setCurrentUser({ _id: data._id, name:data.name, email: data.email, avatar: data.avatar });
+        setCurrentUser({ _id: data._id, name: data.name, email: data.email, avatar: data.avatar });
         api.setAuthToken(data.token);
-        api.getProjects().then(projects => {
-             setProjects(projects);
-             if(projects.length > 0) setActiveProjectId(projects[0]._id);
-        });
+        await fetchProjects();
         addNotification(`Logged in with ${providerName}!`, 'success');
     };
-    
+
     const loginWithGoogle = async () => {
         try {
             const provider = new GoogleAuthProvider();
@@ -212,8 +207,8 @@ export const AppProvider: React.FC<{children: ReactNode}> = ({ children }) => {
             const result = await signInWithPopup(auth, provider);
             const idToken = await result.user.getIdToken();
             const data = await api.googleLogin(idToken);
-            handleSocialLoginSuccess(data, 'Google');
-        } 
+            await handleSocialLoginSuccess(data, 'Google');
+        }
         catch (error: any) {
             if (error.code === 'auth/popup-closed-by-user') return;
             addNotification(error.message || 'Google login failed.');
@@ -226,18 +221,18 @@ export const AppProvider: React.FC<{children: ReactNode}> = ({ children }) => {
             const provider = new GithubAuthProvider();
             provider.addScope('user:email');
             provider.addScope('read:user');
-            
+
             const result = await signInWithPopup(auth, provider);
             const idToken = await result.user.getIdToken();
             const data = await api.githubLogin(idToken);
-            handleSocialLoginSuccess(data, 'GitHub');
+            await handleSocialLoginSuccess(data, 'GitHub');
         } catch (error: any) {
             if (error.code === 'auth/popup-closed-by-user') return;
             addNotification(error.message || 'GitHub login failed.');
             throw error;
         }
     };
-    
+
     const verifyEmail = async (token: string) => {
         try {
             await api.verifyEmail(token);
@@ -280,10 +275,7 @@ export const AppProvider: React.FC<{children: ReactNode}> = ({ children }) => {
             try {
                 const fetchedProjects = await api.getProjects();
                 setProjects(fetchedProjects);
-                if (fetchedProjects.length > 0 && !activeProjectId) {
-                    setActiveProjectId(fetchedProjects[0]._id);
-                }
-            } 
+            }
             catch (error: any) {
                 console.error("Failed to fetch projects", error);
                 if (error.message && (error.message.includes('401') || error.message.includes('Not authorized'))) {
@@ -291,7 +283,7 @@ export const AppProvider: React.FC<{children: ReactNode}> = ({ children }) => {
                 }
             }
         }
-    }, [userToken, activeProjectId, logout, setActiveProjectId]);
+    }, [userToken, logout]);
 
     useEffect(() => {
         if (userToken) {
@@ -309,6 +301,7 @@ export const AppProvider: React.FC<{children: ReactNode}> = ({ children }) => {
     const loadProject = (id: string) => setActiveProjectId(id);
 
     const startNewStudy = async () => {
+        setActiveProjectId(null);
         setActiveTab(Tab.Ingest);
     };
 
@@ -326,10 +319,10 @@ export const AppProvider: React.FC<{children: ReactNode}> = ({ children }) => {
 
     const renameProject = async (id: string, newName: string) => {
         try {
-            const updatedProject = await api.updateProject(id, { name: newName });
-            setProjects(projects.map(p => p._id === id ? updatedProject : p));
+            await api.updateProject(id, { name: newName });
+            await fetchProjects();
         } catch (error: any) {
-             addNotification(error.message || "Failed to rename study.");
+            addNotification(error.message || "Failed to rename study.");
         }
     };
 
@@ -339,38 +332,44 @@ export const AppProvider: React.FC<{children: ReactNode}> = ({ children }) => {
             const remainingProjects = projects.filter(p => p._id !== id);
             setProjects(remainingProjects);
             if (activeProjectId === id) {
-                setActiveProjectId(remainingProjects.length > 0 ? remainingProjects[0]._id : null);
+                setActiveProjectId(null);
             }
         } catch (error: any) {
             addNotification(error.message || "Failed to delete study.");
         }
     };
 
-    const updateProjectData = (id: string, data: Partial<StudyProject>) => {
-        setProjects(prev => prev.map(p => p._id === id ? { ...p, ...data } : p));
-    };
-    
-    const updateActiveProjectData = (data: Partial<StudyProject>) => {
-        if (activeProjectId) {
-            updateProjectData(activeProjectId, data);
+    const updateProjectData = async (id: string, data: Partial<StudyProject>) => {
+        try {
+            setProjects(prev => prev.map(p => p._id === id ? { ...p, ...data } : p));
+            await api.updateProject(id, data);
+        } catch (error: any) {
+            addNotification(error.message || "Failed to save changes.", 'error');
+            await fetchProjects();
         }
     };
-    
+
+    const updateActiveProjectData = async (data: Partial<StudyProject>) => {
+        if (activeProjectId) {
+            await updateProjectData(activeProjectId, data);
+        }
+    };
+
     const generateSummaryForActiveProject = async () => {
         if (!activeProject) return;
         setIsGeneratingSummary(true);
         try {
             const summary = await api.generateContent(activeProject._id, 'summary', { llm, language });
-            updateActiveProjectData({ summary });
-        } catch (e: any) { addNotification(e.message); } 
+            await updateActiveProjectData({ summary });
+        } catch (e: any) { addNotification(e.message); }
         finally { setIsGeneratingSummary(false); }
     };
-    
+
     const generateFlashcardsForActiveProject = async () => {
         if (!activeProject) return;
         setIsGeneratingFlashcards(true);
         try {
-             const flashcards: Flashcard[] = await api.generateContent(activeProject._id, 'flashcards', { llm, language });
+            const flashcards: Flashcard[] = await api.generateContent(activeProject._id, 'flashcards', { llm, language });
             const srsFlashcards = flashcards.map(fc => ({
                 ...fc,
                 id: uuidv4(),
@@ -378,28 +377,31 @@ export const AppProvider: React.FC<{children: ReactNode}> = ({ children }) => {
                 interval: 0,
                 dueDate: new Date().toISOString(),
             }));
-            updateActiveProjectData({ srsFlashcards });
-        } catch (e: any) { addNotification(e.message); } 
+            await updateActiveProjectData({ srsFlashcards });
+        } catch (e: any) { addNotification(e.message); }
         finally { setIsGeneratingFlashcards(false); }
     };
 
     const sendTutorMessage = async (message: string) => {
         if (!activeProject) return;
-        
+
         const newHistory: ChatMessage[] = [...(activeProject.aiTutorHistory || []), { role: 'user', content: message }];
-        updateActiveProjectData({ aiTutorHistory: newHistory });
+        setProjects(prev => prev.map(p => p._id === activeProjectId ? { ...p, aiTutorHistory: newHistory } : p));
+
         setIsTutorResponding(true);
 
         try {
             const responseText = await api.generateContent(activeProject._id, 'tutor', { message, history: newHistory, llm, language });
             const updatedHistory: ChatMessage[] = [...newHistory, { role: 'model', content: responseText }];
-            updateActiveProjectData({ aiTutorHistory: updatedHistory });
+            // Save complete history to DB
+            await updateActiveProjectData({ aiTutorHistory: updatedHistory });
             return responseText;
-        } catch (e: any) { 
-            addNotification(e.message); 
+        } catch (e: any) {
+            addNotification(e.message);
             const errorHistory: ChatMessage[] = [...newHistory, { role: 'model', content: "Sorry, I encountered an error." }];
-            updateActiveProjectData({ aiTutorHistory: errorHistory });
-        } 
+            // Update local state with error message
+            setProjects(prev => prev.map(p => p._id === activeProjectId ? { ...p, aiTutorHistory: errorHistory } : p));
+        }
         finally { setIsTutorResponding(false); }
     };
 
@@ -408,17 +410,17 @@ export const AppProvider: React.FC<{children: ReactNode}> = ({ children }) => {
         setIsGeneratingConceptMap(true);
         try {
             const conceptMapData: ConceptMapData = await api.generateContent(activeProject._id, 'concept-map', { llm, language });
-            updateActiveProjectData({ conceptMapData });
-        } catch (e: any) { addNotification(e.message); } 
+            await updateActiveProjectData({ conceptMapData });
+        } catch (e: any) { addNotification(e.message); }
         finally { setIsGeneratingConceptMap(false); }
     };
-    
+
     const generateLessonPlanForActiveProject = async (topic: string) => {
         if (!activeProject) return;
         setIsGeneratingLessonPlan(true);
         try {
             const lessonPlan: LessonPlan = await api.generateContent(activeProject._id, 'lesson-plan', { topic, llm, language });
-            updateActiveProjectData({ lessonPlan });
+            await updateActiveProjectData({ lessonPlan });
         } catch (e: any) { addNotification(e.message); }
         finally { setIsGeneratingLessonPlan(false); }
     };
@@ -428,7 +430,7 @@ export const AppProvider: React.FC<{children: ReactNode}> = ({ children }) => {
         setIsGeneratingStudyPlan(true);
         try {
             const studyPlan: StudyPlan = await api.generateContent(activeProject._id, 'study-plan', { days, llm, language });
-            updateActiveProjectData({ studyPlan });
+            await updateActiveProjectData({ studyPlan });
         } catch (e: any) { addNotification(e.message); }
         finally { setIsGeneratingStudyPlan(false); }
     };

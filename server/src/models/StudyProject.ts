@@ -7,6 +7,9 @@ import {
     ConceptMapData, 
     LessonPlan, 
     StudyPlan,
+    MCQ,
+    CodeAnalysisResult,
+    Todo
 } from '../../../types';
 
 interface IStudyProject {
@@ -17,6 +20,7 @@ interface IStudyProject {
   summary?: string;
   srsFlashcards?: SRFlashcard[];
   mcqAttempts?: MCQAttempt[];
+  currentMcqs?: MCQ[];
   semanticSearchHistory?: string[];
   aiTutorHistory?: ChatMessage[];
   essayTopic?: string;
@@ -25,6 +29,9 @@ interface IStudyProject {
   conceptMapData?: ConceptMapData;
   lessonPlan?: LessonPlan;
   studyPlan?: StudyPlan;
+  codeSnippet?: string;
+  codeAnalysis?: CodeAnalysisResult;
+  todos?: Todo[];
   chunks?: string[];
   embeddings?: number[][];
 }
@@ -51,8 +58,9 @@ const studyProjectSchema = new Schema<IStudyProjectDocument, IStudyProjectModel>
   ingestedText: { type: String, required: true },
   status: { type: String, enum: ['processing', 'ready', 'error'], default: 'ready' },
   summary: { type: String },
-  srsFlashcards: { type: [Object], default: [] },
+  srsFlashcards: [FlashcardSchema],
   mcqAttempts: { type: [Object], default: [] },
+  currentMcqs: { type: [Object], default: [] },
   semanticSearchHistory: { type: [String], default: [] },
   aiTutorHistory: { type: [Object], default: [] },
   essayTopic: { type: String },
@@ -61,9 +69,11 @@ const studyProjectSchema = new Schema<IStudyProjectDocument, IStudyProjectModel>
   conceptMapData: { type: Object },
   lessonPlan: { type: Object },
   studyPlan: { type: Object },
+  codeSnippet: { type: String },
+  codeAnalysis: { type: Object },
+  todos: { type: [Object], default: [] },
   chunks: { type: [String], default: [] }, 
   embeddings: { type: [[Number]], default: [] },
-  srsFlashcards: [FlashcardSchema],
 }, {
   timestamps: true,
 });

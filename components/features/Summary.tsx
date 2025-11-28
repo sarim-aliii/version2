@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { useAppContext } from '../../context/AppContext';
 import { generateSummary } from '../../services/geminiService';
 import { Button } from '../ui/Button';
@@ -7,9 +7,13 @@ import { Loader } from '../ui/Loader';
 import { EmptyState } from '../ui/EmptyState';
 
 export const Summary: React.FC = () => {
-  const { ingestedText, addNotification, language, llm } = useAppContext();
-  const [summary, setSummary] = useState<string | null>(null);
+  const { ingestedText, addNotification, language, llm, activeProject, updateActiveProjectData } = useAppContext();
+  const [summary, setSummary] = useState<string | null>(activeProject?.summary || null);
   const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+      setSummary(activeProject?.summary || null);
+  }, [activeProject]);
 
   const handleGenerateSummary = useCallback(async () => {
     if (!ingestedText) {
@@ -17,16 +21,18 @@ export const Summary: React.FC = () => {
       return;
     }
     setIsLoading(true);
-    setSummary(null);
     try {
       const result = await generateSummary(llm, ingestedText, language);
       setSummary(result);
-    } catch (e: any) {
+      await updateActiveProjectData({ summary: result });
+    } 
+    catch (e: any) {
       addNotification(e.message);
-    } finally {
+    } 
+    finally {
       setIsLoading(false);
     }
-  }, [ingestedText, addNotification, language, llm]);
+  }, [ingestedText, addNotification, language, llm, updateActiveProjectData]);
 
   if (!ingestedText) {
     return <EmptyState 
@@ -40,14 +46,14 @@ export const Summary: React.FC = () => {
       <div className="space-y-6">
         <div>
           <Button onClick={handleGenerateSummary} disabled={isLoading}>
-            {isLoading ? 'Generating...' : 'Generate Summary'}
+            {isLoading ? 'Generating...' : (summary ? 'Regenerate Summary' : 'Generate Summary')}
           </Button>
         </div>
         {isLoading && <Loader />}
         {summary && (
           <div className="fade-in">
-            <h3 className="text-xl font-semibold text-slate-200 mb-2">Summary</h3>
-            <p className="text-slate-300 whitespace-pre-wrap leading-relaxed bg-slate-900 p-4 rounded-md border border-slate-700">{summary}</p>
+            <h3 className="text-xl font-semibold text-slate-800 dark:text-slate-200 mb-2">Summary</h3>
+            <p className="text-slate-600 dark:text-slate-300 whitespace-pre-wrap leading-relaxed bg-gray-100 dark:bg-slate-900 p-4 rounded-md border border-slate-200 dark:border-slate-700">{summary}</p>
           </div>
         )}
       </div>

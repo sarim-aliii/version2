@@ -1,6 +1,5 @@
 import { SimulationLinkDatum, SimulationNodeDatum } from 'd3';
 
-
 export interface User {
     _id: string;
     email: string;
@@ -137,6 +136,12 @@ export interface StudyPlan {
     schedule: StudyDay[];
 }
 
+export interface CodeAnalysisResult {
+    algorithm: string;
+    pseudocode: string;
+    flowchart: string;
+}
+
 export interface StudyProject {
   _id: string;
   name: string;
@@ -147,6 +152,7 @@ export interface StudyProject {
   summary?: string;
   srsFlashcards?: SRFlashcard[];
   mcqAttempts?: MCQAttempt[];
+  currentMcqs?: MCQ[];
   semanticSearchHistory?: string[];
   aiTutorHistory?: ChatMessage[];
   essayTopic?: string;
@@ -155,15 +161,14 @@ export interface StudyProject {
   conceptMapData?: ConceptMapData;
   lessonPlan?: LessonPlan;
   studyPlan?: StudyPlan;
+  codeSnippet?: string; 
+  codeAnalysis?: CodeAnalysisResult;
+  todos?: Todo[];
+  chunks?: string[];
+  embeddings?: number[][];
 }
 
 export interface AIGenerationOptions {
     llm: string;
     language: string;
-}
-
-export interface CodeAnalysisResult {
-    algorithm: string;
-    pseudocode: string;
-    flowchart: string;
 }

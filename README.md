@@ -70,7 +70,7 @@ The application should now be running, with the frontend communicating with your
 
 - **Ingest Engine:** Upload `.txt` files or paste text directly to create a new study project.
 - **AI Summary:** Automatically generate a concise summary of your ingested material.
-- **SRS Flashcards:** Create smart flashcards with a Spaced Repetition System (SRS) to optimize learning and retention.
+- **Flashcards:** Create smart flashcards with a Spaced Repetition System (SRS) to optimize learning and retention.
 - **MCQ Generator:** Test your knowledge with multiple-choice quizzes generated from your content.
 - **Semantic Search:** Go beyond keywords and search your notes based on meaning and context.
 - **AI Tutor:** Engage in a contextual conversation with an AI that can answer questions about your study material.

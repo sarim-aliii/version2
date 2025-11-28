@@ -6,9 +6,20 @@ import { FileUploader } from '../ui/FileUploader';
 import { Slider } from '../ui/Slider';
 import { fetchTopicInfo, extractTextFromFile } from '../../services/geminiService';
 import { Loader } from '../ui/Loader';
+import { Tab } from '../../types';
+
 
 export const Ingest: React.FC = () => {
-  const { ingestText, addNotification, language, llm, ingestedText } = useAppContext();
+  const { 
+    ingestText, 
+    addNotification, 
+    language, 
+    llm, 
+    ingestedText, 
+    activeProjectId, 
+    updateActiveProjectData,
+    setActiveTab 
+  } = useAppContext();
   
   const [pastedText, setPastedText] = useState('');
   const [fileNames, setFileNames] = useState<string[]>([]);
@@ -18,12 +29,14 @@ export const Ingest: React.FC = () => {
   const [isSeeding, setIsSeeding] = useState(false);
   const [isExtracting, setIsExtracting] = useState(false);
 
+  // Helper to recover filenames from the persisted text format
   const extractFileNames = (text: string) => {
     const regex = /--- START OF FILE: (.*?) ---/g;
     const matches = [...text.matchAll(regex)];
     return matches.map(m => m[1]);
   };
 
+  // Restore state from context when component mounts or activeProject changes
   useEffect(() => {
     if (ingestedText) {
       setPastedText(ingestedText);
@@ -31,6 +44,10 @@ export const Ingest: React.FC = () => {
       if (recoveredFiles.length > 0) {
         setFileNames(recoveredFiles);
       }
+    } else {
+      // If no ingested text (new project), clear fields
+      setPastedText('');
+      setFileNames([]);
     }
   }, [ingestedText]);
 
@@ -140,7 +157,25 @@ export const Ingest: React.FC = () => {
       projectName = `Notes ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}`;
     }
 
-    await ingestText(projectName, pastedText);
+    // LOGIC FIX: Check if we are updating an existing project or creating a new one
+    if (activeProjectId) {
+        // Update Existing Project
+        try {
+            await updateActiveProjectData({ 
+                ingestedText: pastedText,
+                // Optionally update name if user changed context significantly, 
+                // but usually better to keep old name or ask user. 
+                // For now, we will keep the old name to avoid confusion unless we add a rename input.
+            });
+            addNotification("Project updated successfully.", "success");
+            setActiveTab(Tab.Summary);
+        } catch (e: any) {
+            addNotification(e.message || "Failed to update project.");
+        }
+    } else {
+        // Create New Project
+        await ingestText(projectName, pastedText);
+    }
   };
 
   return (
@@ -207,7 +242,7 @@ export const Ingest: React.FC = () => {
           <Slider label="Chunk overlap" min={0} max={400} value={chunkOverlap} onChange={setChunkOverlap} />
           <div className="pt-2">
             <Button onClick={handleIngest} disabled={!pastedText.trim() || isExtracting}>
-                {isExtracting ? 'Processing file(s)...' : 'Ingest & Build Index'}
+                {isExtracting ? 'Processing file(s)...' : (activeProjectId ? 'Update Project Content' : 'Ingest & Build Index')}
             </Button>
           </div>
         </div>

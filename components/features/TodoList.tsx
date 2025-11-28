@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { Todo, Priority } from '../../types';
 
+
 const priorityConfig = {
     [Priority.High]: { color: 'bg-red-500', order: 1 },
     [Priority.Medium]: { color: 'bg-yellow-500', order: 2 },
