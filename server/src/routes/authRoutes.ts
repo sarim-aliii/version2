@@ -9,7 +9,8 @@ import {
     verifyEmail,
     forgotPassword,
     resetPassword,
-    updateUserProgress
+    updateUserProgress,
+    updateUserTodos
 } from '../controllers/authController';
 import { protect } from '../middleware/authMiddleware';
 
@@ -23,6 +24,7 @@ router.post('/github', githubLogin);
 router.get('/profile', protect, getUserProfile);
 router.put('/profile', protect, updateUserProfile);
 router.put('/progress', protect, updateUserProgress);
+router.put('/todos', protect, updateUserTodos);
 
 router.post('/verify-email', verifyEmail);
 router.post('/forgot-password', forgotPassword);

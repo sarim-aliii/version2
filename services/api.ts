@@ -221,4 +221,9 @@ export const explainCodeAnalysis = async (llm: string, artifact: string, languag
   return data;
 };
 
+export const updateTodos = async (todos: any[]) => {
+  const { data } = await api.put('/auth/todos', { todos });
+  return data;
+};
+
 export default api;

@@ -8,6 +8,7 @@ export interface User {
     xp?: number;
     level?: number;
     currentStreak?: number;
+    todos?: Todo[];
 }
 
 export interface LoginCredentials {

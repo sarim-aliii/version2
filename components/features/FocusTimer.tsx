@@ -10,21 +10,36 @@ const TIMER_SETTINGS = {
   longBreak: { label: 'Long Break', minutes: 15, color: 'text-blue-500', borderColor: 'border-blue-500' },
 };
 
+const ALARM_SOUND_URL = 'https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3'; 
+
 export const FocusTimer: React.FC = () => {
   const { addNotification, updateProgress } = useAppContext();
   const [mode, setMode] = useState<TimerMode>('focus');
   const [timeLeft, setTimeLeft] = useState(TIMER_SETTINGS['focus'].minutes * 60);
   const [isActive, setIsActive] = useState(false);
   const endTimeRef = useRef<number | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  // Sound effect (optional)
-  const playNotificationSound = () => {
-    try {
-      const audio = new Audio('https://actions.google.com/sounds/v1/alarms/beep_short.ogg');
-      audio.volume = 0.5;
-      audio.play();
-    } catch (e) {
-      // Ignore auto-play errors
+  // Request notification permission on mount
+  useEffect(() => {
+    if (typeof Notification !== 'undefined' && Notification.permission !== 'granted') {
+      Notification.requestPermission();
+    }
+    // Pre-load audio
+    audioRef.current = new Audio(ALARM_SOUND_URL);
+    audioRef.current.volume = 0.7;
+  }, []);
+
+  const playSound = () => {
+    if (audioRef.current) {
+      audioRef.current.currentTime = 0;
+      audioRef.current.play().catch(e => console.warn("Audio play failed (user interaction required first)", e));
+    }
+  };
+
+  const sendSystemNotification = (title: string, body: string) => {
+    if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+      new Notification(title, { body, icon: '/vite.svg' });
     }
   };
 
@@ -47,15 +62,20 @@ export const FocusTimer: React.FC = () => {
 
   const handleTimerComplete = useCallback(() => {
     setIsActive(false);
-    playNotificationSound();
+    playSound(); // 🔊 Play Sound!
     
     if (mode === 'focus') {
-      addNotification("Focus session complete! Take a break.", "success");
-      // Award XP if gamification is active
+      addNotification("Focus session complete! +25 XP", "success");
+      sendSystemNotification("Kairon AI: Focus Complete", "Great job! Take a short break.");
+      
+      // Award XP
       if (updateProgress) updateProgress(25); 
+      
+      // Auto-switch to break mode (ready to start)
       switchMode('shortBreak');
     } else {
-      addNotification("Break over! Ready to focus?", "info");
+      addNotification("Break is over! Time to focus.", "info");
+      sendSystemNotification("Kairon AI: Break Over", "Ready to get back to work?");
       switchMode('focus');
     }
   }, [mode, addNotification, updateProgress]);
@@ -64,7 +84,6 @@ export const FocusTimer: React.FC = () => {
     let interval: NodeJS.Timeout;
 
     if (isActive && timeLeft > 0) {
-      // If we just started, set the target end time
       if (!endTimeRef.current) {
           endTimeRef.current = Date.now() + timeLeft * 1000;
       }
@@ -84,26 +103,23 @@ export const FocusTimer: React.FC = () => {
         }
       }, 1000);
     } else {
-      // If paused, clear target so we recalculate on resume
       endTimeRef.current = null;
     }
 
     return () => clearInterval(interval);
   }, [isActive, timeLeft, handleTimerComplete]);
 
-  // Format MM:SS
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
-  // Calculate progress percentage for circle
   const totalTime = TIMER_SETTINGS[mode].minutes * 60;
   const progress = ((totalTime - timeLeft) / totalTime) * 100;
 
   return (
-    <div className="bg-slate-800/50 border border-slate-700 rounded-lg p-4 mb-4">
+    <div className={`bg-slate-800/50 border border-slate-700 rounded-lg p-4 mb-4 transition-all duration-500 ${timeLeft === 0 ? 'animate-pulse ring-2 ring-red-500' : ''}`}>
       <div className="flex justify-between items-center mb-3">
          <h3 className={`text-sm font-bold ${TIMER_SETTINGS[mode].color} uppercase tracking-wider`}>
              {TIMER_SETTINGS[mode].label}
@@ -111,13 +127,18 @@ export const FocusTimer: React.FC = () => {
          <div className="flex gap-1">
             <button 
                 onClick={() => switchMode('focus')} 
-                className={`w-2 h-2 rounded-full ${mode === 'focus' ? 'bg-red-500' : 'bg-slate-600 hover:bg-red-500/50'}`} 
+                className={`w-2 h-2 rounded-full transition-colors ${mode === 'focus' ? 'bg-red-500' : 'bg-slate-600 hover:bg-red-500/50'}`} 
                 title="Focus Mode"
             />
             <button 
                 onClick={() => switchMode('shortBreak')} 
-                className={`w-2 h-2 rounded-full ${mode === 'shortBreak' ? 'bg-green-500' : 'bg-slate-600 hover:bg-green-500/50'}`} 
+                className={`w-2 h-2 rounded-full transition-colors ${mode === 'shortBreak' ? 'bg-green-500' : 'bg-slate-600 hover:bg-green-500/50'}`} 
                 title="Short Break"
+            />
+            <button 
+                onClick={() => switchMode('longBreak')} 
+                className={`w-2 h-2 rounded-full transition-colors ${mode === 'longBreak' ? 'bg-blue-500' : 'bg-slate-600 hover:bg-blue-500/50'}`} 
+                title="Long Break"
             />
          </div>
       </div>
@@ -128,7 +149,9 @@ export const FocusTimer: React.FC = () => {
              {/* Simple Progress Bar under text */}
              <div className="absolute -bottom-2 left-0 right-0 h-1 bg-slate-700 rounded-full overflow-hidden">
                  <div 
-                    className={`h-full transition-all duration-1000 ease-linear ${mode === 'focus' ? 'bg-red-500' : 'bg-green-500'}`} 
+                    className={`h-full transition-all duration-1000 ease-linear ${
+                        mode === 'focus' ? 'bg-red-500' : mode === 'shortBreak' ? 'bg-green-500' : 'bg-blue-500'
+                    }`} 
                     style={{ width: `${100 - progress}%` }}
                  />
              </div>
@@ -138,7 +161,7 @@ export const FocusTimer: React.FC = () => {
           <Button 
             onClick={toggleTimer} 
             variant="primary" 
-            className={`flex-1 py-1 text-sm ${mode !== 'focus' ? '!bg-green-600 hover:!bg-green-700' : ''}`}
+            className={`flex-1 py-1 text-sm ${mode === 'shortBreak' ? '!bg-green-600 hover:!bg-green-700' : mode === 'longBreak' ? '!bg-blue-600 hover:!bg-blue-700' : ''}`}
           >
             {isActive ? 'Pause' : 'Start'}
           </Button>

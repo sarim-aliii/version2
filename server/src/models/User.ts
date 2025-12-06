@@ -1,10 +1,11 @@
 import mongoose, { Document, Model } from 'mongoose';
 import bcrypt from 'bcryptjs';
+import { Todo } from '../../../types';
 
 
 interface IUser {
   email: string;
-  password?: string; 
+  password?: string;
   name?: string;
   avatar?: string;
   authMethod?: 'email' | 'google' | 'github';
@@ -16,15 +17,16 @@ interface IUser {
   level: number;
   currentStreak: number;
   lastStudyDate?: Date;
+  todos: Todo[];
 }
 
 interface IUserMethods {
   matchPassword(enteredPassword: string): Promise<boolean>;
 }
 
-export interface IUserDocument extends IUser, IUserMethods, Document {}
+export interface IUserDocument extends IUser, IUserMethods, Document { }
 
-interface IUserModel extends Model<IUserDocument> {}
+interface IUserModel extends Model<IUserDocument> { }
 
 
 const userSchema = new mongoose.Schema<IUserDocument, IUserModel>({
@@ -44,7 +46,7 @@ const userSchema = new mongoose.Schema<IUserDocument, IUserModel>({
   },
   name: {
     type: String,
-    default: 'Kairon User', 
+    default: 'Kairon User',
   },
   authMethod: {
     type: String,
@@ -59,6 +61,7 @@ const userSchema = new mongoose.Schema<IUserDocument, IUserModel>({
   level: { type: Number, default: 1 },
   currentStreak: { type: Number, default: 0 },
   lastStudyDate: { type: Date, default: null },
+  todos: { type: [Object], default: [] }
 }, {
   timestamps: true,
 });

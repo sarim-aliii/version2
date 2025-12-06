@@ -97,11 +97,39 @@ export const getUserProfile = async (req: Request, res: Response) => {
       xp: user.xp || 0,
       level: user.level || 1,
       currentStreak: user.currentStreak || 0,
+      todos: user.todos || []
     });
   }
   else {
     res.status(404).json({ message: 'User not found' });
   }
+};
+
+
+// @desc    Update User Todos
+// @route   PUT /api/auth/todos
+// @access  Private
+export const updateUserTodos = async (req: Request, res: Response) => {
+    const { todos } = req.body;
+    
+    if (!req.user) return res.status(401).json({ message: 'Not authorized' });
+
+    try {
+        const user = await User.findById(req.user.id);
+        if (!user) return res.status(404).json({ message: 'User not found' });
+
+        user.todos = todos;
+        const updatedUser = await user.save();
+
+        res.json({ 
+            message: 'Todos updated', 
+            todos: updatedUser.todos 
+        });
+
+    } catch (error) {
+        console.error("Todo Update Error:", error);
+        res.status(500).json({ message: 'Server Error' });
+    }
 };
 
 
