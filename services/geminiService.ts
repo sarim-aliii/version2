@@ -60,3 +60,7 @@ export const explainCodeAnalysis = async (llm: string, artifact: string, languag
     const { data } = await axiosInstance.post('/gemini/code-analysis/explain', { llm, artifact, language, explanationType });
     return data;
 };
+
+export const conductMockInterview = async (llm: string, topic: string, message: string, history: ChatMessage[], language: string, difficulty: string): Promise<string> => {
+    return apiHelpers.conductMockInterview(llm, topic, message, history, language, difficulty);
+};

@@ -586,3 +586,50 @@ export const explainCodeAnalysis = async (req: Request, res: Response) => {
         res.status(500).json({ message: `Failed to explain content: ${error.message}` });
     }
 };
+
+// @desc    Conduct Mock Interview
+// @route   POST /api/gemini/mock-interview
+// @access  Private
+export const conductMockInterview = async (req: Request, res: Response) => {
+    const { llm, topic, message, history, language, difficulty } = req.body;
+    
+    try {
+        const systemInstruction = `You are a senior technical interviewer conducting a ${difficulty || 'Medium'} level interview on the topic: "${topic}". 
+        
+        Your Goal: Assess the candidate's knowledge, problem-solving skills, and depth of understanding.
+
+        Guidelines:
+        1.  **Persona**: Professional, encouraging but rigorous. Do not act as a tutor who gives answers immediately.
+        2.  **Interaction**: Ask ONE question at a time. Wait for the candidate's response.
+        3.  **Evaluation**: After the candidate responds, briefly acknowledge if they are correct or partially correct. If they are wrong or stuck, provide a small hint, NOT the full answer.
+        4.  **Flow**: 
+            - Start by introducing yourself and asking the first question related to ${topic}.
+            - If the candidate answers correctly, ask a follow-up question or move to a slightly harder concept.
+            - If the candidate struggles, guide them with the Socratic method.
+        5.  **Termination**: If the user says "End Interview" or "Stop", provide a comprehensive feedback summary of their performance, highlighting strengths and areas for improvement.
+
+        Respond in ${language}.`;
+
+        const chatHistory: Content[] = (history || []).map((h: any) => ({
+            role: h.role,
+            parts: [{ text: h.content }]
+        }));
+
+        const model = getModel(llm).getGenerativeModel({ 
+            model: llm && llm.includes('flash') ? 'gemini-1.5-flash' : 'gemini-1.5-pro',
+            systemInstruction: systemInstruction 
+        });
+
+        const chat = model.startChat({ history: chatHistory });
+        
+        // If history is empty, this is the start. The prompt is just to kick off.
+        const prompt = message || "Hello, I am ready for the interview.";
+        
+        const result = await chat.sendMessage(prompt);
+        res.json(result.response.text());
+
+    } catch (error: any) {
+        console.error("Mock Interview Error:", error);
+        res.status(500).json({ message: `Mock Interview failed: ${error.message}` });
+    }
+};

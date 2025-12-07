@@ -20,6 +20,7 @@ import { dbmsQuestions } from '../constants/dbmsQuestions';
 import { osQuestions } from '../constants/osQuestions';
 
 import { MarkdownRenderer } from '../ui/MarkdownRenderer';
+import { MockInterview } from './MockInterview';
 
 
 // --- DATA STRUCTURES ---
@@ -129,6 +130,7 @@ export const InterviewPrep: React.FC = () => {
     const [expandedQuestion, setExpandedQuestion] = useState<string | null>(null);
     const [explanations, setExplanations] = useState<{ [key: string]: string }>({});
     const [isLoading, setIsLoading] = useState(false);
+    const [isMockOpen, setIsMockOpen] = useState(false); // State for Mock Interview Modal
     
     // Persistent state for completed questions
     const [completedQuestions, setCompletedQuestions] = useLocalStorage<string[]>('kairon-interview-completed', []);
@@ -264,6 +266,11 @@ export const InterviewPrep: React.FC = () => {
         }
     };
 
+    // If Mock Interview is open, show that component instead
+    if (isMockOpen && selectedCategory) {
+        return <MockInterview topic={selectedCategory.title} onClose={() => setIsMockOpen(false)} />;
+    }
+
     return (
         <div className="space-y-6">
             {!selectedCategory ? (
@@ -370,7 +377,7 @@ export const InterviewPrep: React.FC = () => {
                                 {/* Mock Interview Button */}
                                 <div className="flex justify-center">
                                     <button 
-                                        onClick={() => addNotification("Mock Interview feature coming soon!", "info")}
+                                        onClick={() => setIsMockOpen(true)}
                                         className="flex items-center gap-4 px-8 py-4 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-white rounded-xl shadow-lg transition-all hover:shadow-2xl hover:-translate-y-1 group w-full md:w-auto"
                                     >
                                          <div className="p-2.5 bg-red-500/20 rounded-lg text-red-400 group-hover:text-red-300 transition-colors">

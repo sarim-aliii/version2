@@ -221,6 +221,11 @@ export const explainCodeAnalysis = async (llm: string, artifact: string, languag
   return data;
 };
 
+export const conductMockInterview = async (llm: string, topic: string, message: string, history: any[], language: string, difficulty: string) => {
+  const { data } = await api.post('/gemini/mock-interview', { llm, topic, message, history, language, difficulty });
+  return data;
+};
+
 export const updateTodos = async (todos: any[]) => {
   const { data } = await api.put('/auth/todos', { todos });
   return data;
