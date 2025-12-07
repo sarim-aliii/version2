@@ -79,8 +79,8 @@ export const resetPassword = async (token: string, password: string) => {
   return data;
 };
 
-export const updateUserProgress = async (xpGained: number) => {
-  const { data } = await api.put('/auth/progress', { xpGained });
+export const updateUserProgress = async (xpGained: number, category?: string) => {
+  const { data } = await api.put('/auth/progress', { xpGained, category });
   return data;
 };
 

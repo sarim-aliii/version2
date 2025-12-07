@@ -97,6 +97,8 @@ export const getUserProfile = async (req: Request, res: Response) => {
       xp: user.xp || 0,
       level: user.level || 1,
       currentStreak: user.currentStreak || 0,
+      dailyStats: user.dailyStats || [],
+      skillStats: user.skillStats || {},
       todos: user.todos || []
     });
   }
@@ -334,11 +336,11 @@ export const resetPassword = async (req: Request, res: Response) => {
   }
 };
 
-// @desc    Update User Progress (XP & Streak)
+// @desc    Update User Progress (XP, Streak, & Stats)
 // @route   PUT /api/auth/progress
 // @access  Private
 export const updateUserProgress = async (req: Request, res: Response) => {
-    const { xpGained } = req.body;
+    const { xpGained, category } = req.body; // <--- Accept category
     
     if (!req.user) return res.status(401).json({ message: 'Not authorized' });
 
@@ -348,34 +350,53 @@ export const updateUserProgress = async (req: Request, res: Response) => {
 
         // Streak Calculation
         const today = new Date();
-        today.setHours(0, 0, 0, 0); // Normalize to midnight
+        const dateString = today.toISOString().split('T')[0]; // YYYY-MM-DD
+        today.setHours(0, 0, 0, 0); 
 
         let lastStudy = user.lastStudyDate ? new Date(user.lastStudyDate) : null;
         if (lastStudy) lastStudy.setHours(0, 0, 0, 0);
 
         if (!lastStudy) {
-            // First time studying
             user.currentStreak = 1;
         } else if (lastStudy.getTime() !== today.getTime()) {
             const diffTime = Math.abs(today.getTime() - lastStudy.getTime());
             const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
 
             if (diffDays === 1) {
-                // Consecutive day
                 user.currentStreak = (user.currentStreak || 0) + 1;
             } else {
-                // Missed a day (or more), reset streak
                 user.currentStreak = 1;
             }
         }
-        // If lastStudy === today, do not increment streak, but still update XP/Time
 
         user.lastStudyDate = new Date();
 
         // XP & Level Logic
-        // Example: Level up every 100 XP
         user.xp = (user.xp || 0) + xpGained;
         user.level = Math.floor(user.xp / 100) + 1;
+
+        // --- NEW: Analytics Logic ---
+        
+        // 1. Daily Stats
+        if (!user.dailyStats) user.dailyStats = [];
+        const todayStatIndex = user.dailyStats.findIndex(s => s.date === dateString);
+        if (todayStatIndex >= 0) {
+            user.dailyStats[todayStatIndex].xp += xpGained;
+        } else {
+            // Keep only last 30 days to save space
+            if (user.dailyStats.length > 30) user.dailyStats.shift();
+            user.dailyStats.push({ date: dateString, xp: xpGained });
+        }
+
+        // 2. Skill Stats (if category provided)
+        if (category) {
+             if (!user.skillStats) user.skillStats = new Map();
+             // We need to use .get/.set for Maps in Mongoose if not using POJO
+             // However, for simple JSON response, let's treat it carefully.
+             // Mongoose Maps are tricky. Let's ensure it's initialized.
+             const currentSkillXp = user.skillStats.get(category) || 0;
+             user.skillStats.set(category, currentSkillXp + xpGained);
+        }
 
         const updatedUser = await user.save();
 
@@ -387,6 +408,9 @@ export const updateUserProgress = async (req: Request, res: Response) => {
             xp: updatedUser.xp,
             level: updatedUser.level,
             currentStreak: updatedUser.currentStreak,
+            dailyStats: updatedUser.dailyStats,
+            skillStats: updatedUser.skillStats,
+            todos: updatedUser.todos
         });
 
     } catch (error) {

@@ -2,10 +2,9 @@ import mongoose, { Document, Model } from 'mongoose';
 import bcrypt from 'bcryptjs';
 import { Todo } from '../../../types';
 
-
 interface IUser {
   email: string;
-  password?: string;
+  password?: string; 
   name?: string;
   avatar?: string;
   authMethod?: 'email' | 'google' | 'github';
@@ -13,21 +12,25 @@ interface IUser {
   verificationToken?: string;
   resetPasswordToken?: string;
   resetPasswordExpire?: Date;
+  // Gamification Fields
   xp: number;
   level: number;
   currentStreak: number;
   lastStudyDate?: Date;
-  todos: Todo[];
+  // NEW: Analytics Fields
+  dailyStats: { date: string; xp: number }[];
+  skillStats: Map<string, number>; 
+  // Global Todos
+  todos: Todo[]; 
 }
 
 interface IUserMethods {
   matchPassword(enteredPassword: string): Promise<boolean>;
 }
 
-export interface IUserDocument extends IUser, IUserMethods, Document { }
+export interface IUserDocument extends IUser, IUserMethods, Document {}
 
-interface IUserModel extends Model<IUserDocument> { }
-
+interface IUserModel extends Model<IUserDocument> {}
 
 const userSchema = new mongoose.Schema<IUserDocument, IUserModel>({
   email: {
@@ -46,7 +49,7 @@ const userSchema = new mongoose.Schema<IUserDocument, IUserModel>({
   },
   name: {
     type: String,
-    default: 'Kairon User',
+    default: 'Kairon User', 
   },
   authMethod: {
     type: String,
@@ -57,11 +60,26 @@ const userSchema = new mongoose.Schema<IUserDocument, IUserModel>({
   verificationToken: String,
   resetPasswordToken: String,
   resetPasswordExpire: Date,
+  
+  // Gamification Defaults
   xp: { type: Number, default: 0 },
   level: { type: Number, default: 1 },
   currentStreak: { type: Number, default: 0 },
   lastStudyDate: { type: Date, default: null },
-  todos: { type: [Object], default: [] }
+
+  // NEW: Analytics
+  dailyStats: [{ 
+    date: String, // Format: YYYY-MM-DD
+    xp: Number 
+  }],
+  skillStats: {
+    type: Map,
+    of: Number,
+    default: {}
+  },
+  
+  // Global Todos
+  todos: { type: [Object], default: [] } 
 }, {
   timestamps: true,
 });
@@ -75,12 +93,10 @@ userSchema.pre<IUserDocument>('save', async function (next) {
   next();
 });
 
-
 userSchema.methods.matchPassword = async function (enteredPassword: string) {
   if (!this.password) return false;
   return await bcrypt.compare(enteredPassword, this.password);
 };
-
 
 const User = mongoose.model<IUserDocument, IUserModel>('User', userSchema);
 

@@ -2,6 +2,7 @@ import React from 'react';
 import { useAppContext } from '../../context/AppContext';
 import { Tab } from '../../types';
 
+
 const mainTabs = Object.values(Tab).filter(tab => tab !== Tab.Profile);
 
 export const Header: React.FC = () => {

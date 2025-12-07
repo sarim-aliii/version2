@@ -35,7 +35,7 @@ interface AppContextType {
     resetPassword: (token: string, newPassword: string) => Promise<void>;
     updateUserAvatar: (avatar: string) => Promise<void>;
     updateUserName: (name: string) => Promise<void>;
-    updateProgress: (xp: number) => Promise<void>;
+    updateProgress: (xp: number, category?: string) => Promise<void>;
     updateUserTodos: (todos: Todo[]) => Promise<void>;
 
     // Projects
@@ -168,15 +168,15 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     };
 
     // --- GAMIFICATION---
-    const updateProgress = async (xpGained: number) => {
+    const updateProgress = async (xpGained: number, category?: string) => {
         if (!currentUser) return;
         try {
-            const updatedUser = await api.updateUserProgress(xpGained);
-
+            const updatedUser = await api.updateUserProgress(xpGained, category);
+            
             if (updatedUser.level > (currentUser.level || 1)) {
                 addNotification(`🎉 Level Up! You are now Level ${updatedUser.level}!`, 'success');
             }
-
+            
             setCurrentUser(updatedUser);
         } catch (error: any) {
             console.error("Failed to update progress", error);

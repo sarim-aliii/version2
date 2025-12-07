@@ -9,6 +9,8 @@ export interface User {
     level?: number;
     currentStreak?: number;
     todos?: Todo[];
+    dailyStats?: { date: string; xp: number }[];
+    skillStats?: { [key: string]: number };
 }
 
 export interface LoginCredentials {
@@ -83,6 +85,7 @@ export enum Tab {
     SRSFlashcards = 'SRS Flashcards',
     MCQ = 'MCQ',
     CodeAnalysis = 'Code Analysis',
+    InterviewPrep = 'Interview Prep',
     SemanticSearch = 'Semantic Search',
     AITutor = 'AI Tutor',
     AudioAnalysis = 'Audio Analysis',
@@ -175,4 +178,13 @@ export interface StudyProject {
 export interface AIGenerationOptions {
     llm: string;
     language: string;
+}
+
+export type Difficulty = 'Easy' | 'Medium' | 'Hard' | 'Concept';
+
+export interface Question {
+    id: string;
+    title: string;
+    difficulty: Difficulty;
+    link: string;
 }

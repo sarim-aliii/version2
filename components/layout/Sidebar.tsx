@@ -4,22 +4,23 @@ import { useAppContext } from '../../context/AppContext';
 import { ProjectHistory } from './ProjectHistory';
 import { FocusTimer } from '../features/FocusTimer';
 import { FeedbackModal } from '../features/FeedbackModal';
+import { LANGUAGE_OPTIONS } from '../constants/languages'
 
 
 export const Sidebar: React.FC = () => {
     const { isSidebarCollapsed, toggleSidebar, language, setLanguage, llm, setLlm, theme, toggleTheme, currentUser, addNotification } = useAppContext();
-    
+
     const [isFeedbackOpen, setIsFeedbackOpen] = useState(false);
 
     const currentXP = currentUser?.xp || 0;
     const currentLevel = currentUser?.level || 1;
-    const xpProgress = currentXP % 100; 
+    const xpProgress = currentXP % 100;
 
     return (
         <>
             <aside className={`w-full bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 flex flex-col flex-shrink-0 transition-all duration-300 ease-in-out overflow-hidden ${isSidebarCollapsed ? 'md:w-0 border-transparent' : 'md:w-72 lg:w-80'}`}>
                 <div className={`space-y-6 overflow-y-auto flex-1 transition-all duration-300 ease-in-out ${isSidebarCollapsed ? 'opacity-0 p-0' : 'p-6 opacity-100'}`}>
-                    
+
                     {/* GAMIFICATION STATS */}
                     {currentUser && (
                         <div className="bg-slate-100 dark:bg-slate-800 rounded-lg p-4 border border-slate-200 dark:border-slate-700 shadow-sm">
@@ -32,11 +33,11 @@ export const Sidebar: React.FC = () => {
                                     <span className="text-xs font-bold">{currentUser.currentStreak || 0} Day Streak</span>
                                 </div>
                             </div>
-                            
+
                             {/* Progress Bar */}
                             <div className="w-full bg-slate-300 dark:bg-slate-700 rounded-full h-2.5 mb-1">
-                                <div 
-                                    className="bg-red-500 h-2.5 rounded-full transition-all duration-500" 
+                                <div
+                                    className="bg-red-500 h-2.5 rounded-full transition-all duration-500"
                                     style={{ width: `${xpProgress}%` }}
                                 ></div>
                             </div>
@@ -74,114 +75,26 @@ export const Sidebar: React.FC = () => {
                                 onChange={(e) => setLanguage(e.target.value)}
                                 className="w-full text-sm text-slate-800 dark:text-slate-200 bg-gray-50 dark:bg-slate-800 p-2 rounded border border-gray-200 dark:border-slate-700 focus:ring-2 focus:ring-red-500 focus:outline-none transition-colors"
                             >
-                                <option value="Afrikaans">Afrikaans</option>
-                                <option value="Albanian">Albanian</option>
-                                <option value="Amharic">Amharic</option>
-                                <option value="Arabic">Arabic</option>
-                                <option value="Armenian">Armenian</option>
-                                <option value="Assamese">Assamese</option>
-                                <option value="Azerbaijani">Azerbaijani</option>
-                                <option value="Basque">Basque</option>
-                                <option value="Bengali">Bengali</option>
-                                <option value="Bosnian">Bosnian</option>
-                                <option value="Bulgarian">Bulgarian</option>
-                                <option value="Burmese">Burmese</option>
-                                <option value="Cantonese">Cantonese</option>
-                                <option value="Catalan">Catalan</option>
-                                <option value="Chinese (Traditional)">Chinese (Traditional)</option>
-                                <option value="Croatian">Croatian</option>
-                                <option value="Czech">Czech</option>
-                                <option value="Danish">Danish</option>
-                                <option value="Dutch">Dutch</option>
-                                <option value="English">English</option>
-                                <option value="Estonian">Estonian</option>
-                                <option value="Filipino">Filipino</option>
-                                <option value="Finnish">Finnish</option>
-                                <option value="French">French</option>
-                                <option value="Galician">Galician</option>
-                                <option value="Georgian">Georgian</option>
-                                <option value="German">German</option>
-                                <option value="Greek">Greek</option>
-                                <option value="Gujarati">Gujarati</option>
-                                <option value="Haitian Creole">Haitian Creole</option>
-                                <option value="Hausa">Hausa</option>
-                                <option value="Hebrew">Hebrew</option>
-                                <option value="Hindi">Hindi</option>
-                                <option value="Hungarian">Hungarian</option>
-                                <option value="Icelandic">Icelandic</option>
-                                <option value="Igbo">Igbo</option>
-                                <option value="Indonesian">Indonesian</option>
-                                <option value="Irish">Irish</option>
-                                <option value="Italian">Italian</option>
-                                <option value="Japanese">Japanese</option>
-                                <option value="Javanese">Javanese</option>
-                                <option value="Kannada">Kannada</option>
-                                <option value="Kazakh">Kazakh</option>
-                                <option value="Khmer">Khmer</option>
-                                <option value="Korean">Korean</option>
-                                <option value="Kurdish">Kurdish</option>
-                                <option value="Kyrgyz">Kyrgyz</option>
-                                <option value="Lao">Lao</option>
-                                <option value="Latvian">Latvian</option>
-                                <option value="Lithuanian">Lithuanian</option>
-                                <option value="Luxembourgish">Luxembourgish</option>
-                                <option value="Macedonian">Macedonian</option>
-                                <option value="Malagasy">Malagasy</option>
-                                <option value="Malay">Malay</option>
-                                <option value="Malayalam">Malayalam</option>
-                                <option value="Maltese">Maltese</option>
-                                <option value="Mandarin Chinese">Mandarin Chinese</option>
-                                <option value="Maori">Maori</option>
-                                <option value="Marathi">Marathi</option>
-                                <option value="Mongolian">Mongolian</option>
-                                <option value="Nepali">Nepali</option>
-                                <option value="Norwegian">Norwegian</option>
-                                <option value="Odia">Odia</option>
-                                <option value="Pashto">Pashto</option>
-                                <option value="Persian">Persian</option>
-                                <option value="Polish">Polish</option>
-                                <option value="Portuguese">Portuguese</option>
-                                <option value="Punjabi">Punjabi</option>
-                                <option value="Romanian">Romanian</option>
-                                <option value="Russian">Russian</option>
-                                <option value="Serbian">Serbian</option>
-                                <option value="Sinhala">Sinhala</option>
-                                <option value="Slovak">Slovak</option>
-                                <option value="Slovenian">Slovenian</option>
-                                <option value="Somali">Somali</option>
-                                <option value="Spanish">Spanish</option>
-                                <option value="Sundanese">Sundanese</option>
-                                <option value="Swahili">Swahili</option>
-                                <option value="Swedish">Swedish</option>
-                                <option value="Tajik">Tajik</option>
-                                <option value="Tamil">Tamil</option>
-                                <option value="Telugu">Telugu</option>
-                                <option value="Thai">Thai</option>
-                                <option value="Turkish">Turkish</option>
-                                <option value="Turkmen">Turkmen</option>
-                                <option value="Ukrainian">Ukrainian</option>
-                                <option value="Urdu">Urdu</option>
-                                <option value="Uzbek">Uzbek</option>
-                                <option value="Vietnamese">Vietnamese</option>
-                                <option value="Welsh">Welsh</option>
-                                <option value="Xhosa">Xhosa</option>
-                                <option value="Yoruba">Yoruba</option>
-                                <option value="Zulu">Zulu</option>
+                                {LANGUAGE_OPTIONS.map((lang) => (
+                                    <option key={lang} value={lang}>
+                                        {lang}
+                                    </option>
+                                ))}
                             </select>
                         </div>
                     </div>
 
                     <hr className="border-slate-200 dark:border-slate-800" />
-                    
+
                     {/* PROJECT HISTORY & TODO LIST */}
                     <ProjectHistory />
 
                     <hr className="border-slate-200 dark:border-slate-800" />
-                    
+
                     <TodoList />
 
                     <hr className="border-slate-200 dark:border-slate-800" />
-                    
+
                     {/* BOTTOM ACTIONS */}
                     <div className="pt-2 flex items-center justify-between">
                         <a
@@ -224,12 +137,12 @@ export const Sidebar: React.FC = () => {
                     </div>
                 </div>
             </aside>
-            
+
             {/* Feedback Modal Component */}
-            <FeedbackModal 
-                isOpen={isFeedbackOpen} 
-                onClose={() => setIsFeedbackOpen(false)} 
-                addNotification={addNotification} 
+            <FeedbackModal
+                isOpen={isFeedbackOpen}
+                onClose={() => setIsFeedbackOpen(false)}
+                addNotification={addNotification}
             />
         </>
     );

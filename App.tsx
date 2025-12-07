@@ -18,6 +18,7 @@ import { Tab } from './types';
 import { AuthManager } from './components/auth/AuthManager';
 import CodeAnalysis from './components/features/CodeAnalysis';
 import { LandingPage } from './components/layout/LandingPage';
+import { InterviewPrep } from './components/features/InterviewPrep';
 
 
 const MainContent: React.FC = () => {
@@ -36,6 +37,7 @@ const MainContent: React.FC = () => {
       case Tab.LessonPlanner: return <LessonPlanner />;
       case Tab.StudyPlanner: return <StudyPlanner />;
       case Tab.CodeAnalysis: return <CodeAnalysis />;
+      case Tab.InterviewPrep: return <InterviewPrep />;
       case Tab.Profile: return <ProfilePage />;
       default: return <Ingest />;
     }
