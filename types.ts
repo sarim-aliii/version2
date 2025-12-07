@@ -186,5 +186,14 @@ export interface Question {
     id: string;
     title: string;
     difficulty: Difficulty;
-    link: string;
+    tags?: string[];
+    link?: string;
+}
+
+export interface Category {
+    id: string;
+    title: string;
+    icon: React.ReactNode;
+    description: string;
+    questions: Question[];
 }

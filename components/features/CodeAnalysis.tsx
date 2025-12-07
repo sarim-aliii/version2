@@ -6,6 +6,7 @@ import { Card } from '../ui/Card';
 import { Loader } from '../ui/Loader';
 import { Mermaid } from '../ui/Mermaid';
 import { CodeAnalysisResult } from '../../types';
+import { MarkdownRenderer } from '../ui/MarkdownRenderer';
 
 type ArtifactType = 'code' | 'algorithm' | 'pseudocode' | 'flowchart';
 
@@ -219,7 +220,9 @@ const CodeAnalysis: React.FC = () => {
                     {explanationResult && (
                          <div className="fade-in mt-4">
                              <h4 className="text-lg font-semibold text-slate-800 dark:text-slate-200 mb-2">AI Explanation</h4>
-                             <p className="text-slate-700 dark:text-slate-300 whitespace-pre-wrap leading-relaxed bg-gray-50 dark:bg-slate-900 p-4 rounded-md border border-slate-200 dark:border-slate-700">{explanationResult}</p>
+                             <div className="bg-gray-50 dark:bg-slate-900 p-4 rounded-md border border-slate-200 dark:border-slate-700 w-full overflow-hidden">
+                                <MarkdownRenderer content={explanationResult} />
+                             </div>
                          </div>
                     )}
                  </div>

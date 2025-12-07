@@ -6,7 +6,7 @@ import { Card } from '../ui/Card';
 import { Loader } from '../ui/Loader';
 import { EmptyState } from '../ui/EmptyState';
 import { useSpeech } from '../../hooks/useSpeech';
-
+import { MarkdownRenderer } from '../ui/MarkdownRenderer';
 
 export const Summary: React.FC = () => {
   const { ingestedText, addNotification, language, llm, activeProject, updateActiveProjectData } = useAppContext();
@@ -91,9 +91,11 @@ export const Summary: React.FC = () => {
         {isLoading && <Loader />}
         
         {summary && (
-          <div className="fade-in">
-            <h3 className="text-xl font-semibold text-slate-800 dark:text-slate-200 mb-2">Summary</h3>
-            <p className="text-slate-700 dark:text-slate-300 whitespace-pre-wrap leading-relaxed bg-gray-50 dark:bg-slate-900 p-4 rounded-md border border-slate-200 dark:border-slate-700">{summary}</p>
+          <div className="fade-in bg-gray-50 dark:bg-slate-900 p-4 rounded-md border border-slate-200 dark:border-slate-700">
+            <h3 className="text-xl font-semibold text-slate-800 dark:text-slate-200 mb-4 border-b border-slate-200 dark:border-slate-700 pb-2">Summary</h3>
+            <div className="w-full overflow-hidden">
+                <MarkdownRenderer content={summary} />
+            </div>
           </div>
         )}
       </div>

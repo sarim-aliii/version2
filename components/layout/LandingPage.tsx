@@ -1,16 +1,38 @@
 import React from 'react';
 import { Button } from '../ui/Button';
+import { motion } from 'framer-motion';
 
 interface LandingPageProps {
     onGetStarted: () => void;
 }
+
+// Animation Variants
+const fadeInUp = {
+    hidden: { opacity: 0, y: 20 },
+    visible: { opacity: 1, y: 0, transition: { duration: 0.6 } }
+};
+
+const staggerContainer = {
+    hidden: { opacity: 0 },
+    visible: {
+        opacity: 1,
+        transition: {
+            staggerChildren: 0.2
+        }
+    }
+};
 
 export const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
     return (
         <div className="min-h-screen bg-slate-950 text-slate-200 font-sans selection:bg-red-500/30 overflow-x-hidden">
 
             {/* Navbar */}
-            <nav className="max-w-7xl mx-auto px-6 h-24 flex items-center justify-between relative z-50">
+            <motion.nav 
+                initial={{ y: -20, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ duration: 0.5 }}
+                className="max-w-7xl mx-auto px-6 h-24 flex items-center justify-between relative z-50"
+            >
                 <div className="flex items-center gap-3">
                     <svg className="w-8 h-8 text-red-500" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                         <path d="M6 3V21" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
@@ -24,57 +46,100 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
                     <button onClick={onGetStarted} className="text-sm font-semibold text-slate-400 hover:text-white transition-colors hidden sm:block">
                         Log In
                     </button>
-                    <Button onClick={onGetStarted} className="px-6 shadow-lg shadow-red-900/20">
-                        Get Started
-                    </Button>
+                    <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                        <Button onClick={onGetStarted} className="px-6 shadow-lg shadow-red-900/20">
+                            Get Started
+                        </Button>
+                    </motion.div>
                 </div>
-            </nav>
+            </motion.nav>
 
             {/* Hero Section */}
             <div className="relative pt-20 pb-32 sm:pt-32 sm:pb-40 overflow-hidden">
+                {/* Animated Background Blobs */}
                 <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-full max-w-7xl pointer-events-none">
-                    <div className="absolute top-20 left-10 w-72 h-72 bg-red-600/10 rounded-full blur-3xl mix-blend-screen animate-pulse" style={{ animationDuration: '4s' }}></div>
-                    <div className="absolute bottom-20 right-10 w-96 h-96 bg-orange-600/10 rounded-full blur-3xl mix-blend-screen animate-pulse" style={{ animationDuration: '7s' }}></div>
+                    <motion.div 
+                        animate={{ 
+                            scale: [1, 1.2, 1],
+                            opacity: [0.3, 0.5, 0.3],
+                            x: [0, 20, 0]
+                        }}
+                        transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
+                        className="absolute top-20 left-10 w-72 h-72 bg-red-600/10 rounded-full blur-3xl mix-blend-screen"
+                    />
+                    <motion.div 
+                        animate={{ 
+                            scale: [1, 1.1, 1],
+                            opacity: [0.2, 0.4, 0.2],
+                            y: [0, -30, 0]
+                        }}
+                        transition={{ duration: 10, repeat: Infinity, ease: "easeInOut", delay: 1 }}
+                        className="absolute bottom-20 right-10 w-96 h-96 bg-orange-600/10 rounded-full blur-3xl mix-blend-screen" 
+                    />
                 </div>
 
-                <div className="max-w-7xl mx-auto px-6 text-center relative z-10">
-                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-900/50 border border-slate-800 text-red-400 text-xs font-medium mb-8 animate-fade-in-up">
+                <motion.div 
+                    variants={staggerContainer}
+                    initial="hidden"
+                    animate="visible"
+                    className="max-w-7xl mx-auto px-6 text-center relative z-10"
+                >
+                    <motion.div variants={fadeInUp} className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-900/50 border border-slate-800 text-red-400 text-xs font-medium mb-8">
                         <span className="relative flex h-2 w-2">
                             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
                             <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
                         </span>
                         Now with Vision Support & Voice Mode
-                    </div>
+                    </motion.div>
 
-                    <h1 className="text-5xl md:text-7xl font-bold text-white mb-8 tracking-tight leading-tight">
+                    <motion.h1 variants={fadeInUp} className="text-5xl md:text-7xl font-bold text-white mb-8 tracking-tight leading-tight">
                         Master any subject <br />
                         <span className="text-transparent bg-clip-text bg-gradient-to-r from-red-500 to-orange-500">in minutes, not hours.</span>
-                    </h1>
+                    </motion.h1>
 
-                    <p className="text-xl text-slate-400 max-w-2xl mx-auto mb-12 leading-relaxed">
+                    <motion.p variants={fadeInUp} className="text-xl text-slate-400 max-w-2xl mx-auto mb-12 leading-relaxed">
                         The all-in-one AI learning platform. Upload your textbooks, notes, or lectures and let Kairon generate summaries, flashcards, and quizzes instantly.
-                    </p>
+                    </motion.p>
 
-                    <div className="flex flex-col sm:flex-row justify-center gap-4">
-                        <Button onClick={onGetStarted} className="px-8 py-4 text-lg h-auto shadow-xl shadow-red-600/20 hover:scale-105 transition-transform">
-                            Start Learning for Free
-                        </Button>
-                        <button onClick={onGetStarted} className="px-8 py-4 text-lg font-semibold text-slate-300 hover:text-white border border-slate-700 hover:border-slate-500 rounded-md transition-all">
+                    <motion.div variants={fadeInUp} className="flex flex-col sm:flex-row justify-center gap-4">
+                        <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                            <Button onClick={onGetStarted} className="px-8 py-4 text-lg h-auto shadow-xl shadow-red-600/20">
+                                Start Learning for Free
+                            </Button>
+                        </motion.div>
+                        <motion.button 
+                            whileHover={{ scale: 1.05 }} 
+                            whileTap={{ scale: 0.95 }}
+                            onClick={onGetStarted} 
+                            className="px-8 py-4 text-lg font-semibold text-slate-300 hover:text-white border border-slate-700 hover:border-slate-500 rounded-md transition-all"
+                        >
                             View Demo
-                        </button>
-                    </div>
-                </div>
+                        </motion.button>
+                    </motion.div>
+                </motion.div>
             </div>
 
             {/* Features Grid */}
             <div className="bg-slate-900/50 border-y border-slate-800/50 relative">
                 <div className="max-w-7xl mx-auto px-6 py-24">
-                    <div className="text-center mb-16">
+                    <motion.div 
+                        initial={{ opacity: 0, y: 20 }}
+                        whileInView={{ opacity: 1, y: 0 }}
+                        viewport={{ once: true }}
+                        transition={{ duration: 0.6 }}
+                        className="text-center mb-16"
+                    >
                         <h2 className="text-3xl font-bold text-white mb-4">Everything you need to ace it</h2>
                         <p className="text-slate-400 max-w-2xl mx-auto">Stop switching between ten different apps. Kairon AI unifies your entire study workflow into one powerful interface.</p>
-                    </div>
+                    </motion.div>
 
-                    <div className="grid md:grid-cols-3 gap-8">
+                    <motion.div 
+                        variants={staggerContainer}
+                        initial="hidden"
+                        whileInView="visible"
+                        viewport={{ once: true, margin: "-100px" }}
+                        className="grid md:grid-cols-3 gap-8"
+                    >
                         <FeatureCard
                             icon={<svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>}
                             title="Multi-Modal Ingestion"
@@ -105,7 +170,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
                             title="Gamified Progress"
                             description="Stay motivated with daily streaks, XP tracking, and leveling up. Building a study habit has never been this addictive."
                         />
-                    </div>
+                    </motion.div>
                 </div>
             </div>
 
@@ -129,13 +194,17 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
 }
 
 const FeatureCard: React.FC<{ icon: React.ReactNode, title: string, description: string }> = ({ icon, title, description }) => (
-    <div className="p-6 rounded-2xl bg-slate-800/50 border border-slate-700 hover:border-red-500/30 transition-colors hover:bg-slate-800 group">
-        <div className="w-12 h-12 bg-slate-900 rounded-lg flex items-center justify-center text-red-500 mb-4 group-hover:scale-110 transition-transform">
+    <motion.div 
+        variants={fadeInUp}
+        whileHover={{ y: -5 }}
+        className="p-6 rounded-2xl bg-slate-800/50 border border-slate-700 hover:border-red-500/30 transition-colors hover:bg-slate-800 group"
+    >
+        <div className="w-12 h-12 bg-slate-900 rounded-lg flex items-center justify-center text-red-500 mb-4 group-hover:scale-110 transition-transform duration-300">
             {icon}
         </div>
         <h3 className="text-xl font-bold text-slate-200 mb-2">{title}</h3>
         <p className="text-slate-400 leading-relaxed">
             {description}
         </p>
-    </div>
+    </motion.div>
 );

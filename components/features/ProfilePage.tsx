@@ -3,12 +3,10 @@ import { useAppContext } from '../../context/AppContext';
 import { Button } from '../ui/Button';
 import { Card } from '../ui/Card';
 import { AVATARS, AVATAR_KEYS } from '../ui/avatars';
-import { Loader } from '../ui/Loader';
-import * as d3 from 'd3'; 
 
-// Helper Component for the Activity Chart
+
+
 const ActivityChart: React.FC<{ data: { date: string; xp: number }[] }> = ({ data }) => {
-    // Fill in missing days for the last 7 days
     const chartData = useMemo(() => {
         const result = [];
         for (let i = 6; i >= 0; i--) {
@@ -127,6 +125,26 @@ export const ProfilePage: React.FC = () => {
                              <Button onClick={logout} variant="secondary" className="w-full text-xs">Logout</Button>
                         </div>
                     </div>
+
+                    {/* Integrated Avatar Picker */}
+                    <div className="mt-8 pt-6 border-t border-slate-700/50">
+                        <h4 className="text-xs font-bold text-slate-500 mb-4 uppercase tracking-widest">Select Avatar</h4>
+                        <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-4">
+                            {AVATAR_KEYS.map((key) => {
+                                const AvatarComponent = AVATARS[key];
+                                const isSelected = key === currentAvatarKey;
+                                return (
+                                    <button
+                                        key={key}
+                                        onClick={() => updateUserAvatar(key)}
+                                        className={`p-2 rounded-full transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-800 focus:ring-red-500 ${isSelected ? 'bg-red-500/30 ring-2 ring-red-500' : 'bg-slate-700/50 hover:bg-slate-700'}`}
+                                    >
+                                        <AvatarComponent className={`w-full h-full ${isSelected ? 'text-white' : 'text-slate-300'}`} />
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    </div>
                 </Card>
 
                 {/* Quick Stats (Takes up 1 col) */}
@@ -180,25 +198,6 @@ export const ProfilePage: React.FC = () => {
                     </div>
                 </Card>
             </div>
-
-            {/* Avatar Picker */}
-            <Card title="Customize Avatar">
-                 <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-4">
-                    {AVATAR_KEYS.map((key) => {
-                        const AvatarComponent = AVATARS[key];
-                        const isSelected = key === currentAvatarKey;
-                        return (
-                            <button
-                                key={key}
-                                onClick={() => updateUserAvatar(key)}
-                                className={`p-2 rounded-full transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-800 focus:ring-red-500 ${isSelected ? 'bg-red-500/30 ring-2 ring-red-500' : 'bg-slate-700/50 hover:bg-slate-700'}`}
-                            >
-                                <AvatarComponent className={`w-full h-full ${isSelected ? 'text-white' : 'text-slate-300'}`} />
-                            </button>
-                        );
-                    })}
-                </div>
-            </Card>
         </div>
     );
 };
