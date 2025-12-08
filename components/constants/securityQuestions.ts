@@ -121,3 +121,18 @@ export const securityQuestions: Question[] = [
     { id: 'sec_99', title: 'Explain Subresource Integrity (SRI)', difficulty: 'Medium', link: 'https://developer.mozilla.org/en-US/docs/Web/Security/Subresource_Integrity' },
     { id: 'sec_100', title: 'How would you design security for a new web app end-to-end?', difficulty: 'Hard', link: 'https://owasp.org/www-project-proactive-controls/' },
 ]
+
+// ========================= 1) SECURITY FUNDAMENTALS (Easy + Concept) =========================
+export const securityFundamentals: Question[] = securityQuestions.filter(q =>
+  ['Easy', 'Concept'].includes(q.difficulty)
+);
+
+// ========================= 2) ADVANCED APP / PLATFORM SECURITY (Mostly Medium) =========================
+export const securityAdvanced: Question[] = securityQuestions.filter(q =>
+  q.difficulty === 'Medium'
+);
+
+// ========================= 3) SYSTEM, ARCHITECTURE & DEEP SECURITY (Hard) =========================
+export const securitySystemAndArchitecture: Question[] = securityQuestions.filter(q =>
+  q.difficulty === 'Hard'
+);

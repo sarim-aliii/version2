@@ -1,6 +1,6 @@
-import { Question } from "../../types"
+import { Question } from "../../types";
 
-export const mobileQuestions: Question[] = [
+export const mobileAllQuestions: Question[] = [
   { id: 'mob_1', title: 'Native vs Cross-Platform vs Hybrid', difficulty: 'Concept', link: 'https://www.geeksforgeeks.org/native-vs-hybrid-vs-cross-platform-app-development/' },
   { id: 'mob_2', title: 'Explain the React Native Bridge', difficulty: 'Medium', link: 'https://reactnative.dev/docs/architecture-overview' },
   { id: 'mob_3', title: 'Activity Lifecycle in Android', difficulty: 'Easy', link: 'https://developer.android.com/guide/components/activities/activity-lifecycle' },
@@ -121,3 +121,18 @@ export const mobileQuestions: Question[] = [
   { id: 'mob_99', title: 'Real-Time Messaging in Mobile Apps (WebSockets)', difficulty: 'Medium', link: 'https://ably.com/topic/websockets' },
   { id: 'mob_100', title: 'Designing Scalable Mobile Architecture', difficulty: 'Hard', link: 'https://developer.android.com/topic/architecture' },
 ];
+
+// helper to slice by numeric part of id
+const byRange = (from: number, to: number): Question[] =>
+  mobileAllQuestions.filter(q => {
+    const n = Number(q.id.split('_')[1]);
+    return n >= from && n <= to;
+  });
+
+// 3 tracks similar idea as web
+export const mobileFundamentals = byRange(1, 40);           // basics, lifecycle, widgets, navigation
+export const mobileAdvanced = byRange(41, 80);              // perf, rendering, testing, a11y, UX
+export const mobileSystemAndArchitecture = byRange(81, 100); // security, backend, sync, arch, advanced topics
+
+// keep old name for backwards compatibility
+export const mobileQuestions = mobileAllQuestions;

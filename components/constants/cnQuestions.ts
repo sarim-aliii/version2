@@ -1,6 +1,7 @@
 import { Question } from "../../types"
 
-export const cnQuestions: Question[] = [
+// FUNDAMENTALS (cn_1 – cn_34)
+export const cnFundamentals: Question[] = [
   { id: 'cn_1', title: 'Explain the OSI Model Layers', difficulty: 'Concept', link: 'https://www.cloudflare.com/learning/ddos/glossary/open-systems-interconnection-model-osi/' },
   { id: 'cn_2', title: 'TCP vs UDP: Differences and Use Cases', difficulty: 'Easy', link: 'https://www.cloudflare.com/learning/ddos/glossary/tcp-ip/' },
   { id: 'cn_3', title: 'Explain the TCP 3-Way Handshake', difficulty: 'Medium', link: 'https://www.geeksforgeeks.org/tcp-3-way-handshake-process/' },
@@ -41,6 +42,10 @@ export const cnQuestions: Question[] = [
   { id: 'cn_32', title: 'CIDR vs Traditional Subnetting', difficulty: 'Medium', link: 'https://www.geeksforgeeks.org/classless-addressing/' },
   { id: 'cn_33', title: 'Private vs Public IP Addresses', difficulty: 'Easy', link: 'https://www.geeksforgeeks.org/differences-between-private-and-public-ip-addresses/' },
   { id: 'cn_34', title: 'Unicast, Broadcast, Multicast, Anycast', difficulty: 'Medium', link: 'https://www.cloudflare.com/learning/ddos/glossary/unicast-broadcast-anycast-multicast/' },
+]
+
+// ADVANCED NETWORKING (cn_35 – cn_67)
+export const cnAdvanced: Question[] = [
   { id: 'cn_35', title: 'ARP Spoofing / Poisoning Attack', difficulty: 'Hard', link: 'https://www.cloudflare.com/learning/ddos/what-is-arp-spoofing/' },
 
   { id: 'cn_36', title: 'DNS Caching and TTL', difficulty: 'Medium', link: 'https://www.cloudflare.com/learning/dns/dns-caching/' },
@@ -81,6 +86,10 @@ export const cnQuestions: Question[] = [
 
   { id: 'cn_66', title: 'Physical vs Logical Topologies (Bus, Star, Ring, Mesh)', difficulty: 'Concept', link: 'https://www.geeksforgeeks.org/types-of-network-topology/' },
   { id: 'cn_67', title: 'Circuit Switching vs Packet Switching', difficulty: 'Concept', link: 'https://www.geeksforgeeks.org/differences-between-circuit-switching-and-packet-switching/' },
+]
+
+// SYSTEM & ARCHITECTURE (cn_68 – cn_100)
+export const cnSystemAndArchitecture: Question[] = [
   { id: 'cn_68', title: 'TDM, FDM, and WDM Multiplexing', difficulty: 'Hard', link: 'https://www.geeksforgeeks.org/difference-between-fdm-and-tdm/' },
   { id: 'cn_69', title: 'NRZ, Manchester and Differential Encoding', difficulty: 'Hard', link: 'https://www.geeksforgeeks.org/line-coding-nrz-unipolar-scheme/' },
   { id: 'cn_70', title: 'Error Detection: Parity, Checksum, CRC', difficulty: 'Medium', link: 'https://www.geeksforgeeks.org/error-detection-in-computer-networks/' },
@@ -120,4 +129,11 @@ export const cnQuestions: Question[] = [
   { id: 'cn_98', title: 'NAT Traversal and STUN/TURN for WebRTC', difficulty: 'Hard', link: 'https://developer.mozilla.org/en-US/docs/Web/API/WebRTC_API/Protocols' },
   { id: 'cn_99', title: 'Overlay Networks in Kubernetes (CNI, Flannel, Calico)', difficulty: 'Hard', link: 'https://kubernetes.io/docs/concepts/cluster-administration/networking/' },
   { id: 'cn_100', title: 'End-to-End Principle in Network Design', difficulty: 'Concept', link: 'https://web.mit.edu/Saltzer/www/publications/endtoend/endtoend.pdf' },
-];
+]
+
+// Full flat list (for counts / legacy usage)
+export const cnQuestions: Question[] = [
+  ...cnFundamentals,
+  ...cnAdvanced,
+  ...cnSystemAndArchitecture,
+]

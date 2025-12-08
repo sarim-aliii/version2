@@ -1,3 +1,4 @@
+// src/components/constants/cloudQuestions.ts
 import { Question } from "../../types"
 
 export const cloudQuestions: Question[] = [
@@ -121,3 +122,47 @@ export const cloudQuestions: Question[] = [
     { id: 'cld_99', title: 'Designing a Production-ready CI/CD Pipeline', difficulty: 'Hard', link: 'https://learn.microsoft.com/en-us/devops/pipelines/what-is-cicd' },
     { id: 'cld_100', title: 'How to Design a Cloud-native, Scalable Microservices Architecture', difficulty: 'Hard', link: 'https://microservices.io/patterns/microservices.html' },
 ]
+
+// helper to reuse the same Question objects
+const pick = (ids: string[]): Question[] =>
+    cloudQuestions.filter(q => ids.includes(q.id))
+
+// 🧩 Basic concepts, containers, core AWS/GCP/Azure, CI/CD, monitoring & security basics
+export const cloudFundamentals: Question[] = pick([
+    'cld_1', 'cld_4', 'cld_5', 'cld_7', 'cld_10',
+    'cld_23', 'cld_26', 'cld_27', 'cld_28', 'cld_31', 'cld_32',
+    'cld_33', 'cld_34', 'cld_35',
+    'cld_36', 'cld_37', 'cld_40',
+    'cld_41', 'cld_42', 'cld_45',
+    'cld_46', 'cld_48',
+    'cld_51', 'cld_54', 'cld_58', 'cld_59', 'cld_61', 'cld_66', 'cld_74', 'cld_75'
+])
+
+// 🚀 Deeper into k8s, Terraform, GitOps, observability, SRE & security
+export const cloudAdvanced: Question[] = pick([
+    'cld_2', 'cld_3', 'cld_6', 'cld_8', 'cld_9',
+    'cld_11', 'cld_12', 'cld_13', 'cld_14', 'cld_15',
+    'cld_16', 'cld_17', 'cld_18', 'cld_19', 'cld_20',
+    'cld_21', 'cld_22', 'cld_24', 'cld_25',
+    'cld_29', 'cld_30',
+    'cld_38', 'cld_39',
+    'cld_47', 'cld_49', 'cld_50',
+    'cld_52', 'cld_53', 'cld_55',
+    'cld_56', 'cld_57', 'cld_60',
+    'cld_62', 'cld_63', 'cld_65',
+    'cld_67', 'cld_68', 'cld_69', 'cld_70',
+    'cld_71', 'cld_72', 'cld_73',
+    'cld_76', 'cld_77', 'cld_78', 'cld_79', 'cld_80',
+    'cld_81', 'cld_82', 'cld_83', 'cld_84', 'cld_85',
+    'cld_86', 'cld_87', 'cld_88', 'cld_89', 'cld_90',
+    'cld_95', 'cld_97', 'cld_98', 'cld_99'
+])
+
+// 🏗️ Big-picture architecture, HA/DR, multi-tenant SaaS, hybrid, zero-trust, microservices
+export const cloudSystemAndArchitecture: Question[] = pick([
+    'cld_61', 'cld_62', 'cld_63', 'cld_64', 'cld_65',
+    'cld_71', 'cld_72', 'cld_73', 'cld_74', 'cld_75',
+    'cld_58', 'cld_59', 'cld_60',
+    'cld_91', 'cld_92', 'cld_93', 'cld_94', 'cld_95',
+    'cld_96', 'cld_97', 'cld_98', 'cld_99', 'cld_100'
+])

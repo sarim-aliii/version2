@@ -121,3 +121,21 @@ export const dbmsQuestions: Question[] = [
     { id: 'db_99', title: 'Hot Partition Problem & Avoiding It', difficulty: 'Hard', link: 'https://aws.amazon.com/premiumsupport/knowledge-center/dynamodb-hot-partitions/' },
     { id: 'db_100', title: 'Design a scalable distributed database', difficulty: 'Hard', link: 'https://aws.amazon.com/builders-library/' },
 ]
+
+// --- DBMS SUB-TRACKS FOR INTERVIEW PREP ---
+// Rough split by id ranges to keep code simple & non-repetitive.
+
+export const dbmsFundamentals: Question[] = dbmsQuestions.filter(q => {
+    const n = Number(q.id.split('_')[1]);
+    return n >= 1 && n <= 35;  // Core SQL, keys, normalization, warehousing basics
+});
+
+export const dbmsAdvanced: Question[] = dbmsQuestions.filter(q => {
+    const n = Number(q.id.split('_')[1]);
+    return n >= 36 && n <= 70; // Indexing, optimization, NoSQL, advanced SQL features
+});
+
+export const dbmsSystemAndArchitecture: Question[] = dbmsQuestions.filter(q => {
+    const n = Number(q.id.split('_')[1]);
+    return n >= 71 && n <= 100; // Distributed DBs, consistency, caching, scalability, backups
+});

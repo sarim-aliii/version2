@@ -121,3 +121,21 @@ export const genaiQuestions: Question[] = [
     { id: 'ai_99', title: 'Latency vs Cost vs Quality trade-offs in LLM systems', difficulty: 'Concept', link: 'https://platform.openai.com/docs/guides/rate-limits' },
     { id: 'ai_100', title: 'How to design a production-ready LLM-powered application end-to-end', difficulty: 'Hard', link: 'https://www.fullstackdeeplearning.com/' },
 ]
+
+// =========== FUNDAMENTALS ===========
+export const genaiFundamentals: Question[] = genaiQuestions.filter(q =>
+  ['Easy','Concept'].includes(q.difficulty) &&
+  parseInt(q.id.replace('ai_','')) <= 45  // first half mostly basics
+);
+
+// =========== ADVANCED / MODEL DEEP DIVE ===========
+export const genaiAdvanced: Question[] = genaiQuestions.filter(q =>
+  ['Medium','Hard'].includes(q.difficulty) &&
+  parseInt(q.id.replace('ai_','')) > 20 && parseInt(q.id.replace('ai_','')) <= 70
+);
+
+// =========== SYSTEM & ARCHITECTURE ===========
+export const genaiSystemAndArchitecture: Question[] = genaiQuestions.filter(q =>
+  ['Medium','Hard','Concept'].includes(q.difficulty) &&
+  parseInt(q.id.replace('ai_','')) > 70
+);

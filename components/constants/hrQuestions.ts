@@ -121,3 +121,21 @@ export const hrQuestions: Question[] = [
     { id: 'hr_99', title: 'Do you have any questions for us?', difficulty: 'Easy', link: 'https://www.themuse.com/advice/questions-to-ask-interviewer' },
     { id: 'hr_100', title: 'How would your manager and teammates describe you?', difficulty: 'Medium', link: 'https://www.indeed.com/career-advice/interviewing/how-would-your-boss-and-coworkers-describe-you' },
 ]
+
+// ========================= 1) FUNDAMENTAL HR INTRO QUESTIONS =========================
+// "Easy + Concept" — basic personality, intent, culture fit
+export const hrFundamentals: Question[] = hrQuestions.filter(q =>
+  ['Easy','Concept'].includes(q.difficulty)
+);
+
+// ========================= 2) BEHAVIORAL / STAR SITUATION QUESTIONS =========================
+// Most Medium difficulty — real work examples
+export const hrBehavioral: Question[] = hrQuestions.filter(q =>
+  q.difficulty === 'Medium'
+);
+
+// ========================= 3) LEADERSHIP + CONFLICT & CRITICAL DECISION CASES =========================
+// Hard scenario-based leadership/problem conflict/mistake handling
+export const hrLeadershipAndCritical: Question[] = hrQuestions.filter(q =>
+  q.difficulty === 'Hard'
+);

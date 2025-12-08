@@ -1,6 +1,7 @@
 import { Question } from "../../types"
 
-export const webQuestions: Question[] = [
+
+export const webAllQuestions: Question[] = [
   { id: 'web_1', title: 'Explain the Virtual DOM and Reconciliation', difficulty: 'Concept', link: 'https://legacy.reactjs.org/docs/reconciliation.html' },
   { id: 'web_2', title: 'Event Loop & Microtasks Queue', difficulty: 'Concept', link: 'https://developer.mozilla.org/en-US/docs/Web/API/HTML_DOM_API/Microtask_guide' },
   { id: 'web_3', title: 'Explain Closures with a practical example', difficulty: 'Medium', link: 'https://developer.mozilla.org/en-US/docs/Web/JavaScript/Closures' },
@@ -111,3 +112,16 @@ export const webQuestions: Question[] = [
   { id: 'web_99', title: 'Explain Environment variables and config for different stages (dev/stage/prod)', difficulty: 'Medium', link: 'https://12factor.net/config' },
   { id: 'web_100', title: 'How would you design a scalable front-end architecture for a large app?', difficulty: 'Hard', link: 'https://developer.mozilla.org/en-US/docs/Learn/Tools_and_testing/Client-side_JavaScript_frameworks' },
 ];
+
+// helper to slice by numeric part of id
+const byRange = (from: number, to: number): Question[] =>
+  webAllQuestions.filter(q => {
+    const n = Number(q.id.split('_')[1]);
+    return n >= from && n <= to;
+  });
+
+export const webFundamentals = byRange(1, 40);
+export const webAdvancedFrontend = byRange(41, 80);
+export const webSystemAndArchitecture = byRange(81, 100);
+
+export const webQuestions = webAllQuestions;

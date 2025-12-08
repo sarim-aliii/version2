@@ -121,3 +121,21 @@ export const osQuestions: Question[] = [
     { id: 'os_99', title: 'Kernel Hardening Techniques', difficulty: 'Hard', link: 'https://kernel.org/doc/html/latest/admin-guide/hardening.html' },
     { id: 'os_100', title: 'How to Design a Modern Operating System', difficulty: 'Hard', link: 'https://osdev.org' },
 ]
+
+// ========================= 1) OS FUNDAMENTALS =========================
+// Easy + Concept — intro OS, processes, basic memory, shell, etc.
+export const osFundamentals: Question[] = osQuestions.filter(q =>
+  ['Easy', 'Concept'].includes(q.difficulty)
+);
+
+// ========================= 2) OS ADVANCED (CORE CONCEPTS) =========================
+// Mostly Medium — scheduling, concurrency, memory, FS, virtualization basics
+export const osAdvanced: Question[] = osQuestions.filter(q =>
+  q.difficulty === 'Medium'
+);
+
+// ========================= 3) OS SYSTEM & ARCHITECTURE / INTERNALS =========================
+// Hard — kernel internals, RTOS, containers, security, distributed OS
+export const osSystemAndArchitecture: Question[] = osQuestions.filter(q =>
+  q.difficulty === 'Hard'
+);

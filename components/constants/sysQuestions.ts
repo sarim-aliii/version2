@@ -121,3 +121,21 @@ export const sysQuestions: Question[] = [
     { id: 'sys_99', title: 'Explain Observability: Logs, Metrics, Traces', difficulty: 'Concept', link: 'https://opentelemetry.io/docs/what-is-opentelemetry/' },
     { id: 'sys_100', title: 'How to approach any System Design Interview', difficulty: 'Concept', link: 'https://bytebytego.com/courses/system-design-interview' },
 ]
+
+// ========================= 1) SYSTEM DESIGN FUNDAMENTALS =========================
+// Easy + Concept — scaling basics, consistency, microservices vs monolith, SLAs, etc.
+export const sysFundamentals: Question[] = sysQuestions.filter(q =>
+  ['Easy', 'Concept'].includes(q.difficulty)
+);
+
+// ========================= 2) SYSTEM DESIGN ADVANCED (PATTERNS & COMPONENTS) =========================
+// Mostly Medium — caching, queues, APIs, patterns, infra concepts.
+export const sysAdvanced: Question[] = sysQuestions.filter(q =>
+  q.difficulty === 'Medium'
+);
+
+// ========================= 3) SYSTEM DESIGN DEEP DIVE / END-TO-END DESIGNS =========================
+// Hard — full designs, distributed systems, consensus, locks, streaming, etc.
+export const sysDeepDiveAndArchitecture: Question[] = sysQuestions.filter(q =>
+  q.difficulty === 'Hard'
+);

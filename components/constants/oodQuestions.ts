@@ -110,4 +110,86 @@ export const oodQuestions: Question[] = [
     { id: 'ood_98', title: 'Designing for Test-Driven Development (TDD)', difficulty: 'Medium', link: 'https://martinfowler.com/bliki/TestDrivenDevelopment.html' },
     { id: 'ood_99', title: 'Versioning Object Models and APIs Safely', difficulty: 'Hard', link: 'https://martinfowler.com/articles/consumerDrivenContracts.html' },
     { id: 'ood_100', title: 'Designing a Rule Engine (Configurable Business Rules)', difficulty: 'Hard', link: 'https://martinfowler.com/bliki/RulesEngine.html' },
-]
+];
+
+// --- GROUPED VIEWS (like Fundamentals / Advanced / System & Architecture) ---
+
+const OOD_FUNDAMENTALS_IDS = new Set<string>([
+    'ood_1',
+    'ood_2',
+    'ood_3',
+    'ood_4',
+    'ood_6',
+    'ood_7',
+    'ood_8',
+    'ood_9',
+    'ood_10',
+    'ood_11',
+    'ood_12',
+    'ood_13',
+    'ood_14',
+    'ood_15',
+    'ood_16',
+    'ood_17',
+    'ood_18',
+    'ood_19',
+    'ood_20',
+    'ood_21',
+    'ood_22',
+    'ood_23',
+    'ood_25',
+    'ood_31',
+    'ood_32',
+    'ood_33',
+    'ood_34',
+    'ood_37',
+    'ood_38',
+    'ood_39',
+    'ood_61',
+    'ood_62',
+    'ood_68',
+    'ood_69',
+    'ood_81',
+    'ood_82',
+    'ood_83',
+    'ood_84',
+    'ood_87',
+    'ood_88',
+    'ood_89',
+    'ood_95',
+    'ood_96',
+    'ood_97',
+    'ood_98',
+]);
+
+const OOD_ADVANCED_IDS = new Set<string>([
+    'ood_24',
+    'ood_30',
+    'ood_35',
+    'ood_36',
+    'ood_40',
+    'ood_63',
+    'ood_64',
+    'ood_65',
+    'ood_66',
+    'ood_67',
+    'ood_70',
+    'ood_85',
+    'ood_86',
+    'ood_90',
+    'ood_99',
+    'ood_100',
+]);
+
+export const oodFundamentals: Question[] = oodQuestions.filter(q =>
+    OOD_FUNDAMENTALS_IDS.has(q.id)
+);
+
+export const oodAdvanced: Question[] = oodQuestions.filter(q =>
+    OOD_ADVANCED_IDS.has(q.id)
+);
+
+// Everything else (LLD problems + high-level architecture/system-style topics)
+export const oodSystemAndArchitecture: Question[] = oodQuestions.filter(
+    q => !OOD_FUNDAMENTALS_IDS.has(q.id) && !OOD_ADVANCED_IDS.has(q.id)
+);

@@ -1,6 +1,5 @@
 import { Question } from "../../types"
 
-// List 1: Top Interview 150
 export const dsaTop150: Question[] = [
     { id: 'dsa_1', title: 'Explain Time vs Space Complexity (Big O)', difficulty: 'Concept', link: 'https://www.geeksforgeeks.org/analysis-of-algorithms-time-complexity-and-space-complexity/' },
     { id: 'dsa_2', title: 'Reverse a Linked List', difficulty: 'Easy', link: 'https://leetcode.com/problems/reverse-linked-list/' },
