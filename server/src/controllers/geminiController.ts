@@ -45,17 +45,7 @@ const getProjectForUser = async (projectId: string, userId: string) => {
 
 // Helper to get model dynamic instance
 const getModel = (llm: string, responseMimeType?: string) => {
-    let modelName = llm;
-
-    if (!modelName || modelName.includes('flash')) {
-        modelName = 'gemini-flash-latest';
-    }
-    else if (modelName.includes('pro')) {
-        modelName = 'gemini-pro-latest';
-    }
-    else {
-        modelName = defaultModelName;
-    }
+    let modelName = llm || defaultModelName;
 
     return genAI.getGenerativeModel({
         model: modelName,
@@ -615,14 +605,16 @@ export const conductMockInterview = async (req: Request, res: Response) => {
             parts: [{ text: h.content }]
         }));
 
-        const model = getModel(llm).getGenerativeModel({ 
-            model: llm && llm.includes('flash') ? 'gemini-1.5-flash' : 'gemini-1.5-pro',
+        const modelName = llm || defaultModelName;
+
+        const model = genAI.getGenerativeModel({ 
+            model: modelName,
+            safetySettings,
+            generationConfig,
             systemInstruction: systemInstruction 
         });
 
         const chat = model.startChat({ history: chatHistory });
-        
-        // If history is empty, this is the start. The prompt is just to kick off.
         const prompt = message || "Hello, I am ready for the interview.";
         
         const result = await chat.sendMessage(prompt);
