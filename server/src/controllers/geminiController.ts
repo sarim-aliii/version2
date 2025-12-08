@@ -16,6 +16,8 @@ if (!process.env.GEMINI_API_KEY) {
 }
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+
+// FIX: Use one of your available models
 const defaultModelName = 'gemini-flash-latest';
 
 const safetySettings = [
@@ -44,14 +46,33 @@ const getProjectForUser = async (projectId: string, userId: string) => {
 };
 
 // Helper to get model dynamic instance
-const getModel = (llm: string, responseMimeType?: string) => {
+const getModel = (llm: string, responseMimeType?: string, systemInstruction?: string) => {
     let modelName = llm || defaultModelName;
 
-    return genAI.getGenerativeModel({
+    // FIX: Catch invalid model names from old localStorage and force a valid one
+    const validModels = [
+        'gemini-flash-latest', 
+        'gemini-pro-latest', 
+        'gemini-2.0-flash-001', 
+        'gemini-2.0-flash-lite-preview-02-05'
+    ];
+
+    if (!validModels.includes(modelName)) {
+        console.warn(`Invalid model '${modelName}' requested. Falling back to '${defaultModelName}'`);
+        modelName = defaultModelName;
+    }
+
+    const modelParams: any = {
         model: modelName,
         safetySettings,
         generationConfig: responseMimeType ? { ...generationConfig, responseMimeType } : generationConfig
-    });
+    };
+
+    if (systemInstruction) {
+        modelParams.systemInstruction = systemInstruction;
+    }
+
+    return genAI.getGenerativeModel(modelParams);
 }
 
 const downloadAudioBuffer = async (url: string): Promise<{ buffer: Buffer, mimeType: string }> => {
@@ -605,14 +626,7 @@ export const conductMockInterview = async (req: Request, res: Response) => {
             parts: [{ text: h.content }]
         }));
 
-        const modelName = llm || defaultModelName;
-
-        const model = genAI.getGenerativeModel({ 
-            model: modelName,
-            safetySettings,
-            generationConfig,
-            systemInstruction: systemInstruction 
-        });
+        const model = getModel(llm, undefined, systemInstruction);
 
         const chat = model.startChat({ history: chatHistory });
         const prompt = message || "Hello, I am ready for the interview.";
@@ -621,7 +635,7 @@ export const conductMockInterview = async (req: Request, res: Response) => {
         res.json(result.response.text());
 
     } catch (error: any) {
-        console.error("Mock Interview Error:", error);
-        res.status(500).json({ message: `Mock Interview failed: ${error.message}` });
+        console.error("Mock Interview Error Details:", JSON.stringify(error, null, 2));
+        res.status(500).json({ message: `Mock Interview failed: ${error.message || 'Unknown error'}` });
     }
 };

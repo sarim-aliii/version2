@@ -11,7 +11,8 @@ import {
     StudyPlan,
     ConceptMapData,
     LoginCredentials,
-    SignupCredentials
+    SignupCredentials,
+    Todo
 } from '../types';
 import useLocalStorage from '../hooks/useLocalStorage';
 import * as api from '../services/api';
@@ -102,7 +103,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     const [notifications, setNotifications] = useState<Notification[]>([]);
 
-    const [llm, setLlm] = useLocalStorage('llm', 'gemini-1.5-flash');
+    // FIX: Changed default model from 'gemini-1.5-flash' to 'gemini-flash-latest'
+    // to match available options and prevent API errors.
+    const [llm, setLlm] = useLocalStorage('llm', 'gemini-flash-latest');
     const [language, setLanguage] = useLocalStorage('language', 'English');
     const [theme, setTheme] = useLocalStorage<'dark' | 'light'>('theme', 'dark');
 

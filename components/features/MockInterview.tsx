@@ -32,12 +32,21 @@ export const MockInterview: React.FC<MockInterviewProps> = ({ topic, onClose }) 
     const startInterview = async () => {
         setStatus('active');
         setIsLoading(true);
+        // Initial context seeding
+        const initialPrompt = "Hello, I am ready for the interview.";
+        
         try {
-            // Initial call to start the interview
-            const response = await conductMockInterview(llm, topic, "", [], language, difficulty);
-            setChatHistory([{ role: 'model', content: response }]);
+            // FIX: Pass empty history for the very first turn
+            const response = await conductMockInterview(llm, topic, initialPrompt, [], language, difficulty);
+            
+            // Manually set state to include the hidden initial prompt + AI response
+            setChatHistory([
+                { role: 'user', content: initialPrompt }, 
+                { role: 'model', content: response }
+            ]);
         } catch (e: any) {
-            addNotification("Failed to start interview.", "error");
+            console.error(e);
+            addNotification("Failed to start interview. Check console for details.", "error");
             setStatus('setup');
         } finally {
             setIsLoading(false);
@@ -47,27 +56,34 @@ export const MockInterview: React.FC<MockInterviewProps> = ({ topic, onClose }) 
     const handleSendMessage = async () => {
         if (!currentMessage.trim()) return;
 
+        // 1. Create the new history for the UI immediately
         const userMsg: ChatMessage = { role: 'user', content: currentMessage };
+        
+        // IMPORTANT: We do NOT send 'newHistory' to the backend. We send the OLD 'chatHistory'.
+        // The backend appends the current message to the history automatically.
         const newHistory = [...chatHistory, userMsg];
         
-        setChatHistory(newHistory);
+        setChatHistory(newHistory); // Update UI
         setCurrentMessage('');
         setIsLoading(true);
 
         try {
-            // Check for end commands
+            let response;
+            
+            // FIX: Pass 'chatHistory' (the history BEFORE this message), NOT 'newHistory'
             if (currentMessage.toLowerCase().includes('end interview') || currentMessage.toLowerCase().includes('stop')) {
-                 const response = await conductMockInterview(llm, topic, currentMessage, newHistory, language, difficulty);
-                 setChatHistory([...newHistory, { role: 'model', content: response }]);
+                 response = await conductMockInterview(llm, topic, currentMessage, chatHistory, language, difficulty);
                  setStatus('feedback');
-                 // Award heavy XP for completing an interview
                  updateProgress(100, topic); 
             } else {
-                 const response = await conductMockInterview(llm, topic, currentMessage, newHistory, language, difficulty);
-                 setChatHistory([...newHistory, { role: 'model', content: response }]);
+                 response = await conductMockInterview(llm, topic, currentMessage, chatHistory, language, difficulty);
             }
 
+            // 3. Update UI with the AI's response
+            setChatHistory(prev => [...prev, { role: 'model', content: response }]);
+
         } catch (e: any) {
+             console.error(e);
              addNotification("Failed to get response.", "error");
         } finally {
             setIsLoading(false);
