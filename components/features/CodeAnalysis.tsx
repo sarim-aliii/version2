@@ -11,7 +11,15 @@ import { MarkdownRenderer } from '../ui/MarkdownRenderer';
 type ArtifactType = 'code' | 'algorithm' | 'pseudocode' | 'flowchart';
 
 const CodeAnalysis: React.FC = () => {
-    const { addNotification, language, llm, activeProject, updateActiveProjectData } = useAppContext();
+    const { 
+        addNotification, 
+        language, 
+        llm, 
+        activeProject, 
+        updateActiveProjectData, 
+        ingestText, 
+        updateProjectData 
+    } = useAppContext();
     
     const [code, setCode] = useState(activeProject?.codeSnippet || '');
     const [analysisResult, setAnalysisResult] = useState<CodeAnalysisResult | null>(activeProject?.codeAnalysis || null);
@@ -51,19 +59,42 @@ const CodeAnalysis: React.FC = () => {
         setIsLoading(true);
         setAnalysisResult(null);
         setExplanationResult(null);
+        
         try {
+            // 1. Generate the analysis first
             const result = await generateCodeAnalysis(llm, code, language);
             setAnalysisResult(result);
-            await updateActiveProjectData({ 
-                codeSnippet: code,
-                codeAnalysis: result 
-            });
+
+            // 2. Handle Project Persistence
+            let targetProjectId = activeProject?._id;
+
+            // If no project exists, create one now
+            if (!targetProjectId) {
+                const projectName = `Code Analysis ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`;
+                
+                // Create project but DON'T redirect (pass false)
+                // We use the code itself as the "Ingested Text"
+                const newProject = await ingestText(projectName, code, false);
+                
+                if (newProject) {
+                    targetProjectId = newProject._id;
+                }
+            }
+
+            // 3. Save the specific Code Analysis data to the project
+            if (targetProjectId) {
+                await updateProjectData(targetProjectId, { 
+                    codeSnippet: code,
+                    codeAnalysis: result 
+                });
+            }
+
         } catch (e: any) {
             addNotification(e.message);
         } finally {
             setIsLoading(false);
         }
-    }, [code, addNotification, language, llm, updateActiveProjectData]);
+    }, [code, addNotification, language, llm, activeProject, ingestText, updateProjectData]);
 
     const handleExplain = useCallback(async () => {
         if (!explanationArtifact.trim()) {

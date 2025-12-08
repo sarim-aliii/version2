@@ -1,6 +1,7 @@
 import React from 'react';
 import { Button } from '../ui/Button';
 import { motion } from 'framer-motion';
+import { useAppContext } from '../../context/AppContext';
 
 interface LandingPageProps {
     onGetStarted: () => void;
@@ -23,6 +24,25 @@ const staggerContainer = {
 };
 
 export const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
+    const { addNotification } = useAppContext();
+    
+    // Smooth scroll handler
+    const scrollToFeatures = (e: React.MouseEvent) => {
+        e.preventDefault();
+        const element = document.getElementById('features');
+        if (element) {
+            element.scrollIntoView({ behavior: 'smooth' });
+        }
+    };
+
+    // Copy Email Handler
+    const handleSupportClick = () => {
+        const email = "kaironapp.ai@gmail.com";
+        navigator.clipboard.writeText(email)
+            .then(() => addNotification("Support email copied to clipboard!", "success"))
+            .catch(() => addNotification("Failed to copy email.", "error"));
+    };
+
     return (
         <div className="min-h-screen bg-slate-950 text-slate-200 font-sans selection:bg-red-500/30 overflow-x-hidden">
 
@@ -119,8 +139,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
                 </motion.div>
             </div>
 
-            {/* Features Grid */}
-            <div className="bg-slate-900/50 border-y border-slate-800/50 relative">
+            {/* Features Grid - Added ID for navigation */}
+            <div id="features" className="bg-slate-900/50 border-y border-slate-800/50 relative">
                 <div className="max-w-7xl mx-auto px-6 py-24">
                     <motion.div 
                         initial={{ opacity: 0, y: 20 }}
@@ -179,13 +199,35 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
                     <div className="flex items-center gap-2">
                         <span className="text-xl font-bold text-slate-200">Kairon AI</span>
                         <span className="text-slate-600">|</span>
-                        <span className="text-sm text-slate-500">© {new Date().getFullYear()} Inc.</span>
+                        <span className="text-sm text-slate-500">© {new Date().getFullYear()} Kairon Inc.</span>
                     </div>
                     <div className="flex gap-8 text-sm text-slate-400">
-                        <a href="#" className="hover:text-white transition-colors">Privacy</a>
-                        <a href="#" className="hover:text-white transition-colors">Terms</a>
-                        <a href="#" className="hover:text-white transition-colors">Twitter</a>
-                        <a href="#" className="hover:text-white transition-colors">GitHub</a>
+                        {/* Features Navigation */}
+                        <a 
+                            href="#features" 
+                            onClick={scrollToFeatures}
+                            className="hover:text-white transition-colors cursor-pointer"
+                        >
+                            Features
+                        </a>
+                        
+                        {/* Support Email - Updated to Copy instead of mailto */}
+                        <button 
+                            onClick={handleSupportClick} 
+                            className="hover:text-white transition-colors cursor-pointer"
+                        >
+                            Support
+                        </button>
+
+                        {/* GitHub / Open Source */}
+                        <a 
+                            href="https://github.com/sarim-aliii/version2" 
+                            target="_blank" 
+                            rel="noopener noreferrer" 
+                            className="hover:text-white transition-colors"
+                        >
+                            GitHub
+                        </a>
                     </div>
                 </div>
             </footer>

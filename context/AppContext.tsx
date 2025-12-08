@@ -50,7 +50,8 @@ interface AppContextType {
     deleteProject: (id: string) => Promise<void>;
     updateActiveProjectData: (data: Partial<StudyProject>) => Promise<void>;
     updateProjectData: (id: string, data: Partial<StudyProject>) => Promise<void>;
-    ingestText: (name: string, text: string) => Promise<void>;
+    // Updated signature: returns the project and accepts redirect flag
+    ingestText: (name: string, text: string, shouldRedirect?: boolean) => Promise<StudyProject | null>;
 
     // UI State
     activeTab: Tab;
@@ -103,8 +104,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     const [notifications, setNotifications] = useState<Notification[]>([]);
 
-    // FIX: Changed default model from 'gemini-1.5-flash' to 'gemini-flash-latest'
-    // to match available options and prevent API errors.
     const [llm, setLlm] = useLocalStorage('llm', 'gemini-flash-latest');
     const [language, setLanguage] = useLocalStorage('language', 'English');
     const [theme, setTheme] = useLocalStorage<'dark' | 'light'>('theme', 'dark');
@@ -205,7 +204,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         try {
             const data = await api.login(credentials);
             setUserToken(data.token);
-            // Ensure all user fields (including xp/level) are set
             setCurrentUser({
                 _id: data._id,
                 name: data.name,
@@ -373,22 +371,27 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         setActiveTab(Tab.Ingest);
     };
 
-    const ingestText = async (name: string, text: string) => {
+    const ingestText = async (name: string, text: string, shouldRedirect: boolean = true) => {
         try {
             const newProject = await api.createProject({ name, ingestedText: text });
             setProjects(prev => [newProject, ...prev]);
             setActiveProjectId(newProject._id);
             addNotification(`Study "${name}" created!`, 'success');
-            setActiveTab(Tab.Summary);
+            
+            if (shouldRedirect) {
+                setActiveTab(Tab.Summary);
+            }
+            
+            return newProject;
         } catch (error: any) {
             addNotification(error.message || "Failed to create study.");
+            return null;
         }
     };
 
     const renameProject = async (id: string, newName: string) => {
         try {
             await api.updateProject(id, { name: newName });
-            // Refresh projects to get updated data
             await fetchProjects();
         } catch (error: any) {
             addNotification(error.message || "Failed to rename study.");
