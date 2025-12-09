@@ -74,9 +74,9 @@ export const forgotPassword = async (email: string) => {
   return data;
 };
 
-export const resetPassword = async (token: string, password: string) => {
-  const { data } = await api.post('/auth/reset-password', { token, password });
-  return data;
+export const resetPassword = async (data: { email: string; otp: string; password: string }) => {
+  const response = await api.post('/auth/reset-password', data);
+  return response.data;
 };
 
 export const updateUserProgress = async (xpGained: number, category?: string) => {

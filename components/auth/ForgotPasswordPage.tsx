@@ -2,9 +2,10 @@ import React, { useState } from 'react';
 import { Button } from '../ui/Button';
 import { Card } from '../ui/Card';
 import { Input } from '../ui/Input';
+import OtpInput from '../ui/OtpInput'; // Ensure you have this component
 import { Loader } from '../ui/Loader';
-import { forgotPassword } from '../../services/api';
-
+// Assuming you export resetPassword from the same api file, or use axios directly
+import { forgotPassword, resetPassword } from '../../services/api'; 
 
 interface ForgotPasswordPageProps {
   onSuccess: (email: string) => void;
@@ -13,18 +14,25 @@ interface ForgotPasswordPageProps {
 }
 
 export const ForgotPasswordPage: React.FC<ForgotPasswordPageProps> = ({ onSuccess, onSwitchToLogin, onSwitchToSignUp }) => {
+  // STEPS: 1 = Email, 2 = OTP + New Password
+  const [step, setStep] = useState<1 | 2>(1);
+  
+  // Form State
   const [email, setEmail] = useState('');
+  const [otp, setOtp] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  
+  // UI State
   const [error, setError] = useState('');
-  const [userNotFound, setUserNotFound] = useState(false);
-  const [socialLoginError, setSocialLoginError] = useState(false); // New State
   const [isLoading, setIsLoading] = useState(false);
-  const [isSubmitted, setIsSubmitted] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  // --- STEP 1: SEND CODE ---
+  const handleSendCode = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    setUserNotFound(false);
-    setSocialLoginError(false);
+    setSuccessMessage('');
 
     if (!email.trim() || !/\S+@\S+\.\S+/.test(email)) {
       setError('Please enter a valid email address.');
@@ -34,98 +42,160 @@ export const ForgotPasswordPage: React.FC<ForgotPasswordPageProps> = ({ onSucces
     setIsLoading(true);
     try {
       await forgotPassword(email);
-      setIsSubmitted(true);
-      onSuccess(email);
+      setStep(2); // Move to OTP Step
+      setSuccessMessage(`Code sent to ${email}`);
     } 
     catch (err: any) {
-      if (err.message && (err.message.includes('404') || err.message.toLowerCase().includes('user not found'))) {
-        setUserNotFound(true);
-        setError("We couldn't find an account with that email.");
-      } 
-      else if (err.message && err.message.includes('You registered with')) {
-         setSocialLoginError(true);
+       // Handle specific errors based on your backend responses
+       if (err.message?.includes('404') || err.message?.toLowerCase().includes('user not found')) {
+         setError("We couldn't find an account with that email.");
+       } else if (err.message?.includes('registered with')) {
          setError(err.message);
-      }
-      else {
-        setError(err.message || "Failed to send reset email.");
-      }
+       } else {
+         setError(err.message || "Failed to send reset code.");
+       }
     } 
     finally {
       setIsLoading(false);
     }
   };
 
-  if (isSubmitted) {
-      return (
-        <Card title="Check Your Email" className="w-full max-w-md fade-in">
-             <div className="text-center space-y-4">
-                <div className="mx-auto w-12 h-12 bg-green-900/30 rounded-full flex items-center justify-center">
-                    <svg className="w-6 h-6 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path></svg>
-                </div>
-                 <p className="text-slate-300">
-                    We have sent a password reset link to <strong>{email}</strong>.
-                 </p>
-                 <p className="text-sm text-slate-500">Please check your inbox and spam folder.</p>
-                 <div className="pt-4">
-                    <Button onClick={onSwitchToLogin} variant="secondary" className="w-full">Back to Login</Button>
-                </div>
-            </div>
-        </Card>
-      )
-  }
+  // --- STEP 2: RESET PASSWORD ---
+  const handleResetPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+
+    // Validation
+    if (otp.length !== 6) {
+        setError("Please enter the full 6-digit verification code.");
+        return;
+    }
+    if (!newPassword) {
+        setError("New password is required.");
+        return;
+    }
+    if (newPassword !== confirmPassword) {
+        setError("Passwords do not match.");
+        return;
+    }
+    // Optional: Add regex for password strength here
+    
+    setIsLoading(true);
+    try {
+      // NOTE: Ensure your API service passes { email, otp, password }
+      await resetPassword({ email, otp, password: newPassword });
+      
+      // Success!
+      onSuccess(email); 
+      // The parent component should likely switch to login view now
+      onSwitchToLogin(); 
+    } catch (err: any) {
+      setError(err.message || "Failed to reset password. Code might be expired.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
-    <Card title="Reset Your Password" className="w-full max-w-md fade-in">
-      <p className="text-slate-400 text-sm mb-6">
-        Enter your email address and we will send you a link to reset your password.
-      </p>
-      <form onSubmit={handleSubmit} className="space-y-6">
-        <Input
-          id="reset-email"
-          label="Email Address"
-          type="email"
-          value={email}
-          onChange={(e) => {
-              setEmail(e.target.value);
-              setError(''); 
-              setUserNotFound(false);
-              setSocialLoginError(false);
-          }}
-          error={!socialLoginError && !userNotFound ? error : undefined}
-          disabled={isLoading}
-          autoComplete="email"
-        />
+    <Card title={step === 1 ? "Reset Password" : "Set New Password"} className="w-full max-w-md fade-in">
+      
+      {/* Back Button for Step 2 */}
+      {step === 2 && (
+        <button 
+            onClick={() => { setStep(1); setError(''); }}
+            className="text-xs text-slate-400 hover:text-white mb-4 flex items-center"
+        >
+            ← Back to Email
+        </button>
+      )}
 
-        {userNotFound && (
-            <div className="bg-red-900/20 border border-red-500/50 rounded-md p-3 text-center">
-                <p className="text-sm text-red-200 mb-2">Account does not exist.</p>
-                <Button type="button" onClick={onSwitchToSignUp} variant="secondary" className="w-full text-xs py-1.5">
-                    Create New Account
-                </Button>
-            </div>
-        )}
+      {/* Success Banner */}
+      {successMessage && (
+          <div className="bg-green-500/10 text-green-500 text-sm p-3 rounded mb-4 text-center">
+             {successMessage}
+          </div>
+      )}
 
-        {socialLoginError && (
-            <div className="bg-blue-900/20 border border-blue-500/50 rounded-md p-3 text-center">
-                <p className="text-sm text-blue-200 mb-2">{error}</p>
-                <Button type="button" onClick={onSwitchToLogin} className="w-full text-xs py-1.5">
-                    Go to Login
-                </Button>
-            </div>
-        )}
-
-        <div className="pt-2">
-            <Button type="submit" disabled={isLoading || userNotFound || socialLoginError} className="w-full flex items-center justify-center">
-                 {isLoading ? <Loader spinnerClassName="w-5 h-5" /> : 'Send Reset Link'}
-            </Button>
+      {/* Error Banner */}
+      {error && (
+        <div className="bg-red-500/10 border border-red-500/20 text-red-400 text-sm p-3 rounded mb-4 text-center">
+            {error}
         </div>
-      </form>
-       <p className="text-sm text-center text-slate-400 mt-6">
-          Remember your password?{' '}
-          <button type="button" onClick={onSwitchToLogin} className="font-semibold text-red-400 hover:underline focus:outline-none">
-            Back to Login
-          </button>
+      )}
+
+      {step === 1 ? (
+        /* --- STEP 1 FORM --- */
+        <form onSubmit={handleSendCode} className="space-y-6">
+            <p className="text-slate-400 text-sm">
+                Enter your email address and we will send you a 6-digit code to reset your password.
+            </p>
+            <Input
+                id="reset-email"
+                label="Email Address"
+                type="email"
+                value={email}
+                onChange={(e) => { setEmail(e.target.value); setError(''); }}
+                disabled={isLoading}
+                autoComplete="email"
+            />
+            <Button type="submit" disabled={isLoading} className="w-full flex items-center justify-center">
+                {isLoading ? <Loader spinnerClassName="w-5 h-5" /> : 'Send Reset Code'}
+            </Button>
+        </form>
+      ) : (
+        /* --- STEP 2 FORM --- */
+        <form onSubmit={handleResetPassword} className="space-y-5">
+            <div className="text-center">
+                <label className="text-sm text-slate-400 mb-2 block">Verification Code</label>
+                <div className="flex justify-center">
+                    <OtpInput 
+                        length={6} 
+                        onComplete={(code) => setOtp(code)} 
+                    />
+                </div>
+            </div>
+
+            <Input
+                id="new-password"
+                label="New Password"
+                type="password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                disabled={isLoading}
+            />
+
+            <Input
+                id="confirm-password"
+                label="Confirm Password"
+                type="password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                disabled={isLoading}
+            />
+
+            <Button type="submit" disabled={isLoading} className="w-full flex items-center justify-center mt-2">
+                {isLoading ? <Loader spinnerClassName="w-5 h-5" /> : 'Reset Password'}
+            </Button>
+        </form>
+      )}
+
+      {/* Footer Links */}
+      <div className="mt-6 text-center space-y-2">
+        <p className="text-sm text-slate-400">
+           Remember your password?{' '}
+           <button type="button" onClick={onSwitchToLogin} className="font-semibold text-red-400 hover:underline focus:outline-none">
+             Back to Login
+           </button>
         </p>
+        {step === 1 && (
+             <p className="text-xs text-slate-500">
+                Don't have an account?{' '}
+                <button type="button" onClick={onSwitchToSignUp} className="text-slate-400 hover:text-white hover:underline">
+                    Sign Up
+                </button>
+             </p>
+        )}
+      </div>
     </Card>
   );
 };

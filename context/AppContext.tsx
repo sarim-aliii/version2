@@ -26,6 +26,7 @@ interface AppContextType {
     // Auth
     isAuthenticated: boolean;
     currentUser: User | null;
+    loading: boolean; 
     login: (credentials: LoginCredentials) => Promise<void>;
     loginWithGoogle: () => Promise<void>;
     loginWithGithub: () => Promise<void>;
@@ -50,7 +51,6 @@ interface AppContextType {
     deleteProject: (id: string) => Promise<void>;
     updateActiveProjectData: (data: Partial<StudyProject>) => Promise<void>;
     updateProjectData: (id: string, data: Partial<StudyProject>) => Promise<void>;
-    // Updated signature: returns the project and accepts redirect flag
     ingestText: (name: string, text: string, shouldRedirect?: boolean) => Promise<StudyProject | null>;
 
     // UI State
@@ -96,6 +96,8 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     const [userToken, setUserToken] = useLocalStorage<string | null>('authToken', null);
     const [currentUser, setCurrentUser] = useState<User | null>(null);
+    const [loading, setLoading] = useState(true);
+
     const [activeTab, setActiveTab] = useLocalStorage<Tab>('activeTab', Tab.Ingest);
 
     const [projects, setProjects] = useState<StudyProject[]>([]);
@@ -108,7 +110,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const [language, setLanguage] = useLocalStorage('language', 'English');
     const [theme, setTheme] = useLocalStorage<'dark' | 'light'>('theme', 'dark');
 
-    // Loading states
+    // Loading states for AI features
     const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
     const [isGeneratingFlashcards, setIsGeneratingFlashcards] = useState(false);
     const [isTutorResponding, setIsTutorResponding] = useState(false);
@@ -199,7 +201,57 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     };
 
 
-    // Auth
+    // Projects Fetcher Logic
+    const fetchProjects = useCallback(async () => {
+        const token = api.getAuthToken() || userToken;
+        if (token) {
+            try {
+                const fetchedProjects = await api.getProjects();
+                setProjects(fetchedProjects);
+            }
+            catch (error: any) {
+                console.error("Failed to fetch projects", error);
+            }
+        }
+    }, [userToken]);
+
+    // --- LOGOUT ---
+    const logout = useCallback(() => {
+        setUserToken(null);
+        setCurrentUser(null);
+        setProjects([]);
+        setActiveProjectId(null);
+        api.setAuthToken(null);
+        setActiveTab(Tab.Ingest);
+    }, [setUserToken, setActiveProjectId, setActiveTab]);
+
+
+    // --- INITIAL AUTH CHECK ---
+    // This effect runs on mount to check if the token in local storage is valid
+    useEffect(() => {
+        const initAuth = async () => {
+            setLoading(true);
+            if (userToken) {
+                api.setAuthToken(userToken);
+                try {
+                    const user = await api.getProfile();
+                    setCurrentUser(user);
+                    // Only fetch projects if profile fetch succeeded
+                    const projectsData = await api.getProjects();
+                    setProjects(projectsData);
+                } catch (error) {
+                    console.error("Profile check failed", error);
+                    logout(); // Token was invalid or expired
+                }
+            }
+            setLoading(false); // Done loading regardless of success/fail
+        };
+
+        initAuth();
+    }, []); // Run once on mount
+
+
+    // Auth Functions
     const login = async (credentials: LoginCredentials) => {
         try {
             const data = await api.login(credentials);
@@ -224,34 +276,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     const signup = async (credentials: SignupCredentials) => {
         try {
-            const data = await api.signup(credentials);
-            setUserToken(data.token);
-            setCurrentUser({
-                _id: data._id,
-                name: data.name,
-                email: data.email,
-                avatar: data.avatar,
-                xp: 0,
-                level: 1,
-                currentStreak: 0
-            });
-            api.setAuthToken(data.token);
-            setProjects([]);
-            setActiveProjectId(null);
+            await api.signup(credentials);
+            addNotification('Sign up successful! Please check your email for the verification code.', 'success');
         } catch (error: any) {
             addNotification(error.message || 'Sign up failed.');
             throw error;
         }
     };
-
-    const logout = useCallback(() => {
-        setUserToken(null);
-        setCurrentUser(null);
-        setProjects([]);
-        setActiveProjectId(null);
-        api.setAuthToken(null);
-        setActiveTab(Tab.Ingest);
-    }, [setUserToken, setActiveProjectId, setActiveTab]);
 
     const handleSocialLoginSuccess = async (data: any, providerName: string) => {
         setUserToken(data.token);
@@ -306,8 +337,21 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     const verifyEmail = async (token: string) => {
         try {
-            await api.verifyEmail(token);
-            addNotification('Email verified successfully! You can now log in.', 'success');
+            const data = await api.verifyEmail(token);
+            setUserToken(data.token);
+            setCurrentUser({
+                _id: data._id,
+                name: data.name,
+                email: data.email,
+                avatar: data.avatar,
+                xp: data.xp,
+                level: data.level,
+                currentStreak: data.currentStreak,
+                todos: data.todos || []
+            });
+            api.setAuthToken(data.token);
+            await fetchProjects();
+            addNotification('Email verified successfully! Logging you in...', 'success');
         } catch (error: any) {
             addNotification(error.message || 'Email verification failed.');
             throw error;
@@ -333,36 +377,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             throw error;
         }
     };
-
-
-    // Projects
-    const fetchProjects = useCallback(async () => {
-        if (userToken) {
-            try {
-                const fetchedProjects = await api.getProjects();
-                setProjects(fetchedProjects);
-            }
-            catch (error: any) {
-                console.error("Failed to fetch projects", error);
-                if (error.message && (error.message.includes('401') || error.message.includes('Not authorized'))) {
-                    logout();
-                }
-            }
-        }
-    }, [userToken, logout]);
-
-    useEffect(() => {
-        if (userToken) {
-            api.setAuthToken(userToken);
-            api.getProfile().then(user => {
-                setCurrentUser(user);
-                fetchProjects();
-            }).catch((error) => {
-                console.error("Profile check failed", error);
-                logout();
-            });
-        }
-    }, [userToken, fetchProjects, logout]);
 
     const loadProject = (id: string) => setActiveProjectId(id);
 
@@ -508,6 +522,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const value = {
         isAuthenticated,
         currentUser,
+        loading, // <--- EXPOSED
         login,
         loginWithGoogle,
         loginWithGithub,

@@ -14,19 +14,11 @@ export const AuthManager: React.FC = () => {
 
     const handleSignUpSuccess = (email: string) => {
         setUserEmail(email);
-        // In a real app, this would be the next step.
-        // setView('verify-email'); 
-        
-        // For this simulation, we'll assume auto-verification and let the main app take over.
-        // The AppContext handles the login state change.
+        setView('verify-email');
     };
 
     const handleForgotPasswordSuccess = (email: string) => {
         setUserEmail(email);
-        setTimeout(() => {
-            setResetToken('valid-reset-token');
-            setView('reset-password');
-        }, 1000);
     };
 
     const handlePasswordResetSuccess = () => {
@@ -48,7 +40,7 @@ export const AuthManager: React.FC = () => {
                     />
                 );
             case 'verify-email':
-                return <VerifyEmailPage email={userEmail} onSuccess={() => setView('login')} />;
+                return <VerifyEmailPage email={userEmail} onSuccess={() => { /* Handled by AppContext auto-login */ }} />;
             case 'reset-password':
                 return <ResetPasswordPage token={resetToken} onSuccess={handlePasswordResetSuccess} onSwitchToLogin={() => setView('login')} />;
             default:

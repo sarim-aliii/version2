@@ -1,5 +1,5 @@
-// sarim-aliii/version2/version2-1493846b30acdc91c679cab38a402d8b18ff91c6/components/auth/LoginPage.tsx
 import React, { useState } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAppContext } from '../../context/AppContext';
 import { Button } from '../ui/Button';
 import { Card } from '../ui/Card';
@@ -14,10 +14,21 @@ interface LoginPageProps {
 
 export const LoginPage: React.FC<LoginPageProps> = ({ onSwitchToSignUp, onSwitchToForgotPassword }) => {
   const { login, loginWithGoogle, loginWithGithub } = useAppContext();
+  const navigate = useNavigate();
+  const location = useLocation(); 
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+
+  // Determine where to redirect after login (default to /dashboard if no history)
+  // The 'from' property is passed by ProtectedRoute.tsx
+  const from = location.state?.from?.pathname || "/dashboard"; 
+
+  const handleLoginSuccess = () => {
+     navigate(from, { replace: true });
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -29,12 +40,26 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onSwitchToSignUp, onSwitch
     setIsLoading(true);
     try {
       await login({ email, password });
-      // On success, the AppContext will handle redirecting to the main app
+      // Redirect ONLY after successful login
+      handleLoginSuccess();
     } catch (err: any) {
       setError(err.message || 'Login failed. Please check your credentials.');
     } finally {
       setIsLoading(false);
     }
+  };
+
+  // Wrapper for social login to handle redirect too
+  const handleSocialLogin = async (provider: 'google' | 'github') => {
+      try {
+          if (provider === 'google') await loginWithGoogle();
+          else await loginWithGithub();
+          
+          handleLoginSuccess();
+      } catch (err) {
+          // Error is handled in AppContext notification, but we can log here
+          console.error("Social login failed", err);
+      }
   };
 
   return (
@@ -81,8 +106,8 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onSwitchToSignUp, onSwitch
         </div>
       </div>
       <div className="space-y-3">
-        <SocialButton provider="google" onClick={loginWithGoogle} isLoading={false} />
-        <SocialButton provider="github" onClick={loginWithGithub} isLoading={false} />
+        <SocialButton provider="google" onClick={() => handleSocialLogin('google')} isLoading={false} />
+        <SocialButton provider="github" onClick={() => handleSocialLogin('github')} isLoading={false} />
       </div>
        <p className="text-sm text-center text-slate-400 mt-6">
           Don't have an account?{' '}
