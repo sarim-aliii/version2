@@ -1,80 +1,134 @@
-# Kairon AI - AI-Powered Learning Platform
+# 🧠 Kairon AI
 
-Kairon AI is a comprehensive learning assistant designed to help users master study material through advanced AI-powered tools. Ingest your content and leverage features like automated summarization, spaced repetition flashcards, semantic search, and an interactive AI tutor.
+**The Ultimate AI-Powered Learning Platform**
 
-This project is built with a modern full-stack architecture using React, TypeScript, Node.js, Express, and MongoDB, and is fully integrated with the Google Gemini API.
+## 🚀 Overview
 
-## Tech Stack
+**Kairon AI** is a next-generation study assistant designed to accelerate mastery of any subject. Inspired by the wise tutor Chiron, it leverages advanced Generative AI to transform raw educational content—textbooks, lecture recordings, videos, and code—into interactive learning experiences.
 
-- **Frontend:** React, TypeScript, Tailwind CSS, D3.js
-- **Backend:** Node.js, Express, TypeScript (Source in `/server/src`)
-- **Database:** MongoDB (with Mongoose)
-- **Authentication:** JWT-based Authentication
-- **AI:** Google Gemini API (`@google/genai`)
+Stop passively reading. Start actively mastering.
 
-## Project Setup
+## ✨ Key Features
 
-To run this project locally, you need to configure both the frontend and the backend with the necessary environment variables.
+### 📚 Intelligent Ingestion
+- **Multi-Modal Support**: Upload PDFs, Word docs, Audio files, or paste YouTube links.
+- **Vision Support**: Snap photos of handwritten notes or diagrams; Kairon digests them as text.
+- **Auto-Seeding**: Enter a topic, and Kairon will generate the study material for you.
 
-### 1. Backend Configuration (`/server/.env`)
+### 🧠 Active Recall Tools
+- **SRS Flashcards**: Automatically generates smart flashcards with a Spaced Repetition System algorithm to hack memory retention.
+- **AI Quizzes (MCQ)**: Test your knowledge with instant feedback and explanations.
+- **Magic Login**: Seamless authentication experience—verify your email and get logged in instantly without re-entering credentials.
 
-The backend server handles secure operations, database interaction, and all calls to the Gemini API.
+### 💡 Deep Understanding
+- **Socratic AI Tutor**: Chat contextually with your notes. The tutor guides you to answers rather than just giving them.
+- **Concept Maps**: Visualize complex relationships between topics with interactive, dynamic graphs (powered by D3.js).
+- **Semantic Search**: Stop keyword hunting. Find information based on *meaning* and context.
 
-- **How to set up:**
-  1. Navigate to the `/server` directory.
-  2. Rename the `.env.example` file to `.env`.
-  3. Fill in the required values as described below.
+### 🛠️ Specialized Tools
+- **Code Analysis**: Paste code to get instant algorithms, pseudocode, and flowcharts.
+- **Voice Mode**: Speak to Kairon and hear responses for on-the-go learning.
+- **Gamified Progress**: Earn XP, maintain daily streaks, and level up as you learn.
+- **Study Planner**: Get custom day-by-day schedules generated based on your material and timeframe.
 
-- **Required Variables:**
-  - `PORT`: The port for the server to run on (e.g., 5001).
-  - `MONGO_URI`: Your MongoDB connection string (from MongoDB Atlas).
-  - `JWT_SECRET`: A long, random, secret string used to sign authentication tokens.
-  - `API_KEY`: Your **Google Gemini API Key**. You can get this from [Google AI Studio](https://aistudio.google.com/app/apikey).
+---
 
-### 2. Frontend Configuration (`/.env`)
+## 🏗️ Tech Stack
 
-The frontend application needs to know where to send its API requests.
+### Frontend
+- **Framework**: React (Vite)
+- **Language**: TypeScript
+- **Styling**: Tailwind CSS
+- **Animations**: Framer Motion
+- **Visualization**: D3.js (Concept Maps), Mermaid.js (Flowcharts)
+- **State Management**: React Context API
 
-- **How to set up:**
-  1. In the **root project directory**, rename the `.env.example` file to `.env`.
-  2. Fill in the required values.
+### Backend
+- **Runtime**: Node.js
+- **Framework**: Express.js
+- **Database**: MongoDB (Mongoose ODM)
+- **Authentication**: JWT (JSON Web Tokens) & Firebase (Social Auth)
+- **Email**: Nodemailer (SMTP)
 
-- **Required Variables:**
-  - `VITE_API_BASE_URL`: The full URL of your running backend server (e.g., `http://localhost:5001`).
+### AI Engine
+- **Core Model**: Google Gemini Pro & Flash (`@google/genai`)
+- **Capabilities**: Text generation, Vision analysis, Audio transcription, Embeddings.
 
-## Running the Application Locally
+---
 
-1.  **Install Backend Dependencies:**
-    ```bash
-    cd server
-    npm install
-    ```
-2.  **Install Frontend Dependencies:**
-    ```bash
-    # From the root directory
-    npm install
-    ```
-3.  **Run the Backend Server:**
-    ```bash
-    # From the /server directory
-    npm run dev
-    ```
-4.  **Run the Frontend Dev Server:**
-    ```bash
-    # From the root directory
-    npm run dev
-    ```
-The application should now be running, with the frontend communicating with your local backend server.
+## 🛠️ Installation & Setup
 
-## Key Features
+Follow these steps to run Kairon AI locally.
 
-- **Ingest Engine:** Upload `.txt` files or paste text directly to create a new study project.
-- **AI Summary:** Automatically generate a concise summary of your ingested material.
-- **Flashcards:** Create smart flashcards with a Spaced Repetition System (SRS) to optimize learning and retention.
-- **MCQ Generator:** Test your knowledge with multiple-choice quizzes generated from your content.
-- **Semantic Search:** Go beyond keywords and search your notes based on meaning and context.
-- **AI Tutor:** Engage in a contextual conversation with an AI that can answer questions about your study material.
-- **Audio/Video Analysis:** Upload media files to transcribe the content and then analyze it with other AI tools.
-- **Concept Map:** Visualize the key concepts and their relationships in a dynamic, interactive graph.
-- **Lesson & Study Planners:** For educators and students, automatically generate structured plans based on the ingested content.
-- **Secure Authentication:** Full user authentication system with JWT, password hashing, and user profiles.
+### Prerequisites
+- Node.js (v18+)
+- MongoDB Atlas URI
+- Google Gemini API Key
+- Firebase Project (for social login)
+
+### 1. Clone the Repository
+git clone [https://github.com/sarim-aliii/version2.git](https://github.com/sarim-aliii/version2.git)
+cd version2
+
+### 2. Backend Configuration
+Navigate to the server directory and install dependencies.
+cd server
+npm install
+Create a .env file in /server based on .env.example:
+
+PORT=5001
+MONGO_URI=your_mongodb_connection_string
+JWT_SECRET=your_super_secret_jwt_key
+GEMINI_API_KEY=your_google_gemini_api_key
+EMAIL_SERVICE=gmail
+EMAIL_USER=your_email@gmail.com
+EMAIL_PASS=your_email_app_password
+FRONTEND_URL=http://localhost:3000
+FIREBASE_SERVICE_ACCOUNT_JSON={...your_firebase_admin_sdk_json...}
+
+Start the backend server:
+npm run dev
+
+### 3. Frontend Configuration
+Open a new terminal, navigate to the root directory, and install dependencies.
+
+# From the project root
+npm install
+Create a .env file in the root directory:
+
+Code snippet
+
+VITE_API_BASE_URL=http://localhost:5001/api
+VITE_FIREBASE_API_KEY=your_firebase_key
+VITE_FIREBASE_AUTH_DOMAIN=your_project.firebaseapp.com
+VITE_FIREBASE_PROJECT_ID=your_project_id
+VITE_FIREBASE_STORAGE_BUCKET=your_project.appspot.com
+VITE_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
+VITE_FIREBASE_APP_ID=your_app_id
+Start the frontend development server:
+
+npm run dev
+Visit http://localhost:3000 to start learning!
+
+
+🤝 Contributing
+Contributions are what make the open-source community such an amazing place to learn, inspire, and create. Any contributions you make are greatly appreciated.
+
+Fork the Project
+
+Create your Feature Branch (git checkout -b feature/AmazingFeature)
+
+Commit your Changes (git commit -m 'Add some AmazingFeature')
+
+Push to the Branch (git push origin feature/AmazingFeature)
+
+Open a Pull Request
+
+📩 Contact & Support
+Questions, feedback, or feature requests?
+
+Support Email: kaironapp.ai@gmail.com
+
+Project Link: https://github.com/sarim-aliii/version2
+
+Built with ❤️ by the Kairon AI Team.
