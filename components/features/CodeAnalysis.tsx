@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useEffect } from 'react';
+import Editor from '@monaco-editor/react';
 import { useAppContext } from '../../context/AppContext';
 import { useApi } from '../../hooks/useApi';
 import { generateCodeAnalysis, explainCodeAnalysis } from '../../services/geminiService';
@@ -10,6 +11,16 @@ import { CodeAnalysisResult } from '../../types';
 import { MarkdownRenderer } from '../ui/MarkdownRenderer';
 
 type ArtifactType = 'code' | 'algorithm' | 'pseudocode' | 'flowchart';
+
+const RUNTIME_LANGUAGES = [
+    { label: 'Python', value: 'python' },
+    { label: 'JavaScript', value: 'javascript' },
+    { label: 'TypeScript', value: 'typescript' },
+    { label: 'Java', value: 'java' },
+    { label: 'Go', value: 'go' },
+    { label: 'Rust', value: 'rust' },
+    { label: 'C++', value: 'c++' },
+];
 
 const CodeAnalysis: React.FC = () => {
     const { 
@@ -24,6 +35,11 @@ const CodeAnalysis: React.FC = () => {
     const [code, setCode] = useState(activeProject?.codeSnippet || '');
     const [mermaidTheme, setMermaidTheme] = useState<'dark' | 'default'>('dark');
     
+    // Execution State
+    const [languageRuntime, setLanguageRuntime] = useState('python');
+    const [output, setOutput] = useState('');
+    const [isRunning, setIsRunning] = useState(false);
+
     // Explanation State
     const [explanationArtifact, setExplanationArtifact] = useState('');
     const [explanationType, setExplanationType] = useState<ArtifactType>('code');
@@ -67,6 +83,36 @@ const CodeAnalysis: React.FC = () => {
         return () => window.removeEventListener('keydown', handleEsc);
     }, []);
 
+    const handleRunCode = async () => {
+        if (!code.trim()) return;
+        setIsRunning(true);
+        setOutput('');
+        
+        try {
+            // Using Piston API for code execution
+            const response = await fetch('https://emkc.org/api/v2/piston/execute', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    language: languageRuntime,
+                    version: '*',
+                    files: [{ content: code }]
+                })
+            });
+            
+            const data = await response.json();
+            if (data.run) {
+                setOutput(data.run.output || 'Code executed successfully with no output.');
+            } else {
+                setOutput('Error: Could not execute code. Please check syntax.');
+            }
+        } catch (e: any) {
+            setOutput(`Execution Failed: ${e.message}`);
+        } finally {
+            setIsRunning(false);
+        }
+    };
+
     const handleGenerate = useCallback(async () => {
         if (!code.trim()) {
             addNotification('Please paste code to analyze.', 'info');
@@ -106,7 +152,6 @@ const CodeAnalysis: React.FC = () => {
                 });
             }
         } catch (e: any) {
-            // FIX: Changed 'warning' to 'error' to match NotificationType
             addNotification("Analysis generated, but failed to save to project: " + e.message, 'error');
         }
         
@@ -152,18 +197,64 @@ const CodeAnalysis: React.FC = () => {
 
     return (
         <div className="space-y-6">
-            <Card title="Code Analysis & Generation">
+            <Card title="Interactive Code Sandbox">
                 <div className="space-y-4">
-                    <textarea
-                        value={code}
-                        onChange={(e) => setCode(e.target.value)}
-                        placeholder="// Paste your code here (e.g., Python, JavaScript, Java)..."
-                        className="w-full h-48 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-md p-3 text-slate-800 dark:text-slate-300 font-mono text-sm focus:ring-2 focus:ring-red-500 focus:outline-none transition"
-                        disabled={isAnalyzing}
-                    />
-                    <Button onClick={handleGenerate} disabled={!code.trim() || isAnalyzing} className="w-full">
-                        {isAnalyzing ? 'Analyzing Code...' : 'Generate Algorithm, Pseudocode & Flowchart'}
-                    </Button>
+                    <div className="flex flex-col sm:flex-row gap-4 justify-between items-center bg-slate-100 dark:bg-slate-800 p-2 rounded-md">
+                        <div className="flex items-center gap-2">
+                             <span className="text-sm font-medium text-slate-600 dark:text-slate-300">Language:</span>
+                             <select 
+                                value={languageRuntime}
+                                onChange={(e) => setLanguageRuntime(e.target.value)}
+                                className="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200 text-sm rounded-md focus:ring-red-500 focus:border-red-500 block p-1.5"
+                            >
+                                {RUNTIME_LANGUAGES.map(lang => (
+                                    <option key={lang.value} value={lang.value}>{lang.label}</option>
+                                ))}
+                            </select>
+                        </div>
+                        <div className="flex gap-2 w-full sm:w-auto">
+                            <Button onClick={handleRunCode} disabled={!code.trim() || isRunning} className="text-xs sm:text-sm px-3 py-1.5 bg-green-600 hover:bg-green-700 w-full sm:w-auto">
+                                {isRunning ? 'Running...' : '▶ Run Code'}
+                            </Button>
+                            <Button onClick={handleGenerate} disabled={!code.trim() || isAnalyzing} variant="secondary" className="text-xs sm:text-sm px-3 py-1.5 w-full sm:w-auto">
+                                {isAnalyzing ? 'Analyzing...' : 'Generate Analysis'}
+                            </Button>
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                        {/* Editor Panel */}
+                        <div className="h-80 border border-slate-300 dark:border-slate-700 rounded-md overflow-hidden">
+                            <Editor
+                                height="100%"
+                                language={languageRuntime}
+                                theme="vs-dark"
+                                value={code}
+                                onChange={(value) => setCode(value || '')}
+                                options={{
+                                    minimap: { enabled: false },
+                                    fontSize: 14,
+                                    scrollBeyondLastLine: false,
+                                    automaticLayout: true,
+                                }}
+                            />
+                        </div>
+
+                        {/* Output Console */}
+                        <div className="h-80 flex flex-col bg-black rounded-md border border-slate-700 overflow-hidden font-mono text-sm">
+                            <div className="bg-slate-900 px-3 py-2 border-b border-slate-700 text-xs text-slate-400 font-bold uppercase tracking-wider flex justify-between">
+                                <span>Console Output</span>
+                                {output && <button onClick={() => setOutput('')} className="hover:text-white">Clear</button>}
+                            </div>
+                            <div className="flex-1 p-3 overflow-auto text-green-400 whitespace-pre-wrap">
+                                {isRunning ? (
+                                    <span className="animate-pulse">Executing script...</span>
+                                ) : (
+                                    output || <span className="text-slate-600 italic">// Output will appear here</span>
+                                )}
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </Card>
 
