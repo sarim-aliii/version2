@@ -4,11 +4,24 @@ import { useAppContext } from '../../context/AppContext';
 import { ProjectHistory } from './ProjectHistory';
 import { FocusTimer } from '../features/FocusTimer';
 import { FeedbackModal } from '../features/FeedbackModal';
-import { LANGUAGE_OPTIONS } from '../constants/languages'
+import { LANGUAGE_OPTIONS } from '../constants/languages';
+import { Tab } from '../../types';
 
 
 export const Sidebar: React.FC = () => {
-    const { isSidebarCollapsed, toggleSidebar, language, setLanguage, llm, setLlm, theme, toggleTheme, currentUser, addNotification } = useAppContext();
+    const { 
+        isSidebarCollapsed, 
+        language, 
+        setLanguage, 
+        llm, 
+        setLlm, 
+        theme, 
+        toggleTheme, 
+        currentUser, 
+        setActiveTab, 
+        activeTab,
+        addNotification
+    } = useAppContext();
 
     const [isFeedbackOpen, setIsFeedbackOpen] = useState(false);
 
@@ -41,7 +54,24 @@ export const Sidebar: React.FC = () => {
                                     style={{ width: `${xpProgress}%` }}
                                 ></div>
                             </div>
-                            <p className="text-xs text-slate-500 dark:text-slate-400 text-right">{xpProgress} / 100 XP</p>
+                            <div className="flex justify-between items-center mt-2">
+                                <p className="text-xs text-slate-500 dark:text-slate-400">{xpProgress} / 100 XP</p>
+                                
+                                {/* NEW: Leaderboard Button */}
+                                <button 
+                                    onClick={() => setActiveTab(Tab.Leaderboard)}
+                                    className={`text-xs font-bold px-2 py-1 rounded transition-colors flex items-center gap-1 ${
+                                        activeTab === Tab.Leaderboard 
+                                        ? 'bg-yellow-500/20 text-yellow-500' 
+                                        : 'text-slate-500 hover:text-yellow-500 dark:text-slate-400 dark:hover:text-yellow-400'
+                                    }`}
+                                >
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
+                                        <path d="M2 11a1 1 0 011-1h2a1 1 0 011 1v5a1 1 0 01-1 1H3a1 1 0 01-1-1v-5zM8 7a1 1 0 011-1h2a1 1 0 011 1v9a1 1 0 01-1 1H9a1 1 0 01-1-1V7zM14 4a1 1 0 011-1h2a1 1 0 011 1v12a1 1 0 01-1 1h-2a1 1 0 01-1-1V4z" />
+                                    </svg>
+                                    Leaderboard
+                                </button>
+                            </div>
                         </div>
                     )}
 

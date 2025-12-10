@@ -17,6 +17,15 @@ export interface SearchResult {
   projectId?: string;
 }
 
+export interface LeaderboardUser {
+  _id: string;
+  name: string;
+  avatar: string;
+  xp: number;
+  level: number;
+  currentStreak: number;
+}
+
 const API_URL = '/api';
 
 const api = axios.create({
@@ -268,6 +277,16 @@ export const generatePodcastScript = async (llm: string, projectId: string, lang
 
 export const resendVerification = async (email: string) => {
   const response = await axiosInstance.post('/auth/resend-verification', { email });
+  return response.data;
+};
+
+export const getLeaderboard = async (): Promise<LeaderboardUser[]> => {
+  const response = await axiosInstance.get('/social/leaderboard');
+  return response.data;
+};
+
+export const shareProjectWithUser = async (projectId: string, email: string) => {
+  const response = await axiosInstance.post(`/projects/${projectId}/share`, { email });
   return response.data;
 };
 

@@ -10,11 +10,12 @@ import {
     MCQ,
     CodeAnalysisResult,
     Todo
-} from '../../../types';
+} from '../../../types'; // Verify this path matches your structure
 
+// Interface definition for TypeScript
 interface IStudyProject {
   name: string;
-  owner: mongoose.Schema.Types.ObjectId;
+  owner: mongoose.Types.ObjectId; // Correct type for an ObjectId instance
   ingestedText: string;
   status: 'processing' | 'ready' | 'error';
   summary?: string;
@@ -34,13 +35,20 @@ interface IStudyProject {
   todos?: Todo[];
   chunks?: string[];
   embeddings?: number[][];
+  
+  // Social Features
+  sharedWith: mongoose.Types.ObjectId[]; 
+  
+  // Timestamps (Managed by Mongoose)
+  createdAt: Date;
+  updatedAt: Date;
 }
-
 
 interface IStudyProjectMethods {}
 
 export interface IStudyProjectDocument extends IStudyProject, IStudyProjectMethods, Document {}
 
+// Schema for Sub-documents
 const FlashcardSchema = new Schema({
     id: String,
     question: String,
@@ -52,6 +60,7 @@ const FlashcardSchema = new Schema({
 
 interface IStudyProjectModel extends Model<IStudyProjectDocument> {}
 
+// Main Schema Definition
 const studyProjectSchema = new Schema<IStudyProjectDocument, IStudyProjectModel>({
   name: { type: String, required: true, trim: true },
   owner: { type: Schema.Types.ObjectId, required: true, ref: 'User' },
@@ -74,8 +83,12 @@ const studyProjectSchema = new Schema<IStudyProjectDocument, IStudyProjectModel>
   todos: { type: [Object], default: [] },
   chunks: { type: [String], default: [] }, 
   embeddings: { type: [[Number]], default: [] },
+  
+  // Shared Users
+  sharedWith: [{ type: Schema.Types.ObjectId, ref: 'User' }],
+  
 }, {
-  timestamps: true,
+  timestamps: true, // Automatically manages createdAt and updatedAt
 });
 
 const StudyProject = mongoose.model<IStudyProjectDocument, IStudyProjectModel>('StudyProject', studyProjectSchema);

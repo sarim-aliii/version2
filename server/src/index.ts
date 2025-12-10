@@ -18,6 +18,7 @@ import feedbackRoutes from './routes/feedbackRoutes';
 
 import { errorHandler } from './middleware/errorMiddleware';
 import { AppError } from './utils/AppError';
+import socialRoutes from './routes/socialRoutes';
 
 // Connect to database
 connectDB();
@@ -56,6 +57,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/projects', projectRoutes);
 app.use('/api/gemini', geminiRoutes);
 app.use('/api/feedback', feedbackRoutes);
+app.use('/api/social', socialRoutes);
 
 // 2. Handle Unhandled API Routes
 // This ensures missing API endpoints return JSON 404 instead of the HTML frontend

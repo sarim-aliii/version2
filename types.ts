@@ -93,6 +93,7 @@ export enum Tab {
     ConceptMap = 'Concept Map',
     LessonPlanner = 'Lesson Planner',
     StudyPlanner = 'Study Planner',
+    Leaderboard = 'Leaderboard',
     Profile = 'Profile',
 }
 

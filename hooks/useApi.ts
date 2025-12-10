@@ -1,9 +1,8 @@
-// hooks/useApi.ts
 import { useState, useCallback } from 'react';
 import toast from 'react-hot-toast';
 import { getErrorMessage } from '../utils/errorHandler';
 
-// Generic type T for the data, P for the parameters
+
 export const useApi = <T, P extends any[]>(
   apiFunc: (...args: P) => Promise<T>,
   successMessage?: string

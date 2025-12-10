@@ -22,6 +22,9 @@ import { ProfilePage } from './components/features/ProfilePage';
 import CodeAnalysis from './components/features/CodeAnalysis';
 import { InterviewPrep } from './components/features/InterviewPrep';
 import { AudioDeepDive } from './components/features/AudioDeepDive';
+import { Leaderboard } from './components/features/Leaderboard';
+
+
 
 // Auth
 import { AuthManager } from './components/auth/AuthManager';
@@ -47,6 +50,7 @@ const MainContent: React.FC = () => {
       case Tab.CodeAnalysis: return <CodeAnalysis />;
       case Tab.InterviewPrep: return <InterviewPrep />;
       case Tab.AudioDeepDive: return <AudioDeepDive />;
+      case Tab.Leaderboard: return <Leaderboard />;
       case Tab.Profile: return <ProfilePage />;
       default: return <Ingest />;
     }
