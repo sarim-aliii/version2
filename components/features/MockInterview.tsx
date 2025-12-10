@@ -1,5 +1,6 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useAppContext } from '../../context/AppContext';
+import { useApi } from '../../hooks/useApi'; // 1. Import hook
 import { conductMockInterview } from '../../services/geminiService';
 import { Button } from '../ui/Button';
 import { Card } from '../ui/Card';
@@ -19,76 +20,88 @@ export const MockInterview: React.FC<MockInterviewProps> = ({ topic, onClose }) 
     
     const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
     const [currentMessage, setCurrentMessage] = useState('');
-    const [isLoading, setIsLoading] = useState(false);
     
     const chatContainerRef = useRef<HTMLDivElement>(null);
+
+    // --- API HOOKS ---
+
+    // 1. Hook for Starting Interview
+    const { 
+        execute: initInterview, 
+        loading: isStarting, 
+        data: startData 
+    } = useApi(conductMockInterview);
+
+    // 2. Hook for Sending Messages
+    const { 
+        execute: sendMessage, 
+        loading: isSending, 
+        data: chatResponse 
+    } = useApi(conductMockInterview);
+
 
     useEffect(() => {
         if (chatContainerRef.current) {
             chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
         }
-    }, [chatHistory]);
+    }, [chatHistory, isSending]); // Scroll when sending too
+
+    // Effect to handle start interview response
+    useEffect(() => {
+        if (startData && status === 'active' && chatHistory.length === 0) {
+             const initialPrompt = "Hello, I am ready for the interview.";
+             setChatHistory([
+                { role: 'user', content: initialPrompt }, 
+                { role: 'model', content: startData }
+            ]);
+        }
+    }, [startData, status, chatHistory.length]);
+
+    // Effect to handle chat response
+    useEffect(() => {
+        if (chatResponse) {
+             setChatHistory(prev => [...prev, { role: 'model', content: chatResponse }]);
+             
+             // Check if we need to switch to feedback mode based on the *previous* user message
+             // (This is a bit tricky with async updates, but checking the response content or specific flags from backend is safer. 
+             // For now, we rely on the logic inside handleSendMessage to set status)
+        }
+    }, [chatResponse]);
+
 
     const startInterview = async () => {
         setStatus('active');
-        setIsLoading(true);
         // Initial context seeding
         const initialPrompt = "Hello, I am ready for the interview.";
         
-        try {
-            // FIX: Pass empty history for the very first turn
-            const response = await conductMockInterview(llm, topic, initialPrompt, [], language, difficulty);
-            
-            // Manually set state to include the hidden initial prompt + AI response
-            setChatHistory([
-                { role: 'user', content: initialPrompt }, 
-                { role: 'model', content: response }
-            ]);
-        } catch (e: any) {
-            console.error(e);
-            addNotification("Failed to start interview. Check console for details.", "error");
-            setStatus('setup');
-        } finally {
-            setIsLoading(false);
-        }
+        // Use hook
+        await initInterview(llm, topic, initialPrompt, [], language, difficulty);
     };
 
     const handleSendMessage = async () => {
         if (!currentMessage.trim()) return;
 
-        // 1. Create the new history for the UI immediately
         const userMsg: ChatMessage = { role: 'user', content: currentMessage };
         
-        // IMPORTANT: We do NOT send 'newHistory' to the backend. We send the OLD 'chatHistory'.
-        // The backend appends the current message to the history automatically.
+        // Update UI immediately with user message
         const newHistory = [...chatHistory, userMsg];
-        
-        setChatHistory(newHistory); // Update UI
+        setChatHistory(newHistory); 
         setCurrentMessage('');
-        setIsLoading(true);
 
-        try {
-            let response;
-            
-            // FIX: Pass 'chatHistory' (the history BEFORE this message), NOT 'newHistory'
-            if (currentMessage.toLowerCase().includes('end interview') || currentMessage.toLowerCase().includes('stop')) {
-                 response = await conductMockInterview(llm, topic, currentMessage, chatHistory, language, difficulty);
-                 setStatus('feedback');
-                 updateProgress(100, topic); 
-            } else {
-                 response = await conductMockInterview(llm, topic, currentMessage, chatHistory, language, difficulty);
-            }
+        // Determine if ending
+        const isEnding = currentMessage.toLowerCase().includes('end interview') || currentMessage.toLowerCase().includes('stop');
 
-            // 3. Update UI with the AI's response
-            setChatHistory(prev => [...prev, { role: 'model', content: response }]);
-
-        } catch (e: any) {
-             console.error(e);
-             addNotification("Failed to get response.", "error");
-        } finally {
-            setIsLoading(false);
+        if (isEnding) {
+             setStatus('feedback');
+             updateProgress(100, topic); 
         }
+
+        // Use hook to send message (passing OLD history as context)
+        await sendMessage(llm, topic, currentMessage, chatHistory, language, difficulty);
     };
+
+    // Combined loading state
+    const isLoading = isStarting || isSending;
 
     return (
         <Card title={`Mock Interview: ${topic}`} className="h-[600px] flex flex-col">
@@ -115,7 +128,9 @@ export const MockInterview: React.FC<MockInterviewProps> = ({ topic, onClose }) 
 
                     <div className="flex gap-4">
                         <Button onClick={onClose} variant="secondary">Cancel</Button>
-                        <Button onClick={startInterview}>Start Interview</Button>
+                        <Button onClick={startInterview} disabled={isStarting}>
+                            {isStarting ? 'Starting...' : 'Start Interview'}
+                        </Button>
                     </div>
                 </div>
             )}

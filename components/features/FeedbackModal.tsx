@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Button } from '../ui/Button';
 import { Loader } from '../ui/Loader';
+import { useApi } from '../../hooks/useApi'; // 1. Import the hook
 import { sendFeedback } from '../../services/api';
 
 interface FeedbackModalProps {
@@ -15,7 +16,12 @@ type FeedbackType = 'Bug' | 'Feature Request' | 'Other';
 export const FeedbackModal: React.FC<FeedbackModalProps> = ({ isOpen, onClose, addNotification }) => {
     const [type, setType] = useState<FeedbackType>('Bug');
     const [message, setMessage] = useState('');
-    const [isLoading, setIsLoading] = useState(false);
+
+    // 2. Setup the Hook
+    const { 
+        execute: submitFeedback, 
+        loading 
+    } = useApi(sendFeedback, "Feedback sent! Thank you.");
 
     if (!isOpen) return null;
 
@@ -26,16 +32,17 @@ export const FeedbackModal: React.FC<FeedbackModalProps> = ({ isOpen, onClose, a
             return;
         }
         
-        setIsLoading(true);
         try {
-            await sendFeedback(type, message);
-            addNotification("Feedback sent! Thank you.", "success");
+            // 3. Execute the hook
+            // The hook handles the API call, success toast, and error toast.
+            await submitFeedback(type, message);
+            
+            // If we get here, it succeeded
             setMessage('');
             onClose();
-        } catch (error: any) {
-            addNotification(error.message || "Failed to send feedback.", "error");
-        } finally {
-            setIsLoading(false);
+        } catch (error) {
+            // Hook handles the error notification, we just catch it 
+            // to prevent the modal from closing.
         }
     };
 
@@ -80,11 +87,11 @@ export const FeedbackModal: React.FC<FeedbackModalProps> = ({ isOpen, onClose, a
                     </div>
 
                     <div className="flex justify-end gap-3 pt-2">
-                        <Button type="button" onClick={onClose} variant="secondary" disabled={isLoading}>
+                        <Button type="button" onClick={onClose} variant="secondary" disabled={loading}>
                             Cancel
                         </Button>
-                        <Button type="submit" disabled={isLoading} className="flex items-center gap-2">
-                            {isLoading ? <Loader spinnerClassName="w-4 h-4" /> : 'Submit Feedback'}
+                        <Button type="submit" disabled={loading} className="flex items-center gap-2">
+                            {loading ? <Loader spinnerClassName="w-4 h-4" /> : 'Submit Feedback'}
                         </Button>
                     </div>
                 </form>

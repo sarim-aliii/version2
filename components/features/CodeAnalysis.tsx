@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { useAppContext } from '../../context/AppContext';
+import { useApi } from '../../hooks/useApi';
 import { generateCodeAnalysis, explainCodeAnalysis } from '../../services/geminiService';
 import { Button } from '../ui/Button';
 import { Card } from '../ui/Card';
@@ -16,31 +17,46 @@ const CodeAnalysis: React.FC = () => {
         language, 
         llm, 
         activeProject, 
-        updateActiveProjectData, 
         ingestText, 
         updateProjectData 
     } = useAppContext();
     
     const [code, setCode] = useState(activeProject?.codeSnippet || '');
-    const [analysisResult, setAnalysisResult] = useState<CodeAnalysisResult | null>(activeProject?.codeAnalysis || null);
-    const [isLoading, setIsLoading] = useState(false);
-    
     const [mermaidTheme, setMermaidTheme] = useState<'dark' | 'default'>('dark');
     
+    // Explanation State
     const [explanationArtifact, setExplanationArtifact] = useState('');
     const [explanationType, setExplanationType] = useState<ArtifactType>('code');
-    const [explanationResult, setExplanationResult] = useState<string | null>(null);
-    const [isExplaining, setIsExplaining] = useState(false);
 
-    // State for text fullscreen mode
+    // Fullscreen State
     const [expandedArtifact, setExpandedArtifact] = useState<{ title: string, content: string } | null>(null);
 
+    // --- API HOOKS ---
+
+    // 1. Analysis Hook
+    const { 
+        execute: runAnalysis, 
+        loading: isAnalyzing, 
+        data: analysisResult, 
+        setData: setAnalysisResult 
+    } = useApi(generateCodeAnalysis); 
+
+    // 2. Explanation Hook
+    const { 
+        execute: runExplanation, 
+        loading: isExplaining, 
+        data: explanationResult,
+        setData: setExplanationResult
+    } = useApi(explainCodeAnalysis);
+
+
+    // Sync Active Project Data with Hook State
     useEffect(() => {
         if (activeProject) {
             setCode(activeProject.codeSnippet || '');
             setAnalysisResult(activeProject.codeAnalysis || null);
         }
-    }, [activeProject]);
+    }, [activeProject, setAnalysisResult]);
 
     // Close fullscreen on Escape key
     useEffect(() => {
@@ -56,16 +72,18 @@ const CodeAnalysis: React.FC = () => {
             addNotification('Please paste code to analyze.', 'info');
             return;
         }
-        setIsLoading(true);
-        setAnalysisResult(null);
-        setExplanationResult(null);
         
-        try {
-            // 1. Generate the analysis first
-            const result = await generateCodeAnalysis(llm, code, language);
-            setAnalysisResult(result);
+        // Clear previous explanation when generating new analysis
+        setExplanationResult(null);
 
-            // 2. Handle Project Persistence
+        // 1. Run the Analysis (Hook handles loading & error toast)
+        const result = await runAnalysis(llm, code, language);
+
+        // If result is null, it failed. Stop here.
+        if (!result) return;
+
+        // 2. Handle Project Persistence
+        try {
             let targetProjectId = activeProject?._id;
 
             // If no project exists, create one now
@@ -73,7 +91,6 @@ const CodeAnalysis: React.FC = () => {
                 const projectName = `Code Analysis ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`;
                 
                 // Create project but DON'T redirect (pass false)
-                // We use the code itself as the "Ingested Text"
                 const newProject = await ingestText(projectName, code, false);
                 
                 if (newProject) {
@@ -88,30 +105,21 @@ const CodeAnalysis: React.FC = () => {
                     codeAnalysis: result 
                 });
             }
-
         } catch (e: any) {
-            addNotification(e.message);
-        } finally {
-            setIsLoading(false);
+            // FIX: Changed 'warning' to 'error' to match NotificationType
+            addNotification("Analysis generated, but failed to save to project: " + e.message, 'error');
         }
-    }, [code, addNotification, language, llm, activeProject, ingestText, updateProjectData]);
+        
+    }, [code, addNotification, language, llm, activeProject, ingestText, updateProjectData, runAnalysis, setExplanationResult]);
 
     const handleExplain = useCallback(async () => {
         if (!explanationArtifact.trim()) {
             addNotification(`Please provide the ${explanationType} to explain.`, 'info');
             return;
         }
-        setIsExplaining(true);
-        setExplanationResult(null);
-        try {
-            const result = await explainCodeAnalysis(llm, explanationArtifact, language, explanationType);
-            setExplanationResult(result);
-        } catch (e: any) {
-            addNotification(e.message);
-        } finally {
-            setIsExplaining(false);
-        }
-    }, [explanationArtifact, explanationType, addNotification, language, llm]);
+        // Hook handles loading, state update, and error toast
+        await runExplanation(llm, explanationArtifact, language, explanationType);
+    }, [explanationArtifact, explanationType, addNotification, language, llm, runExplanation]);
 
     const copyToExplain = (type: ArtifactType) => {
         if (analysisResult) {
@@ -122,7 +130,6 @@ const CodeAnalysis: React.FC = () => {
                 default: break;
             }
             setExplanationType(type);
-            // ADDED: Notification to inform user
             addNotification(`${type.charAt(0).toUpperCase() + type.slice(1)} copied to Explanation Tool. Scroll down to view.`, 'success');
         }
     }
@@ -152,15 +159,15 @@ const CodeAnalysis: React.FC = () => {
                         onChange={(e) => setCode(e.target.value)}
                         placeholder="// Paste your code here (e.g., Python, JavaScript, Java)..."
                         className="w-full h-48 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-md p-3 text-slate-800 dark:text-slate-300 font-mono text-sm focus:ring-2 focus:ring-red-500 focus:outline-none transition"
-                        disabled={isLoading}
+                        disabled={isAnalyzing}
                     />
-                    <Button onClick={handleGenerate} disabled={!code.trim() || isLoading} className="w-full">
-                        {isLoading ? 'Analyzing Code...' : 'Generate Algorithm, Pseudocode & Flowchart'}
+                    <Button onClick={handleGenerate} disabled={!code.trim() || isAnalyzing} className="w-full">
+                        {isAnalyzing ? 'Analyzing Code...' : 'Generate Algorithm, Pseudocode & Flowchart'}
                     </Button>
                 </div>
             </Card>
 
-            {isLoading && <Loader />}
+            {isAnalyzing && <Loader />}
 
             {analysisResult && (
                 <Card title="Generated Artifacts" className="fade-in">
@@ -247,7 +254,9 @@ const CodeAnalysis: React.FC = () => {
                     <Button onClick={handleExplain} disabled={!explanationArtifact.trim() || isExplaining} className="w-full">
                         {isExplaining ? 'Explaining...' : `Explain ${explanationType.charAt(0).toUpperCase() + explanationType.slice(1)}`}
                     </Button>
+                    
                     {isExplaining && <Loader />}
+                    
                     {explanationResult && (
                          <div className="fade-in mt-4">
                              <h4 className="text-lg font-semibold text-slate-800 dark:text-slate-200 mb-2">AI Explanation</h4>

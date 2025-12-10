@@ -1,5 +1,48 @@
+// server/src/controllers/projectController.ts
+
 import { Request, Response } from 'express';
 import StudyProject from '../models/StudyProject';
+import { GoogleGenerativeAI } from "@google/generative-ai";
+
+// Initialize Gemini (duplicating init here to keep controllers self-contained)
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
+
+// Helper to chunk text
+function chunkText(text: string, chunkSize: number = 1000): string[] {
+    if (!text) return [];
+    const chunks = [];
+    let currentChunk = "";
+    const sentences = text.split(/(?<=[.?!])\s+/);
+
+    for (const sentence of sentences) {
+        if ((currentChunk + sentence).length > chunkSize) {
+            chunks.push(currentChunk);
+            currentChunk = sentence;
+        } else {
+            currentChunk += (currentChunk ? " " : "") + sentence;
+        }
+    }
+    if (currentChunk) chunks.push(currentChunk);
+    return chunks;
+}
+
+// Helper to generate embeddings
+async function generateEmbeddings(text: string) {
+    const chunks = chunkText(text);
+    const embeddingModel = genAI.getGenerativeModel({ model: "text-embedding-004" });
+    
+    const embeddings: number[][] = [];
+    
+    // Process in batches to avoid rate limits
+    for (const chunk of chunks) {
+        // slight delay to be safe
+        await new Promise(resolve => setTimeout(resolve, 50)); 
+        const result = await embeddingModel.embedContent(chunk);
+        embeddings.push(result.embedding.values);
+    }
+    
+    return { chunks, embeddings };
+}
 
 // @desc    Get all projects for a user
 // @route   GET /api/projects
@@ -54,15 +97,22 @@ export const createProject = async (req: Request, res: Response) => {
 
   const { name, ingestedText } = req.body;
   try {
+    // 1. Generate Embeddings immediately on creation
+    const { chunks, embeddings } = await generateEmbeddings(ingestedText);
+
     const newProject = new StudyProject({
       name,
       ingestedText,
       owner: req.user.id,
+      chunks,      // Save chunks
+      embeddings,  // Save vectors
     });
+
     const savedProject = await newProject.save();
     res.status(201).json(savedProject);
   } catch (error) {
-    res.status(400).json({ message: 'Invalid project data' });
+    console.error(error);
+    res.status(400).json({ message: 'Invalid project data or AI Error' });
   }
 };
 
@@ -86,7 +136,6 @@ export const updateProject = async (req: Request, res: Response) => {
       return;
     }
     
-    // Whitelist fields that can be updated
     const { 
         name, 
         ingestedText,
@@ -101,11 +150,25 @@ export const updateProject = async (req: Request, res: Response) => {
         conceptMapData,
         codeSnippet,
         codeAnalysis,
-        todos // <--- ADD THIS
+        todos
     } = req.body;
 
     if (name) project.name = name;
-    if (ingestedText) project.ingestedText = ingestedText;
+    
+    // If text changes, regenerate embeddings
+    if (ingestedText && ingestedText !== project.ingestedText) {
+        project.ingestedText = ingestedText;
+        try {
+            const { chunks, embeddings } = await generateEmbeddings(ingestedText);
+            project.chunks = chunks;
+            project.embeddings = embeddings;
+        } catch (err) {
+            console.error("Failed to update embeddings:", err);
+            // Don't fail the whole request, just log it. 
+            // In prod, you might want to mark this project as 'processing_failed'
+        }
+    }
+
     if (summary) project.summary = summary;
     if (srsFlashcards) project.srsFlashcards = srsFlashcards;
     if (mcqAttempts) project.mcqAttempts = mcqAttempts;
@@ -117,7 +180,7 @@ export const updateProject = async (req: Request, res: Response) => {
     if (conceptMapData) project.conceptMapData = conceptMapData;
     if (codeSnippet) project.codeSnippet = codeSnippet;
     if (codeAnalysis) project.codeAnalysis = codeAnalysis;
-    if (todos) project.todos = todos; // <--- AND THIS
+    if (todos) project.todos = todos;
 
     const updatedProject = await project.save();
     res.json(updatedProject);

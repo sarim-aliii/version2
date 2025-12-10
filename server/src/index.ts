@@ -5,7 +5,8 @@ import rateLimit from 'express-rate-limit';
 import hpp from 'hpp';
 import cors from 'cors';
 
-import express, { Request, Response } from 'express';
+// 1. Added NextFunction to imports
+import express, { Request, Response, NextFunction } from 'express';
 import connectDB from './config/db';
 import path from 'path';
 
@@ -13,7 +14,10 @@ import path from 'path';
 import authRoutes from './routes/authRoutes';
 import projectRoutes from './routes/projectRoutes';
 import geminiRoutes from './routes/geminiRoutes';
-import feedbackRoutes from './routes/feedbackRoutes'; // <--- Import
+import feedbackRoutes from './routes/feedbackRoutes';
+
+import { errorHandler } from './middleware/errorMiddleware';
+import { AppError } from './utils/AppError';
 
 // Connect to database
 connectDB();
@@ -33,8 +37,6 @@ const globalLimiter = rateLimit({
 });
 app.use('/api', globalLimiter);
 
-// AI Specific Limiter (Stricter protection for expensive calls)
-// Allow 20 AI requests per 15 minutes per IP
 const aiLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
     max: 20, 
@@ -53,15 +55,25 @@ app.use(cors({
 app.use('/api/auth', authRoutes);
 app.use('/api/projects', projectRoutes);
 app.use('/api/gemini', geminiRoutes);
-app.use('/api/feedback', feedbackRoutes); // <--- Mount
+app.use('/api/feedback', feedbackRoutes);
+
+// 2. Handle Unhandled API Routes
+// This ensures missing API endpoints return JSON 404 instead of the HTML frontend
+app.all('/api/*', (req: Request, res: Response, next: NextFunction) => {
+    next(new AppError(`Route ${req.originalUrl} not found`, 404));
+});
 
 // Serve frontend in production
 if (process.env.NODE_ENV === 'production') {
     app.use(express.static(path.join(__dirname, '../../build')));
 
-    app.get('*', (req: Request, res: Response) => res.sendFile(path.resolve(__dirname, '../../build', 'index.html')));
+    app.get('*', (req: Request, res: Response) => 
+        res.sendFile(path.resolve(__dirname, '../../build', 'index.html'))
+    );
 }
 
+// 3. Global Error Handler (Must be the last middleware)
+app.use(errorHandler);
 
 const PORT = process.env.PORT || 5001;
 

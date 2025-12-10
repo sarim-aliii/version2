@@ -13,6 +13,7 @@ import {
     SimulationNodeDatum
 } from 'd3';
 import { useAppContext } from '../../context/AppContext';
+import { useApi } from '../../hooks/useApi'; // 1. Import the hook
 import { generateConceptMapData, generateConceptMapForTopic } from '../../services/geminiService';
 import { Button } from '../ui/Button';
 import { Card } from '../ui/Card';
@@ -20,6 +21,7 @@ import { Loader } from '../ui/Loader';
 import { ConceptMapData, ConceptNode, ConceptLink } from '../../types';
 import { EmptyState } from '../ui/EmptyState';
 
+// --- D3 Graph Component (Unchanged) ---
 interface D3GraphProps {
   data: ConceptMapData;
   isFullscreen: boolean;
@@ -176,14 +178,31 @@ const D3Graph: React.FC<D3GraphProps> = ({ data, isFullscreen }) => {
     return <svg ref={ref} className="w-full h-full min-h-[600px] bg-slate-950/50 rounded-md border border-slate-700 cursor-pointer"></svg>;
 };
 
+// --- Main ConceptMap Component ---
+
 export const ConceptMap: React.FC = () => {
     const { ingestedText, addNotification, language, llm } = useAppContext();
+    
+    // We keep mapData separate from the hooks because it can come from either hook
     const [mapData, setMapData] = useState<ConceptMapData | null>(null);
-    const [isLoading, setIsLoading] = useState(false);
     const [topic, setTopic] = useState('');
-    const [activeGenerator, setActiveGenerator] = useState<'text' | 'topic' | null>(null);
     const [isFullscreen, setIsFullscreen] = useState(false);
     const mapContainerRef = useRef<HTMLDivElement>(null);
+
+    // --- API HOOKS ---
+
+    // 1. Hook for generating from Ingested Text
+    const { 
+        execute: generateFromText, 
+        loading: textLoading 
+    } = useApi(generateConceptMapData, "Map generated from text!");
+
+    // 2. Hook for generating from Topic
+    const { 
+        execute: generateFromTopic, 
+        loading: topicLoading 
+    } = useApi(generateConceptMapForTopic, "Map generated from topic!");
+
 
     useEffect(() => {
         const handleFullscreenChange = () => {
@@ -204,62 +223,55 @@ export const ConceptMap: React.FC = () => {
         }
     };
 
+    // Helper to clean up bad links (nodes that don't exist)
+    const sanitizeData = (result: ConceptMapData): ConceptMapData => {
+        if (result && result.nodes && result.links) {
+            const nodeIds = new Set(result.nodes.map(n => n.id));
+            const sanitizedLinks = result.links.filter(link => 
+                nodeIds.has(link.source as string) && nodeIds.has(link.target as string)
+            );
+            return { nodes: result.nodes, links: sanitizedLinks };
+        }
+        return result;
+    };
+
     const handleBuildMap = useCallback(async () => {
         if (!ingestedText) {
             addNotification('Please ingest some text first.', 'info');
             return;
         }
-        setIsLoading(true);
-        setActiveGenerator('text');
+        
+        // Reset current map to show loading state cleanly
         setMapData(null);
-        try {
-            const result = await generateConceptMapData(llm, ingestedText, language);
-            if (result && result.nodes && result.links) {
-                const nodeIds = new Set(result.nodes.map(n => n.id));
-                const sanitizedLinks = result.links.filter(link => 
-                    nodeIds.has(link.source as string) && nodeIds.has(link.target as string)
-                );
-                setMapData({ nodes: result.nodes, links: sanitizedLinks });
-            } else {
-                setMapData(result);
-            }
-        } catch (e: any) {
-            addNotification(e.message);
-        } finally {
-            setIsLoading(false);
-            setActiveGenerator(null);
+        
+        // Call Hook 1
+        const result = await generateFromText(llm, ingestedText, language);
+        
+        // Process and set data
+        if (result) {
+            setMapData(sanitizeData(result));
         }
-    }, [ingestedText, addNotification, language, llm]);
+    }, [ingestedText, addNotification, language, llm, generateFromText]);
 
     const handleGenerateFromTopic = useCallback(async () => {
         if (!topic.trim()) {
             addNotification('Please enter a topic.', 'info');
             return;
         }
-        setIsLoading(true);
-        setActiveGenerator('topic');
-        setMapData(null);
-        try {
-            const result = await generateConceptMapForTopic(llm, topic, language);
-            if (result && result.nodes && result.links) {
-                const nodeIds = new Set(result.nodes.map(n => n.id));
-                const sanitizedLinks = result.links.filter(link => 
-                    nodeIds.has(link.source as string) && nodeIds.has(link.target as string)
-                );
-                setMapData({ nodes: result.nodes, links: sanitizedLinks });
-            } else {
-                setMapData(result);
-            }
-        } catch (e: any) {
-            addNotification(e.message);
-        } finally {
-            setIsLoading(false);
-            setActiveGenerator(null);
-        }
-    }, [topic, addNotification, language, llm]);
 
-    const isTextLoading = isLoading && activeGenerator === 'text';
-    const isTopicLoading = isLoading && activeGenerator === 'topic';
+        setMapData(null);
+
+        // Call Hook 2
+        const result = await generateFromTopic(llm, topic, language);
+
+        // Process and set data
+        if (result) {
+            setMapData(sanitizeData(result));
+        }
+    }, [topic, addNotification, language, llm, generateFromTopic]);
+
+    // Combined loading state
+    const isLoading = textLoading || topicLoading;
 
     if (!ingestedText && !mapData) {
         return (
@@ -279,7 +291,7 @@ export const ConceptMap: React.FC = () => {
                                 disabled={isLoading}
                             />
                             <Button onClick={handleGenerateFromTopic} variant="secondary" disabled={!topic.trim() || isLoading} className="flex-shrink-0">
-                                {isTopicLoading ? 'Building...' : 'Generate'}
+                                {topicLoading ? 'Building...' : 'Generate'}
                             </Button>
                         </div>
                     </div>
@@ -297,7 +309,7 @@ export const ConceptMap: React.FC = () => {
             <div className="space-y-6">
                 <div className="flex flex-col sm:flex-row gap-4 items-center">
                     <Button onClick={handleBuildMap} disabled={!ingestedText || isLoading} className="w-full sm:w-auto">
-                        {isTextLoading ? 'Building from text...' : 'Build from Ingested Text'}
+                        {textLoading ? 'Building from text...' : 'Build from Ingested Text'}
                     </Button>
                     <div className="w-full flex items-center gap-2">
                         <input
@@ -309,11 +321,13 @@ export const ConceptMap: React.FC = () => {
                             disabled={isLoading}
                         />
                         <Button onClick={handleGenerateFromTopic} variant="secondary" disabled={!topic.trim() || isLoading} className="flex-shrink-0">
-                            {isTopicLoading ? 'Building...' : 'Generate'}
+                            {topicLoading ? 'Building...' : 'Generate'}
                         </Button>
                     </div>
                 </div>
+                
                 {isLoading && <Loader />}
+                
                 {mapData && mapData.nodes.length > 0 && (
                     <div ref={mapContainerRef} className="relative fade-in bg-slate-950">
                         <button onClick={toggleFullscreen} className="absolute top-2 right-2 z-10 p-2 bg-slate-800/50 hover:bg-red-600 rounded-full text-slate-300 hover:text-white transition-colors" aria-label={isFullscreen ? 'Exit full-screen' : 'Enter full-screen'}>

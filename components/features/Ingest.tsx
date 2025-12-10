@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useAppContext } from '../../context/AppContext';
+import { useApi } from '../../hooks/useApi'; // 1. Import hook
 import { Button } from '../ui/Button';
 import { Card } from '../ui/Card';
 import { FileUploader } from '../ui/FileUploader';
@@ -25,8 +26,34 @@ export const Ingest: React.FC = () => {
   const [chunkWords, setChunkWords] = useState(837);
   const [chunkOverlap, setChunkOverlap] = useState(254);
   const [topic, setTopic] = useState('');
-  const [isSeeding, setIsSeeding] = useState(false);
+  
+  // We keep manual loading for file extraction because it involves FileReader + parallel API calls
   const [isExtracting, setIsExtracting] = useState(false);
+
+  // --- API HOOKS ---
+
+  // 1. Auto-seed Hook
+  const { 
+    execute: seedTopic, 
+    loading: isSeeding 
+  } = useApi(fetchTopicInfo, "Topic auto-seeded!");
+
+  // 2. Ingest/Save Hook
+  // We define a wrapper function to handle the logic between updating vs creating
+  const saveProjectLogic = useCallback(async (name: string, text: string) => {
+        if (activeProjectId) {
+            await updateActiveProjectData({ ingestedText: text });
+            setActiveTab(Tab.Summary);
+        } else {
+            await ingestText(name, text);
+        }
+  }, [activeProjectId, updateActiveProjectData, ingestText, setActiveTab]);
+
+  const { 
+    execute: saveProject, 
+    loading: isSaving 
+  } = useApi(saveProjectLogic, "Study material ingested successfully!");
+
 
   // Helper to recover filenames from the persisted text format
   const extractFileNames = (text: string) => {
@@ -35,7 +62,7 @@ export const Ingest: React.FC = () => {
     return matches.map(m => m[1]);
   };
 
-  // Restore state from context when component mounts or activeProject changes
+  // Restore state from context
   useEffect(() => {
     if (ingestedText) {
       setPastedText(ingestedText);
@@ -55,7 +82,6 @@ export const Ingest: React.FC = () => {
     'application/vnd.openxmlformats-officedocument.presentationml.presentation': ['.pptx'],
     'application/vnd.ms-powerpoint': ['.ppt'],
     'text/plain': ['.txt'],
-    // Image formats for Vision/OCR
     'image/png': ['.png'],
     'image/jpeg': ['.jpg', '.jpeg'],
     'image/webp': ['.webp'],
@@ -96,9 +122,10 @@ export const Ingest: React.FC = () => {
             file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
             file.type === 'application/vnd.openxmlformats-officedocument.presentationml.presentation' ||
             file.type === 'application/vnd.ms-powerpoint' ||
-            file.type.startsWith('image/') // Handle Images
+            file.type.startsWith('image/')
           ) {
             const base64Data = await fileToBase64(file);
+            // Direct service call here because of the loop structure
             fileText = await extractTextFromFile(llm, base64Data, file.type);
           }
           else {
@@ -117,9 +144,10 @@ export const Ingest: React.FC = () => {
     try {
       const allTextContents = await Promise.all(fileProcessingPromises);
       setPastedText(allTextContents.join('').trim());
+      addNotification(`Successfully processed ${files.length} file(s).`, 'success');
     }
     catch (e: any) {
-      addNotification(e.message);
+      addNotification(e.message, 'error');
     }
     finally {
       setIsExtracting(false);
@@ -131,17 +159,13 @@ export const Ingest: React.FC = () => {
       addNotification('Please enter a topic to auto-seed.', 'info');
       return;
     }
-    setIsSeeding(true);
-    try {
-      const notes = await fetchTopicInfo(llm, topic, language);
+    
+    // Use hook
+    const notes = await seedTopic(llm, topic, language);
+    
+    if (notes) {
       setPastedText(notes);
       setFileNames([`notes_on_${topic.replace(/\s+/g, '_')}.txt`]);
-    }
-    catch (e: any) {
-      addNotification(e.message);
-    }
-    finally {
-      setIsSeeding(false);
     }
   };
 
@@ -161,19 +185,8 @@ export const Ingest: React.FC = () => {
       projectName = `Notes ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}`;
     }
 
-    if (activeProjectId) {
-        try {
-            await updateActiveProjectData({ 
-                ingestedText: pastedText,
-            });
-            addNotification("Project updated successfully.", "success");
-            setActiveTab(Tab.Summary);
-        } catch (e: any) {
-            addNotification(e.message || "Failed to update project.");
-        }
-    } else {
-        await ingestText(projectName, pastedText);
-    }
+    // Use hook
+    await saveProject(projectName, pastedText);
   };
 
   return (
@@ -218,7 +231,6 @@ export const Ingest: React.FC = () => {
         </div>
       </Card>
 
-
       <div className="flex items-center space-x-4">
         <hr className="flex-grow border-slate-700" />
         <span className="text-slate-400 text-sm">Or paste notes here</span>
@@ -239,8 +251,8 @@ export const Ingest: React.FC = () => {
           <Slider label="Chunk words" min={200} max={1200} value={chunkWords} onChange={setChunkWords} />
           <Slider label="Chunk overlap" min={0} max={400} value={chunkOverlap} onChange={setChunkOverlap} />
           <div className="pt-2">
-            <Button onClick={handleIngest} disabled={!pastedText.trim() || isExtracting}>
-                {isExtracting ? 'Processing file(s)...' : (activeProjectId ? 'Update Project Content' : 'Ingest & Build Index')}
+            <Button onClick={handleIngest} disabled={!pastedText.trim() || isExtracting || isSaving}>
+                {isExtracting ? 'Processing file(s)...' : isSaving ? 'Saving Project...' : (activeProjectId ? 'Update Project Content' : 'Ingest & Build Index')}
             </Button>
           </div>
         </div>

@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { useAppContext } from '../../context/AppContext';
+import { useApi } from '../../hooks/useApi'; // 1. Import hook
 import { generateMCQs, generatePersonalizedStudyGuide } from '../../services/geminiService';
 import { Button } from '../ui/Button';
 import { Card } from '../ui/Card';
@@ -9,6 +10,7 @@ import { EmptyState } from '../ui/EmptyState';
 
 type Difficulty = 'Easy' | 'Medium' | 'Hard';
 
+// --- MCQItem Component (Unchanged) ---
 interface MCQItemProps {
     mcq: MCQType;
     index: number;
@@ -69,7 +71,7 @@ const MCQItem: React.FC<MCQItemProps> = ({ mcq, index, onAnswer, userAnswer }) =
     );
 };
 
-
+// --- Main MCQ Component ---
 export const MCQ: React.FC = () => {
     const { ingestedText, addNotification, language, llm, activeProject, updateActiveProjectData, updateProgress } = useAppContext();
     
@@ -77,16 +79,29 @@ export const MCQ: React.FC = () => {
     const [mcqs, setMcqs] = useState<MCQType[]>(activeProject?.currentMcqs || []);
     const [history, setHistory] = useState<MCQAttempt[]>(activeProject?.mcqAttempts || []);
     
-    const [isLoading, setIsLoading] = useState(false);
     const [userAnswers, setUserAnswers] = useState<Record<number, string>>({});
     const [difficulty, setDifficulty] = useState<Difficulty>('Medium');
 
-    // State for Adaptive Learning
-    const [isGeneratingGuide, setIsGeneratingGuide] = useState(false);
+    // Adaptive Learning State
     const [personalizedGuide, setPersonalizedGuide] = useState<string | null>(null);
 
     // Track project ID to prevent clearing answers when switching tabs within the same project
     const [loadedProjectId, setLoadedProjectId] = useState<string | null>(activeProject?._id || null);
+
+    // --- API HOOKS ---
+
+    // 1. Generate MCQs Hook
+    const { 
+        execute: generateQuiz, 
+        loading: isGeneratingQuiz 
+    } = useApi(generateMCQs); // We handle success toast manually
+
+    // 2. Generate Guide Hook
+    const { 
+        execute: generateGuide, 
+        loading: isGeneratingGuide 
+    } = useApi(generatePersonalizedStudyGuide);
+
 
     useEffect(() => {
         if (activeProject) {
@@ -123,23 +138,25 @@ export const MCQ: React.FC = () => {
             addNotification('Please ingest some text first.', 'info');
             return;
         }
-        setIsLoading(true);
+        
         // Explicitly reset answers when generating NEW questions
         setUserAnswers({});
         setPersonalizedGuide(null);
         setMcqs([]); 
         
-        try {
-            const result = await generateMCQs(llm, ingestedText, language, difficulty);
+        // Use hook
+        const result = await generateQuiz(llm, ingestedText, language, difficulty);
+        
+        if (result) {
             setMcqs(result);
             // Save generated MCQs to DB
-            await updateActiveProjectData({ currentMcqs: result });
-        } catch (e: any) {
-            addNotification(e.message);
-        } finally {
-            setIsLoading(false);
+            try {
+                await updateActiveProjectData({ currentMcqs: result });
+            } catch (e) {
+                // Silently fail or log, user still sees quiz
+            }
         }
-    }, [ingestedText, addNotification, language, difficulty, llm, updateActiveProjectData]);
+    }, [ingestedText, addNotification, language, difficulty, llm, updateActiveProjectData, generateQuiz]);
 
     const handleAnswer = async (questionIndex: number, answer: string) => {
         const newAnswers = { ...userAnswers, [questionIndex]: answer };
@@ -179,20 +196,16 @@ export const MCQ: React.FC = () => {
 
     const handleGeneratePersonalizedGuide = useCallback(async () => {
         if (!ingestedText || incorrectMCQs.length === 0) return;
-        setIsGeneratingGuide(true);
+        
         setPersonalizedGuide(null);
-        try {
-            const guide = await generatePersonalizedStudyGuide(llm, ingestedText, incorrectMCQs, language);
+        
+        // Use hook
+        const guide = await generateGuide(llm, ingestedText, incorrectMCQs, language);
+        
+        if (guide) {
             setPersonalizedGuide(guide);
-        } 
-        catch (e: any)
-        {
-            addNotification(e.message);
-        } 
-        finally {
-            setIsGeneratingGuide(false);
         }
-    }, [ingestedText, incorrectMCQs, language, addNotification, llm]);
+    }, [ingestedText, incorrectMCQs, language, llm, generateGuide]);
 
     if (!ingestedText) {
         return <EmptyState 
@@ -220,11 +233,11 @@ export const MCQ: React.FC = () => {
                                 ))}
                             </div>
                         </div>
-                        <Button onClick={handleGenerateMCQs} disabled={isLoading} className="w-full sm:w-auto">
-                            {isLoading ? 'Generating...' : mcqs.length > 0 ? 'Generate New Quiz' : 'Generate MCQs'}
+                        <Button onClick={handleGenerateMCQs} disabled={isGeneratingQuiz} className="w-full sm:w-auto">
+                            {isGeneratingQuiz ? 'Generating...' : mcqs.length > 0 ? 'Generate New Quiz' : 'Generate MCQs'}
                         </Button>
                     </div>
-                    {isLoading && <Loader />}
+                    {isGeneratingQuiz && <Loader />}
                     {mcqs.length > 0 && (
                         <div className="space-y-4 fade-in">
                             {mcqs.map((mcq, index) => (

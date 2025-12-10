@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { LoginPage } from './LoginPage';
 import { SignUpPage } from './SignUpPage';
 import { ForgotPasswordPage } from './ForgotPasswordPage';
@@ -11,6 +11,19 @@ export const AuthManager: React.FC = () => {
     const [view, setView] = useState<AuthView>('login');
     const [userEmail, setUserEmail] = useState('');
     const [resetToken, setResetToken] = useState('');
+
+    // Check for token in URL on mount (e.g., ?token=xyz or ?resetToken=xyz)
+    useEffect(() => {
+        const params = new URLSearchParams(window.location.search);
+        const token = params.get('token') || params.get('resetToken');
+        
+        if (token) {
+            setResetToken(token);
+            setView('reset-password');
+            // Clean up URL to prevent token reuse issues on refresh
+            window.history.replaceState({}, document.title, window.location.pathname);
+        }
+    }, []);
 
     const handleSignUpSuccess = (email: string) => {
         setUserEmail(email);
@@ -40,7 +53,7 @@ export const AuthManager: React.FC = () => {
                     />
                 );
             case 'verify-email':
-                return <VerifyEmailPage email={userEmail} onSuccess={() => { /* Handled by AppContext auto-login */ }} />;
+                return <VerifyEmailPage email={userEmail} onSuccess={() => { /* Handled by AppContext auto-login or redirect */ }} />;
             case 'reset-password':
                 return <ResetPasswordPage token={resetToken} onSuccess={handlePasswordResetSuccess} onSwitchToLogin={() => setView('login')} />;
             default:

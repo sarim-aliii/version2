@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useAppContext } from '../../context/AppContext';
+import { useApi } from '../../hooks/useApi';
 import { Button } from '../ui/Button';
 import { Card } from '../ui/Card';
 import OtpInput from '../ui/OtpInput';
 import { Loader } from '../ui/Loader';
+import { resendVerification } from '../../services/api'; 
 
 interface VerifyEmailPageProps {
   email: string;
@@ -14,14 +16,20 @@ export const VerifyEmailPage: React.FC<VerifyEmailPageProps> = ({ email, onSucce
   const { verifyEmail } = useAppContext();
   
   const [token, setToken] = useState('');
-  const [error, setError] = useState('');
-  const [successMsg, setSuccessMsg] = useState('');
-  
-  const [isLoading, setIsLoading] = useState(false);
-  const [isResending, setIsResending] = useState(false);
-  
-  // Timer state (starts at 60 seconds)
   const [timer, setTimer] = useState(60);
+  const [successMsg, setSuccessMsg] = useState('');
+
+  // 2. Setup Hooks
+  const { 
+    execute: verify, 
+    loading: isLoading, 
+    error: verifyError 
+  } = useApi(verifyEmail);
+
+  const { 
+    execute: resend, 
+    loading: isResending 
+  } = useApi(resendVerification);
 
   // Timer Countdown Logic
   useEffect(() => {
@@ -36,52 +44,30 @@ export const VerifyEmailPage: React.FC<VerifyEmailPageProps> = ({ email, onSucce
 
   // Main Verification Logic
   const handleVerification = async (code: string) => {
-    setError('');
     setSuccessMsg('');
     
-    if (!code || code.length < 6) {
-      setError('Please enter the full 6-digit code.');
-      return;
-    }
+    if (!code || code.length < 6) return;
 
-    setIsLoading(true);
     try {
-      await verifyEmail(code);
+      await verify(code);
       onSuccess();
-    } catch (err: any) {
-      setError(err.message || 'Verification failed');
-      setIsLoading(false);
+    } catch (err) {
+      // Error handled by hook
     }
   };
 
   // Resend Logic
   const handleResend = async () => {
-    setIsResending(true);
-    setError('');
     setSuccessMsg('');
-
     try {
-      // NOTE: Replace with your specific API client if you have one (e.g. axios.post)
-      const response = await fetch('/api/auth/resend-verification', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) throw new Error(data.message || 'Failed to resend');
-
+      await resend(email);
       setSuccessMsg('New code sent! Please check your email.');
-      setTimer(60); // Reset timer to 60s
-    } catch (err: any) {
-      setError(err.message || 'Could not resend code');
-    } finally {
-      setIsResending(false);
+      setTimer(60); 
+    } catch (err) {
+      // Error handled by hook
     }
   };
 
-  // Manual Verify Button Click
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     handleVerification(token);
@@ -108,9 +94,9 @@ export const VerifyEmailPage: React.FC<VerifyEmailPageProps> = ({ email, onSucce
         </div>
 
         {/* Messages */}
-        {error && (
+        {verifyError && (
             <div className="text-red-500 text-sm text-center bg-red-500/10 p-2 rounded">
-                {error}
+                {verifyError}
             </div>
         )}
         {successMsg && (

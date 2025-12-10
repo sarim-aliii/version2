@@ -3,6 +3,7 @@ import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
 import { FileUploader } from '../ui/FileUploader';
 import { useAppContext } from '../../context/AppContext';
+import { useApi } from '../../hooks/useApi'; // 1. Import hook
 import { EmptyState } from '../ui/EmptyState';
 import { transcribeAudio, transcribeYoutube, generateSummary, generateFlashcards, generateAnswer } from '../../services/geminiService';
 import { Loader } from '../ui/Loader';
@@ -25,20 +26,43 @@ const fileToBase64 = (file: File): Promise<string> => {
 export const AudioAnalysis: React.FC = () => {
   const { addNotification, language, llm } = useAppContext();
   
-  // Media File State
+  // Media Inputs
   const [mediaFile, setMediaFile] = useState<File | null>(null);
-  
-  // YouTube Link State
   const [youtubeLink, setYoutubeLink] = useState('');
   
-  // General State
+  // Data State
   const [transcribedText, setTranscribedText] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [currentAction, setCurrentAction] = useState<AnalysisAction | null>(null);
-  const [summary, setSummary] = useState<string | null>(null);
-  const [flashcards, setFlashcards] = useState<FlashcardType[]>([]);
   const [question, setQuestion] = useState('');
-  const [answer, setAnswer] = useState<string | null>(null);
+  
+  // --- API HOOKS ---
+
+  // 1. Transcribe Hook (Handles both File and YouTube logic via wrapper if needed, or we just call the service directly)
+  const { execute: runTranscribeFile, loading: isTranscribingFile } = useApi(transcribeAudio);
+  const { execute: runTranscribeYoutube, loading: isTranscribingYoutube } = useApi(transcribeYoutube);
+
+  // 2. Summary Hook
+  const { 
+      execute: runSummary, 
+      loading: isSummarizing, 
+      data: summary 
+  } = useApi(generateSummary);
+
+  // 3. Flashcards Hook
+  const { 
+      execute: runFlashcards, 
+      loading: isGeneratingFlashcards, 
+      data: flashcardsData 
+  } = useApi(generateFlashcards);
+  
+  const flashcards = flashcardsData || [];
+
+  // 4. QA Hook
+  const { 
+      execute: runQA, 
+      loading: isAnswering, 
+      data: answer 
+  } = useApi(generateAnswer);
+
 
   const acceptedMimeTypes = {
     'audio/wav': ['.wav'],
@@ -52,11 +76,10 @@ export const AudioAnalysis: React.FC = () => {
 
   const resetState = () => {
     setTranscribedText(null);
-    setSummary(null);
-    setFlashcards([]);
+    // Hook data persists until next call, so we might need to manually clear if "reset" means "clear UI"
+    // Since useApi doesn't expose a 'reset' method, we rely on the component re-mounting or just ignoring old data if transcribedText is null
+    // Ideally, for a full reset, you'd reset the hook's internal state, but for now we just clear the trigger (transcribedText)
     setQuestion('');
-    setAnswer(null);
-    setCurrentAction(null);
   };
 
   const handleFileUpload = (files: File[]) => {
@@ -67,75 +90,56 @@ export const AudioAnalysis: React.FC = () => {
     }
   };
 
-  // Handle File Transcription
   const handleTranscribeFile = useCallback(async () => {
     if (!mediaFile) return;
-    setIsLoading(true);
     resetState();
+    
+    // Manual file-to-base64 (client side op)
     try {
         const base64Data = await fileToBase64(mediaFile);
-        const transcription = await transcribeAudio(llm, base64Data, mediaFile.type);
-        setTranscribedText(transcription);
+        const text = await runTranscribeFile(llm, base64Data, mediaFile.type);
+        setTranscribedText(text);
     } catch (e: any) {
-        addNotification(e.message);
-    } finally {
-        setIsLoading(false);
+        // fileToBase64 might fail, so we catch here. 
+        // runTranscribeFile errors are handled by hook toast.
+        addNotification(e.message, 'error');
     }
-  }, [mediaFile, addNotification, llm]);
+  }, [mediaFile, llm, runTranscribeFile, addNotification]);
 
-  // Handle YouTube Transcription
   const handleTranscribeYoutube = useCallback(async () => {
     if (!youtubeLink.trim()) {
         addNotification('Please enter a YouTube URL.', 'info');
         return;
     }
-    setIsLoading(true);
     resetState();
-    try {
-        const transcription = await transcribeYoutube(llm, youtubeLink);
-        setTranscribedText(transcription);
-    } catch (e: any) {
-        addNotification(e.message);
-    } finally {
-        setIsLoading(false);
-    }
-  }, [youtubeLink, addNotification, llm]);
+    
+    const text = await runTranscribeYoutube(llm, youtubeLink);
+    setTranscribedText(text);
+  }, [youtubeLink, llm, runTranscribeYoutube, addNotification]);
 
-  const handleAction = async (action: AnalysisAction) => {
-    if (!transcribedText) return;
-    setCurrentAction(action);
-    setIsLoading(true);
 
-    try {
-        if (action === 'summary') {
-            setSummary(null);
-            const result = await generateSummary(llm, transcribedText, language);
-            setSummary(result);
-        } 
-        else if (action === 'flashcards') {
-            setFlashcards([]);
-            const result = await generateFlashcards(llm, transcribedText, language);
-            setFlashcards(result);
-        } 
-        else if (action === 'qa') {
-            if(!question.trim()) {
-                addNotification('Please enter a question.', 'info');
-                setIsLoading(false);
-                return;
-            }
-            setAnswer(null);
-            const result = await generateAnswer(llm, transcribedText, question, language);
-            setAnswer(result);
-        }
-    } 
-    catch(e: any) {
-        addNotification(e.message);
-    } 
-    finally {
-        setIsLoading(false);
-        setCurrentAction(null);
-    }
+  // Action Handlers
+  const handleGenerateSummary = async () => {
+      if (!transcribedText) return;
+      await runSummary(llm, transcribedText, language);
   };
+
+  const handleGenerateFlashcards = async () => {
+      if (!transcribedText) return;
+      await runFlashcards(llm, transcribedText, language);
+  };
+
+  const handleAskQuestion = async () => {
+      if (!transcribedText) return;
+      if (!question.trim()) {
+          addNotification('Please enter a question.', 'info');
+          return;
+      }
+      await runQA(llm, transcribedText, question, language);
+  };
+
+  // Combined loading state for the main card
+  const isLoading = isTranscribingFile || isTranscribingYoutube;
 
   return (
     <div className="space-y-6">
@@ -154,7 +158,7 @@ export const AudioAnalysis: React.FC = () => {
                         <div className="flex items-center justify-between mt-3 p-3 bg-slate-900 rounded-md border border-slate-700">
                              <p className="text-sm text-slate-300 truncate">Selected: <strong>{mediaFile.name}</strong></p>
                              <Button onClick={handleTranscribeFile} disabled={isLoading} className="text-sm py-1 px-3">
-                                {isLoading && !transcribedText ? 'Transcribing...' : 'Transcribe File'}
+                                {isTranscribingFile ? 'Transcribing...' : 'Transcribe File'}
                             </Button>
                         </div>
                     )}
@@ -183,7 +187,7 @@ export const AudioAnalysis: React.FC = () => {
                         disabled={isLoading}
                     />
                     <Button onClick={handleTranscribeYoutube} disabled={!youtubeLink.trim() || isLoading} className="sm:w-auto">
-                        {isLoading && !transcribedText ? 'Fetching...' : 'Transcribe YouTube'}
+                        {isTranscribingYoutube ? 'Fetching...' : 'Transcribe YouTube'}
                     </Button>
                 </div>
 
@@ -219,9 +223,9 @@ export const AudioAnalysis: React.FC = () => {
                             <div className="p-4 bg-slate-800/50 rounded-lg border border-slate-700">
                                 <div className="flex justify-between items-center mb-3">
                                     <h4 className="font-semibold text-slate-300">Summary</h4>
-                                    <Button onClick={() => handleAction('summary')} disabled={isLoading} variant="secondary" className="text-xs">Generate</Button>
+                                    <Button onClick={handleGenerateSummary} disabled={isSummarizing} variant="secondary" className="text-xs">Generate</Button>
                                 </div>
-                                {isLoading && currentAction === 'summary' && <Loader spinnerClassName="w-6 h-6" />}
+                                {isSummarizing && <Loader spinnerClassName="w-6 h-6" />}
                                 {summary && <p className="text-slate-300 text-sm whitespace-pre-wrap fade-in">{summary}</p>}
                             </div>
 
@@ -229,17 +233,17 @@ export const AudioAnalysis: React.FC = () => {
                              <div className="p-4 bg-slate-800/50 rounded-lg border border-slate-700">
                                 <div className="flex justify-between items-center mb-3">
                                     <h4 className="font-semibold text-slate-300">Flashcards</h4>
-                                    <Button onClick={() => handleAction('flashcards')} disabled={isLoading} variant="secondary" className="text-xs">Generate</Button>
+                                    <Button onClick={handleGenerateFlashcards} disabled={isGeneratingFlashcards} variant="secondary" className="text-xs">Generate</Button>
                                 </div>
-                                {isLoading && currentAction === 'flashcards' && <Loader spinnerClassName="w-6 h-6" />}
+                                {isGeneratingFlashcards && <Loader spinnerClassName="w-6 h-6" />}
                                 {flashcards.length > 0 && (
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-2 fade-in">
-                                        {flashcards.map((fc, i) => (
-                                            <div key={i} className="p-3 bg-slate-900/80 rounded border border-slate-600">
-                                                <p className="text-xs text-slate-400 mb-1">Q: {fc.question}</p>
-                                                <p className="text-sm text-slate-200">A: {fc.answer}</p>
-                                            </div>
-                                        ))}
+                                            {flashcards.map((fc, i) => (
+                                                <div key={i} className="p-3 bg-slate-900/80 rounded border border-slate-600">
+                                                    <p className="text-xs text-slate-400 mb-1">Q: {fc.question}</p>
+                                                    <p className="text-sm text-slate-200">A: {fc.answer}</p>
+                                                </div>
+                                            ))}
                                     </div>
                                 )}
                             </div>
@@ -249,19 +253,19 @@ export const AudioAnalysis: React.FC = () => {
                                 <h4 className="font-semibold text-slate-300 mb-3">Ask a Question</h4>
                                 <div className="flex gap-2">
                                     <input 
-                                        type="text" 
-                                        value={question} 
-                                        onChange={e => setQuestion(e.target.value)} 
-                                        placeholder="What did the speaker say about..." 
-                                        className="flex-1 bg-slate-900 border border-slate-700 rounded text-sm p-2 text-slate-300 focus:ring-1 focus:ring-red-500 outline-none" 
-                                        onKeyDown={(e) => e.key === 'Enter' && handleAction('qa')}
+                                            type="text" 
+                                            value={question} 
+                                            onChange={e => setQuestion(e.target.value)} 
+                                            placeholder="What did the speaker say about..." 
+                                            className="flex-1 bg-slate-900 border border-slate-700 rounded text-sm p-2 text-slate-300 focus:ring-1 focus:ring-red-500 outline-none" 
+                                            onKeyDown={(e) => e.key === 'Enter' && handleAskQuestion()}
                                     />
-                                    <Button onClick={() => handleAction('qa')} disabled={isLoading || !question.trim()}>Ask</Button>
+                                    <Button onClick={handleAskQuestion} disabled={isAnswering || !question.trim()}>Ask</Button>
                                 </div>
-                                {isLoading && currentAction === 'qa' && <div className="mt-3"><Loader spinnerClassName="w-6 h-6" /></div>}
+                                {isAnswering && <div className="mt-3"><Loader spinnerClassName="w-6 h-6" /></div>}
                                 {answer && (
                                     <div className="mt-3 p-3 bg-slate-900/80 rounded border-l-2 border-red-500 fade-in">
-                                        <p className="text-slate-300 text-sm">{answer}</p>
+                                            <p className="text-slate-300 text-sm">{answer}</p>
                                     </div>
                                 )}
                             </div>

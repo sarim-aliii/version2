@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { useAppContext } from '../../context/AppContext';
+import { useApi } from '../../hooks/useApi'; // 1. Import hook
 import { generateLessonPlan } from '../../services/geminiService';
 import { Button } from '../ui/Button';
 import { Card } from '../ui/Card';
@@ -7,7 +8,7 @@ import { Loader } from '../ui/Loader';
 import { EmptyState } from '../ui/EmptyState';
 import { LessonPlan } from '../../types';
 
-
+// --- Display Component (Unchanged) ---
 const LessonPlanDisplay: React.FC<{ plan: LessonPlan }> = ({ plan }) => (
     <div className="space-y-6 text-slate-300 bg-slate-900 p-6 rounded-md border border-slate-700">
         <div className="text-center">
@@ -44,11 +45,19 @@ const LessonPlanDisplay: React.FC<{ plan: LessonPlan }> = ({ plan }) => (
     </div>
 );
 
+// --- Main Component ---
 export const LessonPlanner: React.FC = () => {
     const { ingestedText, addNotification, language, llm, activeProject, updateActiveProjectData } = useAppContext();
     const [topic, setTopic] = useState('');
-    const [isLoading, setIsLoading] = useState(false);
+    
+    // Local state for plan (initialized from DB, updated by hook)
     const [lessonPlan, setLessonPlan] = useState<LessonPlan | null>(activeProject?.lessonPlan || null);
+
+    // 2. Setup Hook
+    const { 
+        execute: createPlan, 
+        loading: isLoading 
+    } = useApi(generateLessonPlan); // Removed auto-toast here to handle success manually after DB save if desired, or you can add it back.
 
     useEffect(() => {
         setLessonPlan(activeProject?.lessonPlan || null);
@@ -63,18 +72,21 @@ export const LessonPlanner: React.FC = () => {
             addNotification('Please enter a topic for the lesson plan.', 'info');
             return;
         }
-        setIsLoading(true);
 
-        try {
-            const plan = await generateLessonPlan(llm, ingestedText, topic, language);
+        // 3. Execute Hook
+        const plan = await createPlan(llm, ingestedText, topic, language);
+
+        // If successful
+        if (plan) {
             setLessonPlan(plan);
-            await updateActiveProjectData({ lessonPlan: plan });
-        } catch (e: any) {
-            addNotification(e.message);
-        } finally {
-            setIsLoading(false);
+            try {
+                await updateActiveProjectData({ lessonPlan: plan });
+                addNotification("Lesson plan generated and saved!", "success");
+            } catch (e: any) {
+                addNotification("Generated plan but failed to save: " + e.message, "error");
+            }
         }
-    }, [ingestedText, topic, addNotification, language, llm, updateActiveProjectData]);
+    }, [ingestedText, topic, addNotification, language, llm, updateActiveProjectData, createPlan]);
 
     if (!ingestedText) {
         return <EmptyState

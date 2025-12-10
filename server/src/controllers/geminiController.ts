@@ -364,48 +364,90 @@ function chunkText(text: string, chunkSize: number = 1000): string[] {
 }
 
 export const performSemanticSearch = async (req: Request, res: Response) => {
-    const { text, query, topK } = req.body;
+    // 1. Accept 'global' and 'projectId' from body
+    const { text, query, topK, global, projectId } = req.body;
 
-    if (!text || !query) {
-        return res.status(400).json({ message: "Text and query are required." });
+    if (!query) {
+        return res.status(400).json({ message: "Query is required." });
     }
 
     try {
-        const chunks = chunkText(text);
-
-        if (chunks.length === 0) {
-            return res.json([]);
-        }
-
         const embeddingModel = genAI.getGenerativeModel({ model: "text-embedding-004" });
 
+        // 2. Embed the Query ONE time
         const queryResult = await embeddingModel.embedContent(query);
         const queryVector = queryResult.embedding.values;
 
-        const chunksToProcess = chunks.slice(0, 50);
-        const scoredChunks = [];
+        // Structure to hold all chunks to search against
+        let candidates: { content: string; vector: number[]; projectId?: string; projectName?: string }[] = [];
 
-        for (const chunk of chunksToProcess) {
-            await new Promise(resolve => setTimeout(resolve, 100));
+        if (global) {
+            // GLOBAL SEARCH: Fetch ALL projects for this user
+            if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+            const projects = await StudyProject.find({ owner: req.user._id });
 
-            try {
+            // Collect all chunks from all projects
+            for (const p of projects) {
+                if (p.chunks && p.embeddings && p.chunks.length === p.embeddings.length) {
+                    p.chunks.forEach((chunk, i) => {
+                        candidates.push({
+                            content: chunk,
+                            vector: p.embeddings![i],
+                            projectId: p._id.toString(),
+                            projectName: p.name
+                        });
+                    });
+                }
+            }
+        } else if (projectId) {
+            // SPECIFIC PROJECT SEARCH (DB-Based): Efficient, uses stored embeddings
+            const project = await StudyProject.findById(projectId);
+            if (project && project.chunks && project.embeddings) {
+                project.chunks.forEach((chunk, i) => {
+                    candidates.push({ 
+                        content: chunk, 
+                        vector: project.embeddings![i],
+                        projectId: project._id.toString(),
+                        projectName: project.name
+                    });
+                });
+            }
+        } else if (text) {
+             // LEGACY/FALLBACK: Embed on the fly (Slow, but keeps compatibility)
+             const chunks = chunkText(text);
+             // We have to embed these now because they aren't in DB
+             for (const chunk of chunks) {
+                // Throttle slightly
+                await new Promise(resolve => setTimeout(resolve, 20));
                 const chunkResult = await embeddingModel.embedContent(chunk);
-                const chunkVector = chunkResult.embedding.values;
-                const score = cosineSimilarity(queryVector, chunkVector);
-                scoredChunks.push({ chunk, score });
-            }
-            catch (err) {
-                console.warn("Failed to embed chunk:", err);
-            }
+                candidates.push({ content: chunk, vector: chunkResult.embedding.values });
+             }
         }
 
-        scoredChunks.sort((a, b) => b.score - a.score);
-        const topResults = scoredChunks.slice(0, topK || 4).map(item => item.chunk);
+        if (candidates.length === 0) {
+            return res.json([]);
+        }
 
-        res.json(topResults);
+        // 3. Perform Vector Search (Cosine Similarity)
+        const scoredResults = candidates.map(item => ({
+            ...item,
+            score: cosineSimilarity(queryVector, item.vector)
+        }));
 
-    }
-    catch (error: any) {
+        // 4. Sort and Return Top K
+        scoredResults.sort((a, b) => b.score - a.score);
+        
+        // Return structured objects so frontend knows which project it came from
+        const results = scoredResults.slice(0, topK || 5).map(item => ({
+            text: item.content,
+            score: item.score,
+            projectName: item.projectName,
+            projectId: item.projectId
+        }));
+
+        res.json(results);
+
+    } catch (error: any) {
         console.error("Semantic Search Error:", error);
         res.status(500).json({ message: `Search failed: ${error.message}` });
     }
@@ -637,5 +679,36 @@ export const conductMockInterview = async (req: Request, res: Response) => {
     } catch (error: any) {
         console.error("Mock Interview Error Details:", JSON.stringify(error, null, 2));
         res.status(500).json({ message: `Mock Interview failed: ${error.message || 'Unknown error'}` });
+    }
+};
+
+export const generatePodcastScript = async (req: Request, res: Response) => {
+    if (!req.user) return res.status(401).json({ message: 'Not authorized' });
+    const { projectId, llm, language } = req.body;
+
+    try {
+        const project = await getProjectForUser(projectId, req.user.id);
+        
+        const systemInstruction = `You are an expert podcast producer. Your goal is to convert educational text into an engaging, 2-person podcast script.
+        - **Host (Alex)**: The expert. Explains concepts clearly, uses analogies, and drives the conversation.
+        - **Guest (Jamie)**: The curious learner. Asks clarifying questions, reacts with surprise/interest, and summarizes points to ensure understanding.
+        - **Format**: Return ONLY a valid JSON array of objects. Each object must have "speaker" (either "Host" or "Guest") and "text" (the spoken line).
+        - **Tone**: Conversational, lively, and educational. avoid "robot" speak.
+        - **Language**: ${language || 'English'}.
+        `;
+
+        const prompt = `Convert the following study material into a podcast script:\n\n${project.ingestedText}`;
+
+        // Force JSON response
+        const model = getModel(llm, "application/json", systemInstruction);
+        const result = await model.generateContent(prompt);
+        
+        // Clean markdown code blocks if present
+        const text = result.response.text().replace(/```json/g, '').replace(/```/g, '');
+        
+        res.json(JSON.parse(text));
+    } catch (error: any) {
+        console.error("Podcast Generation Error:", error);
+        res.status(500).json({ message: error.message || 'Failed to generate podcast script' });
     }
 };

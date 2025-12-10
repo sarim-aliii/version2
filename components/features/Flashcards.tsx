@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { useAppContext } from '../../context/AppContext';
+import { useApi } from '../../hooks/useApi'; // 1. Import the hook
 import { generateFlashcards } from '../../services/geminiService';
 import { Button } from '../ui/Button';
 import { Card } from '../ui/Card';
@@ -51,10 +52,18 @@ export const Flashcards: React.FC = () => {
     // Initialize from activeProject
     const [srsCards, setSrsCards] = useState<SRFlashcard[]>(activeProject?.srsFlashcards || []);
     
-    const [isLoading, setIsLoading] = useState(false);
+    // UI States
     const [isStudying, setIsStudying] = useState(false);
     const [studyQueue, setStudyQueue] = useState<SRFlashcard[]>([]);
     const [currentCardIndex, setCurrentCardIndex] = useState(0);
+
+    // 2. Setup API Hook
+    // We don't pass a success message here because we want to manually show it 
+    // ONLY after we successfully save to the database (updateActiveProjectData).
+    const { 
+        execute: generateCards, 
+        loading: isGenerating 
+    } = useApi(generateFlashcards);
 
     // Sync state when active project changes
     useEffect(() => {
@@ -85,29 +94,37 @@ export const Flashcards: React.FC = () => {
             addNotification('Please ingest some text first.', 'info');
             return;
         }
-        setIsLoading(true);
-        try {
-            const results = await generateFlashcards(llm, ingestedText, language);
-            const now = new Date().toISOString();
-            const newCards: SRFlashcard[] = results.map(r => ({
-                ...r,
-                id: uuidv4(), // Using proper UUID
-                easeFactor: 2.5,
-                interval: 0,
-                dueDate: now,
-            }));
-            const updatedCards = [...srsCards.filter(pc => !newCards.some(nc => nc.question === pc.question)), ...newCards];
-            setSrsCards(updatedCards);
-            // Save to DB
-            await updateActiveProjectData({ srsFlashcards: updatedCards });
-            addNotification("New flashcards have been added to your deck.", "success");
-        } 
-        catch (e: any) {
-            addNotification(e.message);
-        } finally {
-            setIsLoading(false);
+
+        // 3. Call the hook
+        const results = await generateCards(llm, ingestedText, language);
+
+        // If results exist, the API call succeeded
+        if (results) {
+            try {
+                const now = new Date().toISOString();
+                const newCards: SRFlashcard[] = results.map(r => ({
+                    ...r,
+                    id: uuidv4(), // Using proper UUID
+                    easeFactor: 2.5,
+                    interval: 0,
+                    dueDate: now,
+                }));
+
+                const updatedCards = [...srsCards.filter(pc => !newCards.some(nc => nc.question === pc.question)), ...newCards];
+                
+                // Update local state
+                setSrsCards(updatedCards);
+                
+                // Save to DB
+                await updateActiveProjectData({ srsFlashcards: updatedCards });
+                
+                addNotification("New flashcards have been added to your deck.", "success");
+            } catch (e: any) {
+                // Handle save error specifically
+                addNotification("Generated cards but failed to save: " + e.message, "error");
+            }
         }
-    }, [ingestedText, addNotification, language, llm, srsCards, updateActiveProjectData]);
+    }, [ingestedText, addNotification, language, llm, srsCards, updateActiveProjectData, generateCards]);
 
     const gradeCard = async (quality: StudyQuality) => {
         const card = studyQueue[currentCardIndex];
@@ -173,14 +190,14 @@ export const Flashcards: React.FC = () => {
         <Card title="SRS Flashcards">
             <div className="space-y-6">
                 <div className="flex flex-col sm:flex-row gap-4">
-                    <Button onClick={handleGenerateFlashcards} disabled={isLoading || !ingestedText}>
-                        {isLoading ? 'Generating...' : 'Generate from Ingested Text'}
+                    <Button onClick={handleGenerateFlashcards} disabled={isGenerating || !ingestedText}>
+                        {isGenerating ? 'Generating...' : 'Generate from Ingested Text'}
                     </Button>
                     <Button onClick={startStudySession} disabled={cardsDueCount === 0}>
                         Study Due Cards ({cardsDueCount})
                     </Button>
                 </div>
-                {isLoading && <Loader />}
+                {isGenerating && <Loader />}
                 
                 <div className="fade-in">
                     <h3 className="text-xl font-semibold text-slate-800 dark:text-slate-200 mb-2">Full Deck ({srsCards.length} cards)</h3>

@@ -4,8 +4,6 @@ import { Button } from '../ui/Button';
 import { Card } from '../ui/Card';
 import { AVATARS, AVATAR_KEYS } from '../ui/avatars';
 
-
-
 const ActivityChart: React.FC<{ data: { date: string; xp: number }[] }> = ({ data }) => {
     const chartData = useMemo(() => {
         const result = [];
@@ -13,7 +11,8 @@ const ActivityChart: React.FC<{ data: { date: string; xp: number }[] }> = ({ dat
             const d = new Date();
             d.setDate(d.getDate() - i);
             const dateStr = d.toISOString().split('T')[0];
-            const existing = data.find(item => item.date === dateStr);
+            // Ensure data exists before trying to find
+            const existing = data ? data.find(item => item.date === dateStr) : undefined;
             result.push({ 
                 date: dateStr, 
                 day: d.toLocaleDateString('en-US', { weekday: 'short' }), 
@@ -27,7 +26,7 @@ const ActivityChart: React.FC<{ data: { date: string; xp: number }[] }> = ({ dat
 
     return (
         <div className="h-48 w-full flex items-end justify-between gap-2 pt-6">
-            {chartData.map((d, i) => (
+            {chartData.map((d) => (
                 <div key={d.date} className="flex flex-col items-center gap-2 flex-1 group">
                     <div className="w-full relative flex items-end justify-center h-32 bg-slate-800/30 rounded-t-sm overflow-hidden">
                         <div 

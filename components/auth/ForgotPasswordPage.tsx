@@ -2,9 +2,9 @@ import React, { useState } from 'react';
 import { Button } from '../ui/Button';
 import { Card } from '../ui/Card';
 import { Input } from '../ui/Input';
-import OtpInput from '../ui/OtpInput'; // Ensure you have this component
+import OtpInput from '../ui/OtpInput'; 
 import { Loader } from '../ui/Loader';
-// Assuming you export resetPassword from the same api file, or use axios directly
+import { useApi } from '../../hooks/useApi'; // 1. Import hook
 import { forgotPassword, resetPassword } from '../../services/api'; 
 
 interface ForgotPasswordPageProps {
@@ -23,76 +23,80 @@ export const ForgotPasswordPage: React.FC<ForgotPasswordPageProps> = ({ onSucces
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   
-  // UI State
-  const [error, setError] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+  // UI State (Manual error state kept for specific 404 handling)
+  const [customError, setCustomError] = useState(''); 
   const [successMessage, setSuccessMessage] = useState('');
+
+  // --- API HOOKS ---
+
+  // 1. Hook for Sending Code
+  const { 
+    execute: sendCode, 
+    loading: isSending 
+  } = useApi(forgotPassword); // We handle success/error messages manually for finer control
+
+  // 2. Hook for Resetting Password
+  const { 
+    execute: reset, 
+    loading: isResetting 
+  } = useApi(resetPassword); // We handle success/error messages manually
+
 
   // --- STEP 1: SEND CODE ---
   const handleSendCode = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
+    setCustomError('');
     setSuccessMessage('');
 
     if (!email.trim() || !/\S+@\S+\.\S+/.test(email)) {
-      setError('Please enter a valid email address.');
+      setCustomError('Please enter a valid email address.');
       return;
     }
 
-    setIsLoading(true);
     try {
-      await forgotPassword(email);
-      setStep(2); // Move to OTP Step
+      await sendCode(email);
+      setStep(2); 
       setSuccessMessage(`Code sent to ${email}`);
     } 
     catch (err: any) {
        // Handle specific errors based on your backend responses
        if (err.message?.includes('404') || err.message?.toLowerCase().includes('user not found')) {
-         setError("We couldn't find an account with that email.");
+         setCustomError("We couldn't find an account with that email.");
        } else if (err.message?.includes('registered with')) {
-         setError(err.message);
+         setCustomError(err.message);
        } else {
-         setError(err.message || "Failed to send reset code.");
+         setCustomError(err.message || "Failed to send reset code.");
        }
     } 
-    finally {
-      setIsLoading(false);
-    }
   };
 
   // --- STEP 2: RESET PASSWORD ---
   const handleResetPassword = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
+    setCustomError('');
 
     // Validation
     if (otp.length !== 6) {
-        setError("Please enter the full 6-digit verification code.");
+        setCustomError("Please enter the full 6-digit verification code.");
         return;
     }
     if (!newPassword) {
-        setError("New password is required.");
+        setCustomError("New password is required.");
         return;
     }
     if (newPassword !== confirmPassword) {
-        setError("Passwords do not match.");
+        setCustomError("Passwords do not match.");
         return;
     }
-    // Optional: Add regex for password strength here
     
-    setIsLoading(true);
     try {
-      // NOTE: Ensure your API service passes { email, otp, password }
-      await resetPassword({ email, otp, password: newPassword });
+      await reset({ email, otp, password: newPassword });
       
       // Success!
       onSuccess(email); 
-      // The parent component should likely switch to login view now
       onSwitchToLogin(); 
     } catch (err: any) {
-      setError(err.message || "Failed to reset password. Code might be expired.");
-    } finally {
-      setIsLoading(false);
+      setCustomError(err.message || "Failed to reset password. Code might be expired.");
     }
   };
 
@@ -102,7 +106,7 @@ export const ForgotPasswordPage: React.FC<ForgotPasswordPageProps> = ({ onSucces
       {/* Back Button for Step 2 */}
       {step === 2 && (
         <button 
-            onClick={() => { setStep(1); setError(''); }}
+            onClick={() => { setStep(1); setCustomError(''); }}
             className="text-xs text-slate-400 hover:text-white mb-4 flex items-center"
         >
             ← Back to Email
@@ -117,9 +121,9 @@ export const ForgotPasswordPage: React.FC<ForgotPasswordPageProps> = ({ onSucces
       )}
 
       {/* Error Banner */}
-      {error && (
+      {customError && (
         <div className="bg-red-500/10 border border-red-500/20 text-red-400 text-sm p-3 rounded mb-4 text-center">
-            {error}
+            {customError}
         </div>
       )}
 
@@ -134,12 +138,12 @@ export const ForgotPasswordPage: React.FC<ForgotPasswordPageProps> = ({ onSucces
                 label="Email Address"
                 type="email"
                 value={email}
-                onChange={(e) => { setEmail(e.target.value); setError(''); }}
-                disabled={isLoading}
+                onChange={(e) => { setEmail(e.target.value); setCustomError(''); }}
+                disabled={isSending}
                 autoComplete="email"
             />
-            <Button type="submit" disabled={isLoading} className="w-full flex items-center justify-center">
-                {isLoading ? <Loader spinnerClassName="w-5 h-5" /> : 'Send Reset Code'}
+            <Button type="submit" disabled={isSending} className="w-full flex items-center justify-center">
+                {isSending ? <Loader spinnerClassName="w-5 h-5" /> : 'Send Reset Code'}
             </Button>
         </form>
       ) : (
@@ -161,7 +165,7 @@ export const ForgotPasswordPage: React.FC<ForgotPasswordPageProps> = ({ onSucces
                 type="password"
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
-                disabled={isLoading}
+                disabled={isResetting}
             />
 
             <Input
@@ -170,11 +174,11 @@ export const ForgotPasswordPage: React.FC<ForgotPasswordPageProps> = ({ onSucces
                 type="password"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
-                disabled={isLoading}
+                disabled={isResetting}
             />
 
-            <Button type="submit" disabled={isLoading} className="w-full flex items-center justify-center mt-2">
-                {isLoading ? <Loader spinnerClassName="w-5 h-5" /> : 'Reset Password'}
+            <Button type="submit" disabled={isResetting} className="w-full flex items-center justify-center mt-2">
+                {isResetting ? <Loader spinnerClassName="w-5 h-5" /> : 'Reset Password'}
             </Button>
         </form>
       )}

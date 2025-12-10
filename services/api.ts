@@ -1,11 +1,21 @@
 import axios from 'axios';
-import { 
-  LoginCredentials, 
-  SignupCredentials, 
-  StudyProject, 
-  Flashcard, 
-  CodeAnalysisResult 
+import {
+  LoginCredentials,
+  SignupCredentials,
+  StudyProject,
+  Flashcard,
+  CodeAnalysisResult,
+  PodcastSegment
 } from '../types';
+import axiosInstance from './axiosInstance';
+
+
+export interface SearchResult {
+  text: string;
+  score: number;
+  projectName?: string;
+  projectId?: string;
+}
 
 const API_URL = '/api';
 
@@ -86,8 +96,8 @@ export const updateUserProgress = async (xpGained: number, category?: string) =>
 
 // --- Feedback ---
 export const sendFeedback = async (type: string, message: string) => {
-    const { data } = await api.post('/feedback', { type, message });
-    return data;
+  const { data } = await api.post('/feedback', { type, message });
+  return data;
 };
 
 
@@ -166,9 +176,29 @@ export const generateAnswer = async (llm: string, text: string, question: string
   return data;
 };
 
-export const performSemanticSearch = async (llm: string, text: string, query: string, topK: number): Promise<string[]> => {
-  const { data } = await api.post('/gemini/semantic-search', { text, query, topK });
-  return data as string[];
+export const performSemanticSearch = async (
+  llm: string,
+  text: string,
+  query: string,
+  topK: number,
+  projectId?: string,
+  global: boolean = false
+): Promise<SearchResult[]> => { // Changed return type to array of objects
+  const { data } = await api.post('/gemini/semantic-search', {
+    text,
+    query,
+    topK,
+    llm,
+    projectId, // Pass specific project ID
+    global     // Pass global flag
+  });
+
+  // Backwards compatibility: if API returns strings, wrap them
+  if (data.length > 0 && typeof data[0] === 'string') {
+    return data.map((str: string) => ({ text: str, score: 0 }));
+  }
+
+  return data as SearchResult[];
 };
 
 export const generateConceptMapFromText = async (llm: string, text: string, language: string) => {
@@ -229,6 +259,16 @@ export const conductMockInterview = async (llm: string, topic: string, message: 
 export const updateTodos = async (todos: any[]) => {
   const { data } = await api.put('/auth/todos', { todos });
   return data;
+};
+
+export const generatePodcastScript = async (llm: string, projectId: string, language: string): Promise<PodcastSegment[]> => {
+  const { data } = await api.post('/gemini/podcast-script', { llm, projectId, language });
+  return data;
+};
+
+export const resendVerification = async (email: string) => {
+  const response = await axiosInstance.post('/auth/resend-verification', { email });
+  return response.data;
 };
 
 export default api;

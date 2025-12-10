@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { useAppContext } from '../../context/AppContext';
+import { useApi } from '../../hooks/useApi'; // 1. Import the hook
 import { getTutorResponse, generateEssayOutline, generateEssayArguments } from '../../services/geminiService';
 import { Button } from '../ui/Button';
 import { Card } from '../ui/Card';
@@ -38,11 +39,9 @@ const EssayOutlineDisplay: React.FC<{ outline: EssayOutline }> = ({ outline }) =
     </div>
 );
 
-
 export const AITutor: React.FC = () => {
   const { ingestedText, addNotification, language, llm } = useAppContext();
   const [mode, setMode] = useState<AIToolMode>('tutor');
-  const [isLoading, setIsLoading] = useState(false);
   
   // Tutor state
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
@@ -51,16 +50,38 @@ export const AITutor: React.FC = () => {
 
   // Essay Prep state
   const [essayTopic, setEssayTopic] = useState('');
-  const [essayOutline, setEssayOutline] = useState<EssayOutline | null>(null);
-  const [essayArguments, setEssayArguments] = useState<string | null>(null);
-  const [isGeneratingArgs, setIsGeneratingArgs] = useState(false);
+
+  // --- API HOOKS ---
+
+  // 1. Tutor Hook
+  const { 
+    execute: fetchTutorResponse, 
+    loading: chatLoading 
+  } = useApi(getTutorResponse);
+
+  // 2. Outline Hook
+  const { 
+    execute: generateOutline, 
+    loading: outlineLoading, 
+    data: essayOutline, // Rename 'data' to 'essayOutline' for clarity
+    setData: setEssayOutline 
+  } = useApi(generateEssayOutline, "Essay outline generated!");
+
+  // 3. Arguments Hook
+  const { 
+    execute: generateArgs, 
+    loading: argsLoading, 
+    data: essayArguments, // Rename 'data' to 'essayArguments'
+    setData: setEssayArguments 
+  } = useApi(generateEssayArguments, "Counter-arguments generated!");
+
 
   useEffect(() => {
     // Scroll to bottom of chat on new message
     if (chatContainerRef.current) {
         chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
     }
-  }, [chatHistory]);
+  }, [chatHistory, chatLoading]); // Added chatLoading to scroll when loading starts
 
   const handleSendMessage = useCallback(async () => {
     if (!ingestedText) {
@@ -72,18 +93,19 @@ export const AITutor: React.FC = () => {
     const newHistory: ChatMessage[] = [...chatHistory, { role: 'user', content: currentMessage }];
     setChatHistory(newHistory);
     setCurrentMessage('');
-    setIsLoading(true);
 
     try {
-      const response = await getTutorResponse(llm, ingestedText, newHistory, currentMessage, language);
-      setChatHistory([...newHistory, { role: 'model', content: response }]);
-    } catch (e: any) {
-      addNotification(e.message);
-      setChatHistory(newHistory); // Revert history if API call fails
-    } finally {
-      setIsLoading(false);
+      // The hook handles the loading state and error toast automatically
+      const response = await fetchTutorResponse(llm, ingestedText, newHistory, currentMessage, language);
+      
+      if (response) {
+        setChatHistory([...newHistory, { role: 'model', content: response }]);
+      }
+    } catch (e) {
+      // If it fails, we might want to keep the user message but maybe mark it failed
+      // For now, the global Toast will show the error, so we just catch it to prevent crashes.
     }
-  }, [ingestedText, currentMessage, chatHistory, addNotification, language, llm]);
+  }, [ingestedText, currentMessage, chatHistory, addNotification, language, llm, fetchTutorResponse]);
 
   const handleGenerateOutline = useCallback(async () => {
     if (!ingestedText) {
@@ -94,36 +116,22 @@ export const AITutor: React.FC = () => {
         addNotification('Please enter an essay topic or thesis.', 'info');
         return;
     }
-    setIsLoading(true);
+    
+    // Clear previous results
     setEssayOutline(null);
     setEssayArguments(null);
-    try {
-        const outline = await generateEssayOutline(llm, ingestedText, essayTopic, language);
-        if (outline) {
-            setEssayOutline(outline);
-        } else {
-            addNotification('Could not generate an outline for this topic.', 'info');
-        }
-    } catch(e: any) {
-        addNotification(e.message);
-    } finally {
-        setIsLoading(false);
-    }
-  }, [ingestedText, essayTopic, addNotification, language, llm]);
+
+    await generateOutline(llm, ingestedText, essayTopic, language);
+  }, [ingestedText, essayTopic, addNotification, language, llm, generateOutline, setEssayOutline, setEssayArguments]);
 
   const handleGenerateArguments = useCallback(async () => {
       if (!ingestedText || !essayTopic.trim()) return;
-      setIsGeneratingArgs(true);
+      
+      // Clear previous args
       setEssayArguments(null);
-      try {
-          const args = await generateEssayArguments(llm, ingestedText, essayTopic, language);
-          setEssayArguments(args);
-      } catch(e: any) {
-          addNotification(e.message);
-      } finally {
-          setIsGeneratingArgs(false);
-      }
-  }, [ingestedText, essayTopic, addNotification, language, llm]);
+
+      await generateArgs(llm, ingestedText, essayTopic, language);
+  }, [ingestedText, essayTopic, language, llm, generateArgs, setEssayArguments]);
 
   if (!ingestedText) {
     return <EmptyState 
@@ -149,7 +157,7 @@ export const AITutor: React.FC = () => {
                         </div>
                     </div>
                 ))}
-                 {isLoading && (
+                 {chatLoading && (
                     <div className="flex justify-start">
                         <div className="max-w-lg p-3 rounded-lg bg-slate-700/80">
                            <Loader spinnerClassName="w-6 h-6"/>
@@ -162,18 +170,19 @@ export const AITutor: React.FC = () => {
                     type="text"
                     value={currentMessage}
                     onChange={(e) => setCurrentMessage(e.target.value)}
-                    onKeyDown={(e) => { if (e.key === 'Enter' && !isLoading) handleSendMessage(); }}
+                    onKeyDown={(e) => { if (e.key === 'Enter' && !chatLoading) handleSendMessage(); }}
                     placeholder="Ask a question..."
                     className="w-full bg-slate-900 border border-slate-700 rounded-md p-3 text-slate-300 focus:ring-2 focus:ring-red-500 focus:outline-none transition"
-                    disabled={isLoading}
+                    disabled={chatLoading}
                 />
-                <Button onClick={handleSendMessage} disabled={!currentMessage.trim() || isLoading}>
+                <Button onClick={handleSendMessage} disabled={!currentMessage.trim() || chatLoading}>
                     Send
                 </Button>
             </div>
         </>
       );
     }
+    
     // Essay mode
     return (
         <div className="space-y-6">
@@ -184,20 +193,25 @@ export const AITutor: React.FC = () => {
                     onChange={(e) => setEssayTopic(e.target.value)}
                     placeholder="Enter your essay topic or thesis statement..."
                     className="w-full bg-slate-900 border border-slate-700 rounded-md p-3 text-slate-300 focus:ring-2 focus:ring-red-500 focus:outline-none transition"
-                    disabled={isLoading}
+                    disabled={outlineLoading || argsLoading}
                 />
-                <Button onClick={handleGenerateOutline} disabled={!essayTopic.trim() || isLoading} className="w-full sm:w-auto flex-shrink-0">
-                    {isLoading ? 'Generating...' : 'Generate Outline'}
+                <Button onClick={handleGenerateOutline} disabled={!essayTopic.trim() || outlineLoading} className="w-full sm:w-auto flex-shrink-0">
+                    {outlineLoading ? 'Generating...' : 'Generate Outline'}
                 </Button>
             </div>
-            {isLoading && <Loader />}
+            
+            {outlineLoading && <Loader />}
+            
             {essayOutline && (
                 <div className="space-y-4 fade-in">
                     <EssayOutlineDisplay outline={essayOutline} />
-                    <Button onClick={handleGenerateArguments} disabled={isGeneratingArgs} variant="secondary">
-                        {isGeneratingArgs ? 'Thinking...' : "Generate Counter-Arguments"}
+                    
+                    <Button onClick={handleGenerateArguments} disabled={argsLoading} variant="secondary">
+                        {argsLoading ? 'Thinking...' : "Generate Counter-Arguments"}
                     </Button>
-                    {isGeneratingArgs && <Loader />}
+                    
+                    {argsLoading && <Loader />}
+                    
                     {essayArguments && (
                         <div className="fade-in">
                              <h4 className="text-lg font-semibold text-slate-200 border-b border-slate-600 pb-1 mb-2">Counter-Arguments & Considerations</h4>

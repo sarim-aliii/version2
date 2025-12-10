@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useAppContext } from '../../context/AppContext';
+import { useApi } from '../../hooks/useApi'; // 1. Import hook
 import { Button } from '../ui/Button';
 import { Card } from '../ui/Card';
 import { Input } from '../ui/Input';
@@ -15,8 +16,15 @@ export const ResetPasswordPage: React.FC<ResetPasswordPageProps> = ({ token, onS
   const { resetPassword } = useAppContext();
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [errors, setErrors] = useState<{ [key: string]: string }>({});
-  const [isLoading, setIsLoading] = useState(false);
+  const [validationErrors, setValidationErrors] = useState<{ [key: string]: string }>({});
+
+  // 2. Setup Hook
+  // Wraps the context function. Auto-toasts on success/error.
+  const { 
+    execute: executeReset, 
+    loading: isLoading, 
+    error: apiError 
+  } = useApi(resetPassword, "Password has been reset successfully!");
 
   const validate = () => {
     const newErrors: { [key: string]: string } = {};
@@ -30,27 +38,29 @@ export const ResetPasswordPage: React.FC<ResetPasswordPageProps> = ({ token, onS
     } else if (newPassword !== confirmPassword) {
       newErrors.confirmPassword = 'Passwords do not match.';
     }
-    setErrors(newErrors);
+    
+    setValidationErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setValidationErrors({}); // Clear local errors on new submit attempt
+    
     if (!validate()) return;
     
-    // The token is passed as a prop, but if we wanted the user to enter it:
     if (!token.trim()) {
-        setErrors({ form: "Reset token is missing or invalid."});
+        setValidationErrors({ form: "Reset token is missing or invalid."});
         return;
     }
 
-    setIsLoading(true);
     try {
-      await resetPassword(token, newPassword);
+      // 3. Execute Hook
+      await executeReset(token, newPassword);
       onSuccess();
-    } catch (error: any) {
-      setErrors({ form: error.message });
-      setIsLoading(false);
+    } catch (error) {
+      // Hook handles the toast. 
+      // We don't need to do anything here unless we want specific side effects.
     }
   };
 
@@ -63,7 +73,7 @@ export const ResetPasswordPage: React.FC<ResetPasswordPageProps> = ({ token, onS
           type="password"
           value={newPassword}
           onChange={(e) => setNewPassword(e.target.value)}
-          error={errors.newPassword}
+          error={validationErrors.newPassword}
           disabled={isLoading}
         />
         <Input
@@ -72,10 +82,17 @@ export const ResetPasswordPage: React.FC<ResetPasswordPageProps> = ({ token, onS
           type="password"
           value={confirmPassword}
           onChange={(e) => setConfirmPassword(e.target.value)}
-          error={errors.confirmPassword}
+          error={validationErrors.confirmPassword}
           disabled={isLoading}
         />
-        {errors.form && <p className="text-sm text-red-400 -mb-2">{errors.form}</p>}
+        
+        {/* Show either local validation form error OR API error */}
+        {(validationErrors.form || apiError) && (
+            <p className="text-sm text-red-400 -mb-2">
+                {validationErrors.form || apiError}
+            </p>
+        )}
+
         <div className="pt-2">
             <Button type="submit" disabled={isLoading} className="w-full flex items-center justify-center">
                 {isLoading ? <Loader spinnerClassName="w-5 h-5" /> : 'Reset Password'}

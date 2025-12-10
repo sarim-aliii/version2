@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { useAppContext } from '../../context/AppContext';
+import { useApi } from '../../hooks/useApi'; // 1. Import hook
 import { generateStudyPlan } from '../../services/geminiService';
 import { Button } from '../ui/Button';
 import { Card } from '../ui/Card';
@@ -8,6 +9,7 @@ import { EmptyState } from '../ui/EmptyState';
 import { StudyPlan } from '../../types';
 import { Slider } from '../ui/Slider';
 
+// --- Display Component (Unchanged) ---
 const StudyPlanDisplay: React.FC<{ plan: StudyPlan }> = ({ plan }) => {
     
     const handleDownloadText = () => {
@@ -119,12 +121,19 @@ const StudyPlanDisplay: React.FC<{ plan: StudyPlan }> = ({ plan }) => {
     );
 };
 
+// --- Main Component ---
 export const StudyPlanner: React.FC = () => {
     const { ingestedText, addNotification, language, llm, activeProject, updateActiveProjectData } = useAppContext();
     const [days, setDays] = useState(7);
-    const [isLoading, setIsLoading] = useState(false);
     
+    // Local state for the plan
     const [studyPlan, setStudyPlan] = useState<StudyPlan | null>(activeProject?.studyPlan || null);
+
+    // 2. Setup Hook
+    const { 
+        execute: createStudyPlan, 
+        loading: isLoading 
+    } = useApi(generateStudyPlan);
 
     useEffect(() => {
         setStudyPlan(activeProject?.studyPlan || null);
@@ -135,17 +144,21 @@ export const StudyPlanner: React.FC = () => {
             addNotification('Please ingest your study material first.', 'info');
             return;
         }
-        setIsLoading(true);
-        try {
-            const plan = await generateStudyPlan(llm, ingestedText, days, language);
+
+        // 3. Execute Hook
+        const plan = await createStudyPlan(llm, ingestedText, days, language);
+
+        // If successful
+        if (plan) {
             setStudyPlan(plan);
-            await updateActiveProjectData({ studyPlan: plan });
-        } catch (e: any) {
-            addNotification(e.message);
-        } finally {
-            setIsLoading(false);
+            try {
+                await updateActiveProjectData({ studyPlan: plan });
+                addNotification("Study plan generated and saved!", "success");
+            } catch (e: any) {
+                addNotification("Generated plan but failed to save: " + e.message, "error");
+            }
         }
-    }, [ingestedText, days, addNotification, language, llm, updateActiveProjectData]);
+    }, [ingestedText, days, addNotification, language, llm, updateActiveProjectData, createStudyPlan]);
 
     if (!ingestedText) {
         return <EmptyState

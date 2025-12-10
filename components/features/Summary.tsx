@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { useAppContext } from '../../context/AppContext';
+import { useApi } from '../../hooks/useApi'; // 1. Import hook
 import { generateSummary } from '../../services/geminiService';
 import { Button } from '../ui/Button';
 import { Card } from '../ui/Card';
@@ -11,15 +12,20 @@ import { MarkdownRenderer } from '../ui/MarkdownRenderer';
 export const Summary: React.FC = () => {
   const { ingestedText, addNotification, language, llm, activeProject, updateActiveProjectData } = useAppContext();
   
+  // Local state for immediate display (initialized from DB)
   const [summary, setSummary] = useState<string | null>(activeProject?.summary || null);
-  const [isLoading, setIsLoading] = useState(false);
   
-  // Integrate Text-to-Speech
+  // Text-to-Speech Hook
   const { speak, cancelSpeaking, isSpeaking } = useSpeech(language);
+
+  // 2. Setup API Hook
+  const { 
+    execute: createSummary, 
+    loading: isLoading 
+  } = useApi(generateSummary); // We handle success manually to update DB
 
   useEffect(() => {
       setSummary(activeProject?.summary || null);
-      // Stop speaking if the user switches projects or tabs
       return () => cancelSpeaking();
   }, [activeProject, cancelSpeaking]);
 
@@ -28,18 +34,22 @@ export const Summary: React.FC = () => {
       addNotification('Please ingest some text first.', 'info');
       return;
     }
-    setIsLoading(true);
+    
     cancelSpeaking(); // Stop any current speech
-    try {
-      const result = await generateSummary(llm, ingestedText, language);
-      setSummary(result);
-      await updateActiveProjectData({ summary: result });
-    } catch (e: any) {
-      addNotification(e.message);
-    } finally {
-      setIsLoading(false);
+    
+    // 3. Execute Hook
+    const result = await createSummary(llm, ingestedText, language);
+    
+    if (result) {
+        setSummary(result);
+        try {
+            await updateActiveProjectData({ summary: result });
+            addNotification("Summary generated and saved!", "success");
+        } catch (e: any) {
+            addNotification("Summary generated but failed to save: " + e.message, "error");
+        }
     }
-  }, [ingestedText, addNotification, language, llm, updateActiveProjectData, cancelSpeaking]);
+  }, [ingestedText, addNotification, language, llm, updateActiveProjectData, cancelSpeaking, createSummary]);
 
   const toggleSpeech = () => {
       if (isSpeaking) {

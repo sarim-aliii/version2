@@ -20,14 +20,23 @@ export const FocusTimer: React.FC = () => {
   const endTimeRef = useRef<number | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  // Request notification permission on mount
+  // Request notification permission and load audio on mount
   useEffect(() => {
     if (typeof Notification !== 'undefined' && Notification.permission !== 'granted') {
       Notification.requestPermission();
     }
+    
     // Pre-load audio
     audioRef.current = new Audio(ALARM_SOUND_URL);
     audioRef.current.volume = 0.7;
+
+    // Cleanup audio on unmount
+    return () => {
+        if (audioRef.current) {
+            audioRef.current.pause();
+            audioRef.current = null;
+        }
+    };
   }, []);
 
   const playSound = () => {

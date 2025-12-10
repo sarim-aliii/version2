@@ -25,7 +25,8 @@ import {
     transcribeYoutubeVideo,
     generateCodeAnalysis,
     explainCodeAnalysis,
-    conductMockInterview
+    conductMockInterview,
+    generatePodcastScript,
 } from '../controllers/geminiController';
 import { protect } from '../middleware/authMiddleware';
 import multer from 'multer';
@@ -67,5 +68,6 @@ router.post('/code-analysis/generate', protect, generateCodeAnalysis);
 router.post('/code-analysis/explain', protect, explainCodeAnalysis);
 
 router.post('/mock-interview', protect, conductMockInterview);
+router.post('/podcast-script', protect, generatePodcastScript);
 
 export default router;

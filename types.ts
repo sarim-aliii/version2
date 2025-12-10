@@ -86,6 +86,7 @@ export enum Tab {
     MCQ = 'MCQ',
     CodeAnalysis = 'Code Analysis',
     InterviewPrep = 'Interview Prep',
+    AudioDeepDive = 'Audio Deep Dive',
     SemanticSearch = 'Semantic Search',
     AITutor = 'AI Tutor',
     AudioAnalysis = 'Audio Analysis',
@@ -196,4 +197,9 @@ export interface Category {
     icon: React.ReactNode;
     description: string;
     questions: Question[];
+}
+
+export interface PodcastSegment {
+    speaker: 'Host' | 'Guest';
+    text: string;
 }

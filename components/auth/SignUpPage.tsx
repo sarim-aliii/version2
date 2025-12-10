@@ -1,6 +1,6 @@
-// sarim-aliii/version2/version2-1493846b30acdc91c679cab38a402d8b18ff91c6/components/auth/SignUpPage.tsx
 import React, { useState } from 'react';
 import { useAppContext } from '../../context/AppContext';
+import { useApi } from '../../hooks/useApi'; // 1. Import hook
 import { Button } from '../ui/Button';
 import { Card } from '../ui/Card';
 import { Input } from '../ui/Input';
@@ -13,12 +13,20 @@ interface SignUpPageProps {
 }
 
 export const SignUpPage: React.FC<SignUpPageProps> = ({ onSwitchToLogin, onSignUpSuccess }) => {
-  const { signup, loginWithGoogle, loginWithGithub } = useAppContext(); // <-- Get social logins
+  const { signup, loginWithGoogle, loginWithGithub } = useAppContext();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [errors, setErrors] = useState<{ [key: string]: string }>({});
-  const [isLoading, setIsLoading] = useState(false);
+  
+  // Local validation errors
+  const [validationErrors, setValidationErrors] = useState<{ [key: string]: string }>({});
+
+  // 2. Setup Hook
+  const { 
+    execute: createAccount, 
+    loading: isLoading, 
+    error: apiError 
+  } = useApi(signup);
 
   const validate = () => {
     const newErrors: { [key: string]: string } = {};
@@ -35,21 +43,21 @@ export const SignUpPage: React.FC<SignUpPageProps> = ({ onSwitchToLogin, onSignU
     if (password !== confirmPassword) {
       newErrors.confirmPassword = 'Passwords do not match.';
     }
-    setErrors(newErrors);
+    
+    setValidationErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!validate()) return;
-    setIsLoading(true);
+    
+    // 3. Execute Hook
     try {
-      await signup({ email, password });
+      await createAccount({ email, password });
       onSignUpSuccess(email);
-    } catch (error: any) {
-      setErrors({ form: error.message || "An unexpected error occurred." });
-    } finally {
-      setIsLoading(false);
+    } catch (e) {
+      // Error handled by hook
     }
   };
 
@@ -62,7 +70,7 @@ export const SignUpPage: React.FC<SignUpPageProps> = ({ onSwitchToLogin, onSignU
           type="email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          error={errors.email}
+          error={validationErrors.email}
           disabled={isLoading}
           autoComplete="email"
         />
@@ -72,7 +80,7 @@ export const SignUpPage: React.FC<SignUpPageProps> = ({ onSwitchToLogin, onSignU
           type="password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          error={errors.password}
+          error={validationErrors.password}
           disabled={isLoading}
           autoComplete="new-password"
         />
@@ -82,11 +90,18 @@ export const SignUpPage: React.FC<SignUpPageProps> = ({ onSwitchToLogin, onSignU
           type="password"
           value={confirmPassword}
           onChange={(e) => setConfirmPassword(e.target.value)}
-          error={errors.confirmPassword}
+          error={validationErrors.confirmPassword}
           disabled={isLoading}
           autoComplete="new-password"
         />
-        {errors.form && <p className="text-sm text-red-400 -mb-2">{errors.form}</p>}
+        
+        {/* Show either validation error OR API error */}
+        {(validationErrors.form || apiError) && (
+            <p className="text-sm text-red-400 -mb-2">
+                {validationErrors.form || apiError}
+            </p>
+        )}
+
         <div className="pt-2">
           <Button type="submit" disabled={isLoading} className="w-full flex items-center justify-center">
             {isLoading ? <Loader spinnerClassName="w-5 h-5" /> : 'Create Account'}
@@ -102,7 +117,6 @@ export const SignUpPage: React.FC<SignUpPageProps> = ({ onSwitchToLogin, onSignU
         </div>
       </div>
       <div className="space-y-3">
-        {/* UPDATED onClick handlers */}
         <SocialButton provider="google" onClick={loginWithGoogle} isLoading={false} />
         <SocialButton provider="github" onClick={loginWithGithub} isLoading={false} />
       </div>

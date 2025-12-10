@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAppContext } from '../../context/AppContext';
+import { useApi } from '../../hooks/useApi'; // 1. Import hook
 import { Button } from '../ui/Button';
 import { Card } from '../ui/Card';
 import { Input } from '../ui/Input';
@@ -19,11 +20,16 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onSwitchToSignUp, onSwitch
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+  
+  // 2. Setup Hook
+  // We use useApi to wrap the context's login function for consistent state management
+  const { 
+    execute: attemptLogin, 
+    loading: isLoading, 
+    error: loginError 
+  } = useApi(login); // Auto-toasts on error
 
   // Determine where to redirect after login (default to /dashboard if no history)
-  // The 'from' property is passed by ProtectedRoute.tsx
   const from = location.state?.from?.pathname || "/dashboard"; 
 
   const handleLoginSuccess = () => {
@@ -32,24 +38,22 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onSwitchToSignUp, onSwitch
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
     if (!email || !password) {
-      setError('Please enter both email and password.');
+      // Basic validation can stay here
       return;
     }
-    setIsLoading(true);
+    
+    // 3. Execute Hook
+    // If login is successful (no error thrown), we redirect.
     try {
-      await login({ email, password });
-      // Redirect ONLY after successful login
-      handleLoginSuccess();
-    } catch (err: any) {
-      setError(err.message || 'Login failed. Please check your credentials.');
-    } finally {
-      setIsLoading(false);
+        await attemptLogin({ email, password });
+        handleLoginSuccess();
+    } catch (e) {
+        // Error handled by hook (toast + state), nothing extra needed here
     }
   };
 
-  // Wrapper for social login to handle redirect too
+  // Wrapper for social login
   const handleSocialLogin = async (provider: 'google' | 'github') => {
       try {
           if (provider === 'google') await loginWithGoogle();
@@ -57,7 +61,6 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onSwitchToSignUp, onSwitch
           
           handleLoginSuccess();
       } catch (err) {
-          // Error is handled in AppContext notification, but we can log here
           console.error("Social login failed", err);
       }
   };
@@ -90,9 +93,12 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onSwitchToSignUp, onSwitch
             </button>
           </div>
         </div>
-        {error && <p className="text-sm text-red-400 -mb-2">{error}</p>}
+        
+        {/* We can still show inline errors if we want, alongside the toast */}
+        {loginError && <p className="text-sm text-red-400 -mb-2">{loginError}</p>}
+        
         <div className="pt-2">
-            <Button type="submit" disabled={isLoading} className="w-full flex items-center justify-center">
+            <Button type="submit" disabled={isLoading || !email || !password} className="w-full flex items-center justify-center">
                  {isLoading ? <Loader spinnerClassName="w-5 h-5" /> : 'Log In'}
             </Button>
         </div>

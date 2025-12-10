@@ -1,7 +1,13 @@
 import React, { useState } from 'react';
+import { Toaster } from 'react-hot-toast';
 import { AppProvider, useAppContext } from './context/AppContext';
+
+// Layout Components
 import { Header } from './components/layout/Header';
 import { Sidebar } from './components/layout/Sidebar';
+import { LandingPage } from './components/layout/LandingPage';
+
+// Feature Components
 import { Ingest } from './components/features/Ingest';
 import { Summary } from './components/features/Summary';
 import { Flashcards } from './components/features/Flashcards';
@@ -13,13 +19,15 @@ import { AudioAnalysis } from './components/features/VoiceQA';
 import { LessonPlanner } from './components/features/LessonPlanner';
 import { StudyPlanner } from './components/features/StudyPlanner';
 import { ProfilePage } from './components/features/ProfilePage';
-import { ToastContainer } from './components/ui/Toast';
-import { Tab } from './types';
-import { AuthManager } from './components/auth/AuthManager';
 import CodeAnalysis from './components/features/CodeAnalysis';
-import { LandingPage } from './components/layout/LandingPage';
 import { InterviewPrep } from './components/features/InterviewPrep';
+import { AudioDeepDive } from './components/features/AudioDeepDive';
 
+// Auth
+import { AuthManager } from './components/auth/AuthManager';
+
+// Types
+import { Tab } from './types';
 
 const MainContent: React.FC = () => {
   const { activeTab, activeProjectId } = useAppContext();
@@ -38,6 +46,7 @@ const MainContent: React.FC = () => {
       case Tab.StudyPlanner: return <StudyPlanner />;
       case Tab.CodeAnalysis: return <CodeAnalysis />;
       case Tab.InterviewPrep: return <InterviewPrep />;
+      case Tab.AudioDeepDive: return <AudioDeepDive />;
       case Tab.Profile: return <ProfilePage />;
       default: return <Ingest />;
     }
@@ -67,7 +76,6 @@ const AppLayout: React.FC = () => {
           <Sidebar />
           <MainContent />
         </div>
-        <ToastContainer />
       </div>
     );
   }
@@ -76,10 +84,10 @@ const AppLayout: React.FC = () => {
   if (showAuth) {
     return (
         <div className="relative">
-             {/* Optional: Back button to return to landing page from login */}
+             {/* Back button to return to landing page */}
              <button 
                 onClick={() => setShowAuth(false)}
-                className="absolute top-4 left-4 text-slate-500 hover:text-white z-50 flex items-center gap-2 text-sm font-medium transition-colors"
+                className="absolute top-4 left-4 text-slate-500 hover:text-slate-800 dark:hover:text-white z-50 flex items-center gap-2 text-sm font-medium transition-colors"
              >
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
                     <path fillRule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clipRule="evenodd" />
@@ -87,7 +95,6 @@ const AppLayout: React.FC = () => {
                 Back
              </button>
              <AuthManager />
-             <ToastContainer />
         </div>
     );
   }
@@ -99,6 +106,26 @@ const AppLayout: React.FC = () => {
 const App: React.FC = () => {
   return (
     <AppProvider>
+      {/* This Toaster component catches all toast.error() calls 
+        from your useApi hook and displays them globally.
+      */}
+      <Toaster 
+        position="top-right"
+        toastOptions={{
+          style: {
+            background: '#333',
+            color: '#fff',
+          },
+          // Specific styles for error toasts
+          error: {
+            style: {
+              background: '#fee2e2', // Light red background
+              color: '#991b1b',      // Dark red text
+              border: '1px solid #f87171',
+            },
+          },
+        }}
+      />
       <AppLayout />
     </AppProvider>
   );
