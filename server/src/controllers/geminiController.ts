@@ -9,6 +9,8 @@ import {
     Content
 } from "@google/generative-ai";
 import ytdl from '@distube/ytdl-core';
+import axios from 'axios';
+import * as cheerio from 'cheerio';
 
 
 if (!process.env.GEMINI_API_KEY) {
@@ -750,5 +752,64 @@ export const generateSlideContent = async (req: Request, res: Response) => {
     } catch (error: any) {
         console.error("Slide Gen Error:", error);
         res.status(500).json({ message: error.message || 'Failed to generate slides' });
+    }
+};
+
+
+// @desc    Scrape text content from a URL
+// @route   POST /api/gemini/scrape-url
+// @access  Private
+export const scrapeWebPage = async (req: Request, res: Response) => {
+    const { url } = req.body;
+
+    if (!url) {
+        return res.status(400).json({ message: "URL is required" });
+    }
+
+    try {
+        // Fetch HTML
+        const { data } = await axios.get(url, {
+            headers: {
+                // Fake User-Agent to avoid immediate blocking by some sites
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+            }
+        });
+
+        const $ = cheerio.load(data);
+
+        // Remove junk elements
+        $('script, style, noscript, iframe, img, svg, nav, footer, header, aside, .ads, .sidebar').remove();
+
+        // Try to find the main content container using common selectors
+        let content = '';
+        const selectors = ['article', 'main', '.post-content', '.entry-content', '#content', '.content', '.article-body'];
+        
+        for (const selector of selectors) {
+            const element = $(selector);
+            if (element.length > 0) {
+                content = element.text();
+                break;
+            }
+        }
+
+        // Fallback to body if no specific content container found
+        if (!content) {
+            content = $('body').text();
+        }
+
+        // Clean up whitespace (newlines, tabs, multiple spaces)
+        content = content.replace(/\s+/g, ' ').trim();
+
+        if (!content || content.length < 50) {
+             return res.status(400).json({ message: "Content too short or could not be extracted." });
+        }
+
+        const title = $('title').text().trim() || 'Scraped Article';
+
+        res.json({ title, content });
+
+    } catch (error: any) {
+        console.error("Scraping Error:", error.message);
+        res.status(500).json({ message: `Failed to scrape URL: ${error.message}` });
     }
 };

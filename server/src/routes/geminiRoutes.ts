@@ -28,6 +28,7 @@ import {
     conductMockInterview,
     generatePodcastScript,
     generateSlideContent,
+    scrapeWebPage,
 } from '../controllers/geminiController';
 import { protect } from '../middleware/authMiddleware';
 import multer from 'multer';
@@ -71,5 +72,6 @@ router.post('/code-analysis/explain', protect, explainCodeAnalysis);
 router.post('/mock-interview', protect, conductMockInterview);
 router.post('/podcast-script', protect, generatePodcastScript);
 router.post('/slides', protect, generateSlideContent);
+router.post('/scrape-url', protect, scrapeWebPage);
 
 export default router;

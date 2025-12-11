@@ -149,3 +149,12 @@ export const generateSlides = async (llm: string, projectId: string, topic: stri
         throw error;
     }
 };
+
+export const scrapeUrl = async (url: string): Promise<{ title: string, content: string }> => {
+    try {
+        return await apiHelpers.scrapeWebPage(url);
+    } catch (error) {
+        console.error("Error in scrapeUrl:", error);
+        throw error;
+    }
+};

@@ -308,4 +308,9 @@ export const getDueFlashcards = async (): Promise<StudyProject[]> => {
   return data;
 };
 
+export const scrapeWebPage = async (url: string): Promise<{ title: string, content: string }> => {
+    const { data } = await api.post('/gemini/scrape-url', { url });
+    return data;
+};
+
 export default api;
