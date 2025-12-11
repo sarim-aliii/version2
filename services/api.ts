@@ -29,9 +29,9 @@ export interface LeaderboardUser {
 }
 
 export interface SlideData {
-    title: string;
-    bullets: string[];
-    speakerNotes: string;
+  title: string;
+  bullets: string[];
+  speakerNotes: string;
 }
 
 
@@ -299,8 +299,8 @@ export const shareProjectWithUser = async (projectId: string, email: string) => 
 };
 
 export const generateSlideContent = async (llm: string, projectId: string, topic: string, language: string): Promise<SlideData[]> => {
-    const { data } = await api.post('/gemini/slides', { llm, projectId, topic, language });
-    return data;
+  const { data } = await api.post('/gemini/slides', { llm, projectId, topic, language });
+  return data;
 };
 
 export const getDueFlashcards = async (): Promise<StudyProject[]> => {
@@ -309,8 +309,13 @@ export const getDueFlashcards = async (): Promise<StudyProject[]> => {
 };
 
 export const scrapeWebPage = async (url: string): Promise<{ title: string, content: string }> => {
-    const { data } = await api.post('/gemini/scrape-url', { url });
-    return data;
+  const { data } = await api.post('/gemini/scrape-url', { url });
+  return data;
+};
+
+export const exportUserData = async () => {
+  const { data } = await api.get('/auth/export');
+  return data;
 };
 
 export default api;

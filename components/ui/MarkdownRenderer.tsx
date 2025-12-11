@@ -3,6 +3,9 @@ import ReactMarkdown from 'react-markdown';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import remarkGfm from 'remark-gfm';
+import remarkMath from 'remark-math';
+import rehypeKatex from 'rehype-katex';
+import 'katex/dist/katex.min.css';
 
 interface MarkdownRendererProps {
   content: string;
@@ -46,7 +49,8 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content }) =
     // FIX: Applied className to wrapper div instead of ReactMarkdown to prevent crash
     <div className="prose prose-slate dark:prose-invert max-w-none text-slate-700 dark:text-slate-300">
         <ReactMarkdown
-        remarkPlugins={[remarkGfm]}
+        remarkPlugins={[remarkGfm, remarkMath]}
+        rehypePlugins={[rehypeKatex]}
         components={{
             // Override the 'code' element to handle code blocks vs inline code
             code({ node, inline, className, children, ...props }: any) {

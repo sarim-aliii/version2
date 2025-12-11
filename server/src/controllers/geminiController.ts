@@ -47,6 +47,9 @@ const getProjectForUser = async (projectId: string, userId: string) => {
     return project;
 };
 
+// Global instruction for Math consistency
+const MATH_INSTRUCTION = " Always format mathematical equations using LaTeX syntax (e.g., $E=mc^2$ for inline, $$E=mc^2$$ for block equations). Do not use plain text for math formulas.";
+
 // Helper to get model dynamic instance
 const getModel = (llm: string, responseMimeType?: string, systemInstruction?: string) => {
     let modelName = llm || defaultModelName;
@@ -64,15 +67,17 @@ const getModel = (llm: string, responseMimeType?: string, systemInstruction?: st
         modelName = defaultModelName;
     }
 
+    // Append math instruction to any existing system instruction, or create one
+    const finalSystemInstruction = systemInstruction 
+        ? `${systemInstruction}\n\n${MATH_INSTRUCTION}`
+        : `You are a helpful AI assistant. ${MATH_INSTRUCTION}`;
+
     const modelParams: any = {
         model: modelName,
         safetySettings,
-        generationConfig: responseMimeType ? { ...generationConfig, responseMimeType } : generationConfig
+        generationConfig: responseMimeType ? { ...generationConfig, responseMimeType } : generationConfig,
+        systemInstruction: finalSystemInstruction // Use the enhanced instruction
     };
-
-    if (systemInstruction) {
-        modelParams.systemInstruction = systemInstruction;
-    }
 
     return genAI.getGenerativeModel(modelParams);
 }
@@ -663,6 +668,8 @@ export const conductMockInterview = async (req: Request, res: Response) => {
             - If the candidate struggles, guide them with the Socratic method.
         5.  **Termination**: If the user says "End Interview" or "Stop", provide a comprehensive feedback summary of their performance, highlighting strengths and areas for improvement.
 
+        ${MATH_INSTRUCTION}
+
         Respond in ${language}.`;
 
         const chatHistory: Content[] = (history || []).map((h: any) => ({
@@ -733,7 +740,8 @@ export const generateSlideContent = async (req: Request, res: Response) => {
         - 'title': concise slide header.
         - 'bullets': 3-5 key points per slide (short sentences).
         - 'speakerNotes': A script for the presenter to say (2-3 sentences).
-        - Language: ${language || 'English'}.`;
+        - Language: ${language || 'English'}.
+        ${MATH_INSTRUCTION}`;
 
         const prompt = `Create a slide deck based on this lesson plan topic: "${topic}".
         

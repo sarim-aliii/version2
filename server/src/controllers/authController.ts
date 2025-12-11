@@ -6,6 +6,7 @@ import crypto from 'crypto';
 import User from '../models/User';
 import { firebaseAdmin } from '../config/firebaseAdmin';
 import sendEmail from '../utils/sendEmail';
+import StudyProject from '../models/StudyProject';
 
 
 // Helper: Generate JWT
@@ -493,4 +494,26 @@ export const resendVerificationEmail = asyncHandler(async (req: Request, res: Re
   });
 
   res.status(200).json({ message: "Verification code sent" });
+});
+
+
+// @desc    Export all user data
+// @route   GET /api/auth/export
+// @access  Private
+export const exportUserData = asyncHandler(async (req: Request, res: Response) => {
+    if (!req.user) throw new AppError('Not authorized', 401);
+
+    const user = await User.findById(req.user.id).select('-password');
+    if (!user) throw new AppError('User not found', 404);
+
+    const projects = await StudyProject.find({ owner: req.user.id });
+
+    const exportData = {
+        user,
+        projects,
+        exportDate: new Date().toISOString(),
+        version: '1.0'
+    };
+
+    res.json(exportData);
 });

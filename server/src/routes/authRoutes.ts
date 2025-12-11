@@ -11,7 +11,8 @@ import {
     resetPassword,
     updateUserProgress,
     updateUserTodos,
-    resendVerificationEmail
+    resendVerificationEmail,
+    exportUserData
 } from '../controllers/authController';
 import { protect } from '../middleware/authMiddleware';
 
@@ -31,5 +32,6 @@ router.post('/verify-email', verifyEmail);
 router.post('/forgot-password', forgotPassword);
 router.post('/reset-password', resetPassword);
 router.post('/resend-verification', resendVerificationEmail);
+router.get('/export', protect, exportUserData);
 
 export default router;

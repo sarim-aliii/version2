@@ -1,8 +1,12 @@
 import React from 'react';
 import { createPortal } from 'react-dom';
 import { useAppContext } from '../../context/AppContext';
+import { useApi } from '../../hooks/useApi';
+import { exportUserData } from '../../services/api';
+import { generateUserReport } from '../../utils/pdfGenerator';
 import { LANGUAGE_OPTIONS } from '../constants/languages';
 import { Button } from '../ui/Button';
+import { Loader } from '../ui/Loader';
 
 interface SettingsModalProps {
     isOpen: boolean;
@@ -16,8 +20,44 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
         language, 
         setLanguage, 
         theme, 
-        toggleTheme 
+        toggleTheme,
+        addNotification
     } = useAppContext();
+
+    const { execute: runExport, loading: isExporting } = useApi(exportUserData);
+
+    // JSON Export
+    const handleJsonExport = async () => {
+        try {
+            const data = await runExport();
+            if (data) {
+                const jsonString = `data:text/json;chatset=utf-8,${encodeURIComponent(
+                    JSON.stringify(data, null, 2)
+                )}`;
+                const link = document.createElement("a");
+                link.href = jsonString;
+                link.download = `kairon_backup_${new Date().toISOString().split('T')[0]}.json`;
+                link.click();
+                addNotification("Backup (JSON) exported successfully!", "success");
+            }
+        } catch (e) {
+            console.error(e);
+        }
+    };
+
+    // PDF Export
+    const handlePdfExport = async () => {
+        try {
+            // Re-use the same API call to get all data
+            const data = await runExport();
+            if (data) {
+                generateUserReport(data.user, data.projects);
+                addNotification("Report (PDF) generated successfully!", "success");
+            }
+        } catch (e) {
+            console.error(e);
+        }
+    };
 
     if (!isOpen) return null;
 
@@ -41,7 +81,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
                     Settings
                 </h2>
 
-                <div className="space-y-6">
+                <div className="space-y-6 max-h-[70vh] overflow-y-auto pr-2 custom-scrollbar">
                     {/* Theme Toggle */}
                     <div>
                         <h3 className="text-sm font-semibold text-slate-400 mb-2">Appearance</h3>
@@ -115,11 +155,48 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
                             AI responses will be generated in this language.
                         </p>
                     </div>
+                    
+                    {/* Data Management */}
+                    <div className="pt-4 border-t border-slate-700">
+                        <h3 className="text-sm font-semibold text-slate-400 mb-3">Data Management</h3>
+                        <div className="flex flex-col gap-3">
+                            <Button 
+                                onClick={handlePdfExport} 
+                                disabled={isExporting} 
+                                variant="secondary"
+                                className="w-full flex items-center justify-center gap-2"
+                            >
+                                {isExporting ? <Loader spinnerClassName="w-4 h-4" /> : (
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                        <path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z" clipRule="evenodd" />
+                                    </svg>
+                                )}
+                                {isExporting ? 'Generating...' : 'Download Report (PDF)'}
+                            </Button>
+
+                            <Button 
+                                onClick={handleJsonExport} 
+                                disabled={isExporting} 
+                                variant="secondary"
+                                className="w-full flex items-center justify-center gap-2 border-slate-700"
+                            >
+                                {isExporting ? <Loader spinnerClassName="w-4 h-4" /> : (
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                        <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" />
+                                    </svg>
+                                )}
+                                {isExporting ? 'Exporting...' : 'Backup Data (JSON)'}
+                            </Button>
+                        </div>
+                        <p className="text-xs text-slate-500 mt-2 text-center">
+                            PDF is for reading. JSON is for restoring data.
+                        </p>
+                    </div>
                 </div>
 
-                <div className="mt-8 pt-4 border-t border-slate-700 flex justify-end">
+                <div className="mt-6 pt-4 border-t border-slate-700 flex justify-end">
                     <Button onClick={onClose} className="w-full sm:w-auto px-8">
-                        Save & Close
+                        Close
                     </Button>
                 </div>
             </div>
