@@ -303,4 +303,9 @@ export const generateSlideContent = async (llm: string, projectId: string, topic
     return data;
 };
 
+export const getDueFlashcards = async (): Promise<StudyProject[]> => {
+  const { data } = await api.get('/projects/due-flashcards');
+  return data;
+};
+
 export default api;

@@ -215,3 +215,28 @@ export const deleteProject = async (req: Request, res: Response) => {
     res.status(500).json({ message: 'Server Error' });
   }
 };
+
+
+// @desc    Get all due flashcards across projects
+// @route   GET /api/projects/due-flashcards
+// @access  Private
+export const getDueFlashcards = async (req: Request, res: Response) => {
+  if (!req.user) {
+     res.status(401).json({ message: 'Not authorized' });
+     return;
+  }
+
+  try {
+    const now = new Date();
+    // Find projects where user is owner AND has at least one card with dueDate <= now
+    const projects = await StudyProject.find({
+      owner: req.user.id,
+      'srsFlashcards.dueDate': { $lte: now }
+    }).select('_id name srsFlashcards');
+
+    res.json(projects);
+  } catch (error) {
+    console.error("Error fetching due cards:", error);
+    res.status(500).json({ message: 'Server Error' });
+  }
+};

@@ -23,6 +23,7 @@ import CodeAnalysis from './components/features/CodeAnalysis';
 import { InterviewPrep } from './components/features/InterviewPrep';
 import { AudioDeepDive } from './components/features/AudioDeepDive';
 import { Leaderboard } from './components/features/Leaderboard';
+import { DailyReview } from './components/features/DailyReview';
 
 
 
@@ -38,6 +39,7 @@ const MainContent: React.FC = () => {
   const renderActiveTab = () => {
     switch (activeTab) {
       case Tab.Ingest: return <Ingest />;
+      case Tab.DailyReview: return <DailyReview />;
       case Tab.Summary: return <Summary />;
       case Tab.SRSFlashcards: return <Flashcards />;
       case Tab.MCQ: return <MCQ />;

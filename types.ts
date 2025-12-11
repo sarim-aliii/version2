@@ -95,6 +95,7 @@ export enum Tab {
     StudyPlanner = 'Study Planner',
     Leaderboard = 'Leaderboard',
     Profile = 'Profile',
+    DailyReview = 'Daily Review',
 }
 
 export type NotificationType = 'error' | 'success' | 'info';

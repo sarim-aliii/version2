@@ -4,19 +4,13 @@ import { useAppContext } from '../../context/AppContext';
 import { ProjectHistory } from './ProjectHistory';
 import { FocusTimer } from '../features/FocusTimer';
 import { FeedbackModal } from '../features/FeedbackModal';
-import { LANGUAGE_OPTIONS } from '../constants/languages';
+import { SettingsModal } from '../features/SettingsModal';
 import { Tab } from '../../types';
 
 
 export const Sidebar: React.FC = () => {
     const { 
         isSidebarCollapsed, 
-        language, 
-        setLanguage, 
-        llm, 
-        setLlm, 
-        theme, 
-        toggleTheme, 
         currentUser, 
         setActiveTab, 
         activeTab,
@@ -24,6 +18,7 @@ export const Sidebar: React.FC = () => {
     } = useAppContext();
 
     const [isFeedbackOpen, setIsFeedbackOpen] = useState(false);
+    const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
     const currentXP = currentUser?.xp || 0;
     const currentLevel = currentUser?.level || 1;
@@ -57,7 +52,7 @@ export const Sidebar: React.FC = () => {
                             <div className="flex justify-between items-center mt-2">
                                 <p className="text-xs text-slate-500 dark:text-slate-400">{xpProgress} / 100 XP</p>
                                 
-                                {/* NEW: Leaderboard Button */}
+                                {/* Leaderboard Button */}
                                 <button 
                                     onClick={() => setActiveTab(Tab.Leaderboard)}
                                     className={`text-xs font-bold px-2 py-1 rounded transition-colors flex items-center gap-1 ${
@@ -75,44 +70,23 @@ export const Sidebar: React.FC = () => {
                         </div>
                     )}
 
+                    {/* NEW: Daily Review Button */}
+                    <button
+                        onClick={() => setActiveTab(Tab.DailyReview)}
+                        className={`w-full py-3 px-4 rounded-lg flex items-center justify-center gap-2 font-bold transition-all transform hover:scale-[1.02] shadow-md group ${
+                            activeTab === Tab.DailyReview
+                            ? 'bg-gradient-to-r from-red-600 to-red-500 text-white shadow-red-500/20'
+                            : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 hover:border-red-500/50 hover:shadow-lg'
+                        }`}
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" className={`h-5 w-5 ${activeTab === Tab.DailyReview ? 'text-white' : 'text-red-500 group-hover:scale-110 transition-transform'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                        </svg>
+                        Daily Review
+                    </button>
+
                     {/* FOCUS TIMER */}
                     <FocusTimer />
-
-                    {/* SETTINGS */}
-                    <div className="space-y-4">
-                        <div>
-                            <h3 className="text-sm font-semibold text-slate-500 dark:text-slate-400 mb-1">LLM Model</h3>
-                            <select
-                                value={llm}
-                                onChange={(e) => setLlm(e.target.value)}
-                                className="w-full text-sm text-slate-800 dark:text-slate-200 bg-gray-50 dark:bg-slate-800 p-2 rounded border border-gray-200 dark:border-slate-700 focus:ring-2 focus:ring-red-500 focus:outline-none transition-colors"
-                            >
-                                <optgroup label="Recommended">
-                                    <option value="gemini-flash-latest">Gemini Flash (Latest Auto)</option>
-                                    <option value="gemini-pro-latest">Gemini Pro (Best Quality)</option>
-                                </optgroup>
-                                <optgroup label="Gemini 2.0 (New)">
-                                    <option value="gemini-2.0-flash-001">Gemini 2.0 Flash</option>
-                                    <option value="gemini-2.0-flash-lite-preview-02-05">Gemini 2.0 Flash-Lite (Fastest)</option>
-                                </optgroup>
-                            </select>
-                        </div>
-
-                        <div>
-                            <h3 className="text-sm font-semibold text-slate-500 dark:text-slate-400 mb-1">Language</h3>
-                            <select
-                                value={language}
-                                onChange={(e) => setLanguage(e.target.value)}
-                                className="w-full text-sm text-slate-800 dark:text-slate-200 bg-gray-50 dark:bg-slate-800 p-2 rounded border border-gray-200 dark:border-slate-700 focus:ring-2 focus:ring-red-500 focus:outline-none transition-colors"
-                            >
-                                {LANGUAGE_OPTIONS.map((lang) => (
-                                    <option key={lang} value={lang}>
-                                        {lang}
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
-                    </div>
 
                     <hr className="border-slate-200 dark:border-slate-800" />
 
@@ -126,10 +100,10 @@ export const Sidebar: React.FC = () => {
                     <hr className="border-slate-200 dark:border-slate-800" />
 
                     {/* BOTTOM ACTIONS */}
-                    <div className="pt-2 flex items-center justify-between">
+                    <div className="pt-2 flex items-center justify-between gap-1">
                         <a
                             href="mailto:kaironapp.ai@gmail.com"
-                            className="flex items-center gap-2 text-slate-500 dark:text-slate-400 hover:text-red-500 transition-colors text-sm font-medium group"
+                            className="flex-1 flex items-center justify-center gap-2 text-slate-500 dark:text-slate-400 hover:text-red-500 transition-colors text-sm font-medium group hover:bg-gray-100 dark:hover:bg-slate-800 p-2 rounded-md"
                         >
                             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 group-hover:scale-110 transition-transform" viewBox="0 0 20 20" fill="currentColor">
                                 <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-2 0c0 .993-.241 1.929-.668 2.754l-1.524-1.525a3.997 3.997 0 00.078-2.183l1.562-1.562C15.802 8.249 16 9.1 16 10zm-5.165 3.913l1.58 1.58A5.98 5.98 0 0110 16a5.976 5.976 0 01-2.516-.552l1.562-1.562a4.006 4.006 0 001.789.027zm-4.677-2.796a4.002 4.002 0 01-.041-2.08l-.08.08-1.53-1.533A5.98 5.98 0 004 10c0 .954.223 1.856.619 2.657l1.54-1.54zm1.088-6.45A5.974 5.974 0 0110 4c.954 0 1.856.223 2.657.619l-1.54 1.54a4.002 4.002 0 00-2.346.033L7.246 4.668zM12 10a2 2 0 11-4 0 2 2 0 014 0z" clipRule="evenodd" />
@@ -148,31 +122,29 @@ export const Sidebar: React.FC = () => {
                             </svg>
                         </button>
 
-                        {/* Theme Toggle Button */}
+                        {/* Settings Button */}
                         <button
-                            onClick={toggleTheme}
+                            onClick={() => setIsSettingsOpen(true)}
                             className="p-2 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-slate-800 rounded-md transition-colors"
-                            title={theme === 'dark' ? "Switch to Light Mode" : "Switch to Dark Mode"}
+                            title="Settings"
                         >
-                            {theme === 'dark' ? (
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
-                                </svg>
-                            ) : (
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
-                                </svg>
-                            )}
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                <path fillRule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" clipRule="evenodd" />
+                            </svg>
                         </button>
                     </div>
                 </div>
             </aside>
 
-            {/* Feedback Modal Component */}
+            {/* Modals */}
             <FeedbackModal
                 isOpen={isFeedbackOpen}
                 onClose={() => setIsFeedbackOpen(false)}
                 addNotification={addNotification}
+            />
+            <SettingsModal
+                isOpen={isSettingsOpen}
+                onClose={() => setIsSettingsOpen(false)}
             />
         </>
     );
