@@ -318,4 +318,9 @@ export const exportUserData = async () => {
   return data;
 };
 
+export const transformText = async (llm: string, text: string, selection: string, instruction: string, language: string): Promise<string> => {
+  const { data } = await api.post('/gemini/transform', { llm, text, selection, instruction, language });
+  return data;
+};
+
 export default api;

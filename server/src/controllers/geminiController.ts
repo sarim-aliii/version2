@@ -821,3 +821,39 @@ export const scrapeWebPage = async (req: Request, res: Response) => {
         res.status(500).json({ message: `Failed to scrape URL: ${error.message}` });
     }
 };
+
+
+// @desc    Transform text based on instruction (Notion-style AI edit)
+// @route   POST /api/gemini/transform
+// @access  Private
+export const transformText = async (req: Request, res: Response) => {
+    const { llm, text, selection, instruction, language } = req.body;
+
+    try {
+        const model = getModel(llm);
+        
+        let prompt = `Act as an expert editor and study assistant.
+        
+        CONTEXT (Full Text):
+        "${text.substring(0, 3000)}..."
+        
+        TARGET TEXT (Selection to modify, or cursor context):
+        "${selection || 'Current cursor position (continue writing)'}"
+        
+        INSTRUCTION:
+        ${instruction}
+        
+        OUTPUT REQUIREMENT:
+        Return ONLY the new/modified text. Do not include conversational filler like "Here is the text". 
+        If the instruction is to "continue", simply generate the next logical sentences.
+        Respond in ${language || 'English'}.
+        `;
+
+        const result = await model.generateContent(prompt);
+        res.json(result.response.text());
+
+    } catch (error: any) {
+        console.error("Transform Text Error:", error);
+        res.status(500).json({ message: `Transformation failed: ${error.message}` });
+    }
+};

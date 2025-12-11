@@ -158,3 +158,12 @@ export const scrapeUrl = async (url: string): Promise<{ title: string, content: 
         throw error;
     }
 };
+
+export const transformContent = async (llm: string, text: string, selection: string, instruction: string, language: string): Promise<string> => {
+    try {
+        return await apiHelpers.transformText(llm, text, selection, instruction, language);
+    } catch (error) {
+        console.error("Error in transformContent:", error);
+        throw error;
+    }
+};

@@ -5,9 +5,10 @@ import { Button } from '../ui/Button';
 import { Card } from '../ui/Card';
 import { FileUploader } from '../ui/FileUploader';
 import { Slider } from '../ui/Slider';
-import { fetchTopicInfo, extractTextFromFile, scrapeUrl } from '../../services/geminiService'; // Import scrapeUrl
+import { fetchTopicInfo, extractTextFromFile, scrapeUrl } from '../../services/geminiService';
 import { Loader } from '../ui/Loader';
 import { Tab } from '../../types';
+import { SmartEditor } from '../ui/SmartEditor'; // <--- Import SmartEditor
 
 export const Ingest: React.FC = () => {
   const { 
@@ -26,7 +27,7 @@ export const Ingest: React.FC = () => {
   const [chunkWords, setChunkWords] = useState(837);
   const [chunkOverlap, setChunkOverlap] = useState(254);
   const [topic, setTopic] = useState('');
-  const [articleUrl, setArticleUrl] = useState(''); // New state for URL
+  const [articleUrl, setArticleUrl] = useState('');
 
   const [isExtracting, setIsExtracting] = useState(false);
 
@@ -65,7 +66,8 @@ export const Ingest: React.FC = () => {
     }
   }, [ingestedText]);
 
-  // ... (acceptedMimeTypes and fileToBase64 helper remain same) ...
+  // ... (file handling functions: acceptedMimeTypes, fileToBase64, handleFilesUpload remain unchanged) ...
+  // [Rest of file handling code omitted for brevity as it is unchanged]
   const acceptedMimeTypes = {
     'application/pdf': ['.pdf'],
     'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'],
@@ -90,7 +92,6 @@ export const Ingest: React.FC = () => {
     });
   };
   
-  // ... (handleFilesUpload remains same) ...
   const handleFilesUpload = async (files: File[]) => {
     setFileNames(files.map(f => f.name));
     setPastedText('');
@@ -156,7 +157,6 @@ export const Ingest: React.FC = () => {
     }
   };
 
-  // NEW: Handle URL Scrape
   const handleScrape = async () => {
     if (!articleUrl.trim()) {
       addNotification('Please enter a URL.', 'info');
@@ -167,7 +167,7 @@ export const Ingest: React.FC = () => {
     
     if (result) {
       setPastedText(result.content);
-      setFileNames([result.title]); // Use page title as filename
+      setFileNames([result.title]);
     }
   };
 
@@ -260,13 +260,14 @@ export const Ingest: React.FC = () => {
         <hr className="flex-grow border-slate-700" />
       </div>
 
-      {/* 3. Editor & Actions */}
+      {/* 3. Smart Editor & Actions */}
       <Card>
-        <textarea
+        {/* REPLACED TEXTAREA WITH SMART EDITOR */}
+        <SmartEditor
           value={pastedText}
-          onChange={(e) => setPastedText(e.target.value)}
-          placeholder="Paste or edit your study notes here..."
-          className="w-full h-64 bg-slate-900 border border-slate-700 rounded-md p-3 text-slate-300 focus:ring-2 focus:ring-red-500 focus:outline-none transition"
+          onChange={setPastedText}
+          placeholder="Paste notes, scrape a URL, or type '/' for AI superpowers (Expand, Fix Grammar, Summarize)..."
+          className="w-full h-96 bg-slate-900 border border-slate-700 rounded-md p-4 text-slate-300 focus:ring-2 focus:ring-red-500 focus:outline-none transition resize-y"
         />
         
         <div className="mt-6 space-y-6">
