@@ -10,6 +10,8 @@ import {
 import axiosInstance from './axiosInstance';
 
 
+
+// ---------------------------------------
 export interface SearchResult {
   text: string;
   score: number;
@@ -26,8 +28,14 @@ export interface LeaderboardUser {
   currentStreak: number;
 }
 
-const API_URL = '/api';
+export interface SlideData {
+    title: string;
+    bullets: string[];
+    speakerNotes: string;
+}
 
+
+const API_URL = '/api';
 const api = axios.create({
   baseURL: API_URL,
   headers: {
@@ -288,6 +296,11 @@ export const getLeaderboard = async (): Promise<LeaderboardUser[]> => {
 export const shareProjectWithUser = async (projectId: string, email: string) => {
   const response = await axiosInstance.post(`/projects/${projectId}/share`, { email });
   return response.data;
+};
+
+export const generateSlideContent = async (llm: string, projectId: string, topic: string, language: string): Promise<SlideData[]> => {
+    const { data } = await api.post('/gemini/slides', { llm, projectId, topic, language });
+    return data;
 };
 
 export default api;

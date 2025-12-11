@@ -712,3 +712,43 @@ export const generatePodcastScript = async (req: Request, res: Response) => {
         res.status(500).json({ message: error.message || 'Failed to generate podcast script' });
     }
 };
+
+export const generateSlideContent = async (req: Request, res: Response) => {
+    if (!req.user) return res.status(401).json({ message: 'Not authorized' });
+    const { projectId, topic, llm, language } = req.body;
+
+    try {
+        const project = await getProjectForUser(projectId, req.user.id);
+        
+        // Detailed instruction for JSON output
+        const systemInstruction = `You are an expert presentation designer. Convert educational content into a structured slide deck.
+        Return ONLY a valid raw JSON array. Do not use markdown formatting (no \`\`\`json blocks).
+        
+        Structure: Array<{ title: string, bullets: string[], speakerNotes: string }>
+        
+        Requirements:
+        - Create 5-8 slides.
+        - 'title': concise slide header.
+        - 'bullets': 3-5 key points per slide (short sentences).
+        - 'speakerNotes': A script for the presenter to say (2-3 sentences).
+        - Language: ${language || 'English'}.`;
+
+        const prompt = `Create a slide deck based on this lesson plan topic: "${topic}".
+        
+        SOURCE CONTENT:
+        ${project.ingestedText.substring(0, 15000)}`; 
+
+        const model = getModel(llm, "application/json", systemInstruction);
+        const result = await model.generateContent(prompt);
+        
+        let text = result.response.text();
+        // Clean up markdown if Gemini adds it despite instructions
+        text = text.replace(/```json/g, '').replace(/```/g, '').trim();
+        
+        res.json(JSON.parse(text));
+
+    } catch (error: any) {
+        console.error("Slide Gen Error:", error);
+        res.status(500).json({ message: error.message || 'Failed to generate slides' });
+    }
+};

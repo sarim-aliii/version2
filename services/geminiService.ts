@@ -10,7 +10,6 @@ import {
     PodcastSegment
 } from '../types';
 
-// REMOVED 'performSemanticSearch' from this list to avoid duplicate identifier error
 export {
     fetchTopicInfo,
     transcribeAudio,
@@ -23,7 +22,7 @@ export {
     transcribeYoutube,
 } from './api';
 
-import { SearchResult } from './api';
+import { SearchResult, SlideData } from './api';
 
 export const generateStudyPlan = async (llm: string, text: string, days: number, language: string): Promise<StudyPlan> => {
     try {
@@ -138,6 +137,15 @@ export const performSemanticSearch = async (
         return await apiHelpers.performSemanticSearch(llm, text, query, topK, projectId, global);
     } catch (error) {
         console.error("Error in performSemanticSearch:", error);
+        throw error;
+    }
+};
+
+export const generateSlides = async (llm: string, projectId: string, topic: string, language: string): Promise<SlideData[]> => {
+    try {
+        return await apiHelpers.generateSlideContent(llm, projectId, topic, language);
+    } catch (error) {
+        console.error("Error in generateSlides:", error);
         throw error;
     }
 };

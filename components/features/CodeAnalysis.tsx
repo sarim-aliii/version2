@@ -197,7 +197,7 @@ const CodeAnalysis: React.FC = () => {
 
     return (
         <div className="space-y-6">
-            <Card title="Interactive Code Sandbox">
+            <Card title="Interactive Code Editor">
                 <div className="space-y-4">
                     <div className="flex flex-col sm:flex-row gap-4 justify-between items-center bg-slate-100 dark:bg-slate-800 p-2 rounded-md">
                         <div className="flex items-center gap-2">
