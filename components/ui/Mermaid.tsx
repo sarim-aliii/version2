@@ -7,6 +7,13 @@ interface MermaidProps {
   theme?: 'dark' | 'default' | 'forest' | 'neutral';
 }
 
+// Initial configuration
+mermaid.initialize({
+  startOnLoad: false,
+  securityLevel: 'loose',
+  fontFamily: 'Rajdhani, sans-serif',
+});
+
 const sanitizeMermaidCode = (code: string): string => {
   let clean = code
     .replace(/```mermaid/g, '')
@@ -17,16 +24,13 @@ const sanitizeMermaidCode = (code: string): string => {
     .replace(/-">/g, '->')
     // Fix: Quote nodes that contain array brackets [], parens (), or braces {} 
     // IF they are not already quoted.
-    // Matches pattern: ID + open_char + (content with special char) + close_char
     .replace(
       /(\w+)\s*([\[\{\(])\s*(?!")([^"\n]*?[\[\]\(\)\{\}][^"\n]*?)\s*([\]\}\)])/g,
       (match, id, open, content, close) => {
-        // Double check we aren't corrupting an already valid string
         if (content.includes('"')) return match; 
         return `${id}${open}"${content}"${close}`;
       }
     )
-    // Cleanup any double quotes introduced or existing weird quotes
     .replace(/\("([^"]+);/g, '("$1")')
     .replace(/"\)\)/g, '")')
     .replace(/";/g, '"')
@@ -41,24 +45,11 @@ export const Mermaid: React.FC<MermaidProps> = ({ chart, theme = 'dark' }) => {
   const [error, setError] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
 
+  // References for D3 Zoom
   const zoomBehaviorRef = useRef<d3.ZoomBehavior<Element, unknown> | null>(null);
   const svgSelectionRef = useRef<d3.Selection<Element, unknown, null, undefined> | null>(null);
 
-  useEffect(() => {
-    try {
-      mermaid.initialize({
-        startOnLoad: true,
-        theme: theme,
-        securityLevel: 'loose',
-        fontFamily: 'Rajdhani, sans-serif',
-        flowchart: { htmlLabels: true, curve: 'basis' }
-      });
-    } catch (e) {
-      console.warn("Mermaid initialization warning:", e);
-    }
-  }, [theme]);
-
-  // Handle fullscreen
+  // Handle Fullscreen toggle
   useEffect(() => {
     const handleFullscreenChange = () => {
       setIsFullscreen(document.fullscreenElement === wrapperRef.current);
@@ -67,29 +58,41 @@ export const Mermaid: React.FC<MermaidProps> = ({ chart, theme = 'dark' }) => {
     return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
   }, []);
 
+  // Render Diagram
   useEffect(() => {
+    let isMounted = true;
+
     if (containerRef.current && chart) {
       setError(false);
-      // Unique ID for this render to prevent caching collisions
-      const id = `mermaid-${Math.random().toString(36).substr(2, 9)}`;
-
-      // RUN THE CLEANER
+      
+      // 1. Clean the code
       const cleanChart = sanitizeMermaidCode(chart);
       
-      // Clear previous content
+      // 2. Generate unique ID for this render
+      const id = `mermaid-${Math.random().toString(36).substr(2, 9)}`;
+
+      // 3. Re-initialize for theme changes
+      mermaid.initialize({
+        startOnLoad: false,
+        theme: theme,
+        flowchart: { htmlLabels: true, curve: 'basis' }
+      });
+
+      // Clear previous
       containerRef.current.innerHTML = '';
 
       const renderDiagram = async () => {
         try {
-          // Attempt render
+          // 4. Render SVG
           const { svg } = await mermaid.render(id, cleanChart);
 
-          if (containerRef.current) {
+          if (isMounted && containerRef.current) {
             containerRef.current.innerHTML = svg;
 
-            // --- D3 Zoom Logic ---
+            // 5. Apply D3 Zoom/Pan
             const svgElement = containerRef.current.querySelector('svg');
             if (svgElement) {
+              // Fix dimensions for zooming
               svgElement.style.maxWidth = 'none';
               svgElement.style.width = '100%';
               svgElement.style.height = '100%';
@@ -107,18 +110,27 @@ export const Mermaid: React.FC<MermaidProps> = ({ chart, theme = 'dark' }) => {
 
               zoomBehaviorRef.current = zoom;
               d3Svg.call(zoom as any);
+              
+              // Center the chart initially if needed, or leave at default
             }
           }
         } catch (e) {
-          console.error("Mermaid render exception:", e);
-          console.log("Failed Chart Syntax:", cleanChart);
-          setError(true);
+          if (isMounted) {
+            console.error("Mermaid render exception:", e);
+            setError(true);
+          }
         }
       };
 
       renderDiagram();
     }
+
+    return () => {
+      isMounted = false;
+    };
   }, [chart, theme]);
+
+  // --- Controls Handlers ---
 
   const handleZoom = (scaleFactor: number) => {
     if (svgSelectionRef.current && zoomBehaviorRef.current) {
@@ -164,14 +176,11 @@ export const Mermaid: React.FC<MermaidProps> = ({ chart, theme = 'dark' }) => {
       <div className="flex flex-col items-center justify-center h-[300px] text-red-400 text-sm p-4 border border-red-500/30 rounded bg-red-900/10">
         <p className="font-bold mb-2">Failed to render flowchart</p>
         <p className="text-xs text-slate-500 text-center max-w-xs mb-2">
-          The AI generated invalid syntax (likely unquoted brackets). 
+          The AI generated invalid syntax. Please try generating again.
         </p>
-        <button 
-            onClick={() => window.location.reload()} 
-            className="text-xs underline hover:text-white"
-        >
-            Reload Page
-        </button>
+        <pre className="text-[10px] text-slate-600 mt-2 p-2 bg-slate-950 rounded max-w-full overflow-hidden truncate">
+            {chart.substring(0, 100)}...
+        </pre>
       </div>
     );
   }
@@ -182,7 +191,7 @@ export const Mermaid: React.FC<MermaidProps> = ({ chart, theme = 'dark' }) => {
   return (
     <div
       ref={wrapperRef}
-      className={`relative w-full h-[500px] border ${borderClass} rounded-md ${bgClass} overflow-hidden group transition-colors duration-300 ${isFullscreen ? 'flex items-center justify-center' : ''}`}
+      className={`relative w-full h-[500px] border ${borderClass} rounded-md ${bgClass} overflow-hidden group transition-all duration-300 ${isFullscreen ? 'flex items-center justify-center h-screen' : ''}`}
     >
       <div
         ref={containerRef}
@@ -191,7 +200,7 @@ export const Mermaid: React.FC<MermaidProps> = ({ chart, theme = 'dark' }) => {
 
       {/* Controls Overlay */}
       <div className="absolute bottom-4 right-4 flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-10">
-        <button onClick={toggleFullscreen} className="p-2 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded shadow-lg border border-slate-600">
+        <button onClick={toggleFullscreen} className="p-2 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded shadow-lg border border-slate-600" title="Toggle Fullscreen">
           {isFullscreen ? (
             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
               <path fillRule="evenodd" d="M5 5a1 1 0 011-1h2a1 1 0 110 2H6v1a1 1 0 11-2 0V5zm10 0a1 1 0 011 1v1a1 1 0 11-2 0V6h-1a1 1 0 110-2h2zM5 15a1 1 0 011 1h1a1 1 0 110 2H6a1 1 0 01-1-1v-2a1 1 0 112 0v1zm11-1a1 1 0 10-2 0v1h-1a1 1 0 100 2h2a1 1 0 001-1v-2z" clipRule="evenodd" />
@@ -202,16 +211,16 @@ export const Mermaid: React.FC<MermaidProps> = ({ chart, theme = 'dark' }) => {
             </svg>
           )}
         </button>
-        <button onClick={() => handleZoom(1.2)} className="p-2 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded shadow-lg border border-slate-600">
+        <button onClick={() => handleZoom(1.2)} className="p-2 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded shadow-lg border border-slate-600" title="Zoom In">
           <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clipRule="evenodd" /></svg>
         </button>
-        <button onClick={() => handleZoom(0.8)} className="p-2 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded shadow-lg border border-slate-600">
+        <button onClick={() => handleZoom(0.8)} className="p-2 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded shadow-lg border border-slate-600" title="Zoom Out">
           <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M5 10a1 1 0 011-1h8a1 1 0 110 2H6a1 1 0 01-1-1z" clipRule="evenodd" /></svg>
         </button>
-        <button onClick={handleReset} className="p-2 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded shadow-lg border border-slate-600">
+        <button onClick={handleReset} className="p-2 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded shadow-lg border border-slate-600" title="Reset View">
           <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clipRule="evenodd" /></svg>
         </button>
-        <button onClick={handleDownload} className="p-2 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded shadow-lg border border-slate-600">
+        <button onClick={handleDownload} className="p-2 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded shadow-lg border border-slate-600" title="Download SVG">
           <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" /></svg>
         </button>
       </div>

@@ -1,12 +1,14 @@
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { useAppContext } from '../../context/AppContext';
-import { useApi } from '../../hooks/useApi'; // 1. Import hook
+import { useApi } from '../../hooks/useApi';
 import { generateMCQs, generatePersonalizedStudyGuide } from '../../services/geminiService';
 import { Button } from '../ui/Button';
 import { Card } from '../ui/Card';
 import { Loader } from '../ui/Loader';
 import { MCQ as MCQType, MCQAttempt } from '../../types';
 import { EmptyState } from '../ui/EmptyState';
+import { Slider } from '../ui/Slider';
+import { generateMCQPdf } from '../../utils/pdfGenerator';
 
 type Difficulty = 'Easy' | 'Medium' | 'Hard';
 
@@ -81,6 +83,7 @@ export const MCQ: React.FC = () => {
     
     const [userAnswers, setUserAnswers] = useState<Record<number, string>>({});
     const [difficulty, setDifficulty] = useState<Difficulty>('Medium');
+    const [numQuestions, setNumQuestions] = useState<number>(5); // Default to 5
 
     // Adaptive Learning State
     const [personalizedGuide, setPersonalizedGuide] = useState<string | null>(null);
@@ -94,7 +97,7 @@ export const MCQ: React.FC = () => {
     const { 
         execute: generateQuiz, 
         loading: isGeneratingQuiz 
-    } = useApi(generateMCQs); // We handle success toast manually
+    } = useApi(generateMCQs); 
 
     // 2. Generate Guide Hook
     const { 
@@ -144,8 +147,8 @@ export const MCQ: React.FC = () => {
         setPersonalizedGuide(null);
         setMcqs([]); 
         
-        // Use hook
-        const result = await generateQuiz(llm, ingestedText, language, difficulty);
+        // Use hook with numQuestions
+        const result = await generateQuiz(llm, ingestedText, language, difficulty, numQuestions);
         
         if (result) {
             setMcqs(result);
@@ -153,10 +156,10 @@ export const MCQ: React.FC = () => {
             try {
                 await updateActiveProjectData({ currentMcqs: result });
             } catch (e) {
-                // Silently fail or log, user still sees quiz
+                // Silently fail or log
             }
         }
-    }, [ingestedText, addNotification, language, difficulty, llm, updateActiveProjectData, generateQuiz]);
+    }, [ingestedText, addNotification, language, difficulty, numQuestions, llm, updateActiveProjectData, generateQuiz]);
 
     const handleAnswer = async (questionIndex: number, answer: string) => {
         const newAnswers = { ...userAnswers, [questionIndex]: answer };
@@ -207,6 +210,14 @@ export const MCQ: React.FC = () => {
         }
     }, [ingestedText, incorrectMCQs, language, llm, generateGuide]);
 
+    // PDF Download Handler
+    const handleDownloadPdf = () => {
+        if (mcqs.length > 0) {
+            generateMCQPdf(mcqs, activeProject?.name || 'Study Quiz');
+            addNotification('PDF Downloaded!', 'success');
+        }
+    };
+
     if (!ingestedText) {
         return <EmptyState 
           title="MCQ Generator"
@@ -218,26 +229,54 @@ export const MCQ: React.FC = () => {
         <div className="space-y-6">
             <Card title="MCQ Generator">
                 <div className="space-y-6">
-                    <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-4 bg-gray-50 dark:bg-slate-800/50 rounded-lg border border-slate-200 dark:border-slate-700">
-                        <div className="flex items-center gap-2">
-                            <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">Difficulty:</span>
-                            <div className="flex items-center gap-1 p-1 bg-gray-200 dark:bg-slate-900 rounded-md">
-                                {(['Easy', 'Medium', 'Hard'] as Difficulty[]).map(level => (
-                                    <button 
-                                        key={level} 
-                                        onClick={() => setDifficulty(level)}
-                                        className={`px-3 py-1 text-xs font-semibold rounded transition-colors ${difficulty === level ? 'bg-red-600 text-white' : 'text-slate-600 dark:text-slate-400 hover:bg-gray-300 dark:hover:bg-slate-700'}`}
-                                    >
-                                        {level}
-                                    </button>
-                                ))}
+                    {/* Controls Section */}
+                    <div className="flex flex-col gap-4 p-4 bg-gray-50 dark:bg-slate-800/50 rounded-lg border border-slate-200 dark:border-slate-700">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            {/* Difficulty Selection */}
+                            <div className="space-y-2">
+                                <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">Difficulty:</span>
+                                <div className="flex items-center gap-1 p-1 bg-gray-200 dark:bg-slate-900 rounded-md">
+                                    {(['Easy', 'Medium', 'Hard'] as Difficulty[]).map(level => (
+                                        <button 
+                                            key={level} 
+                                            onClick={() => setDifficulty(level)}
+                                            className={`flex-1 px-3 py-1.5 text-xs font-semibold rounded transition-colors ${difficulty === level ? 'bg-red-600 text-white' : 'text-slate-600 dark:text-slate-400 hover:bg-gray-300 dark:hover:bg-slate-700'}`}
+                                        >
+                                            {level}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* Number of Questions Slider */}
+                            <div className="space-y-2">
+                                <Slider 
+                                    label="Number of Questions" 
+                                    min={5} 
+                                    max={20} 
+                                    step={1}
+                                    value={numQuestions} 
+                                    onChange={setNumQuestions} 
+                                />
                             </div>
                         </div>
-                        <Button onClick={handleGenerateMCQs} disabled={isGeneratingQuiz} className="w-full sm:w-auto">
-                            {isGeneratingQuiz ? 'Generating...' : mcqs.length > 0 ? 'Generate New Quiz' : 'Generate MCQs'}
-                        </Button>
+
+                        {/* Action Buttons */}
+                        <div className="flex flex-col sm:flex-row gap-3 pt-2">
+                            <Button onClick={handleGenerateMCQs} disabled={isGeneratingQuiz} className="flex-1">
+                                {isGeneratingQuiz ? 'Generating Quiz...' : mcqs.length > 0 ? 'Generate New Quiz' : 'Generate Quiz'}
+                            </Button>
+                            
+                            {mcqs.length > 0 && (
+                                <Button onClick={handleDownloadPdf} variant="secondary" className="flex-1 sm:flex-none">
+                                    Download PDF
+                                </Button>
+                            )}
+                        </div>
                     </div>
+
                     {isGeneratingQuiz && <Loader />}
+                    
                     {mcqs.length > 0 && (
                         <div className="space-y-4 fade-in">
                             {mcqs.map((mcq, index) => (
@@ -256,7 +295,12 @@ export const MCQ: React.FC = () => {
 
             {isQuizFinished && (
                 <Card title="Quiz Results" className="fade-in">
-                    <p className="text-lg text-slate-800 dark:text-slate-300">You scored <span className="font-bold text-red-600 dark:text-red-400">{score}</span> out of <span className="font-bold text-red-600 dark:text-red-400">{mcqs.length}</span>.</p>
+                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                        <p className="text-lg text-slate-800 dark:text-slate-300">You scored <span className="font-bold text-red-600 dark:text-red-400">{score}</span> out of <span className="font-bold text-red-600 dark:text-red-400">{mcqs.length}</span>.</p>
+                        <Button onClick={handleDownloadPdf} variant="secondary" className="text-xs">
+                            Save Results as PDF
+                        </Button>
+                    </div>
                     
                     {incorrectMCQs.length > 0 ? (
                          <div className="mt-6">

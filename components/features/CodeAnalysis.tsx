@@ -143,7 +143,7 @@ const CodeAnalysis: React.FC = () => {
         // Clear previous explanation when generating new analysis
         setExplanationResult(null);
 
-        // 1. Run the Analysis (Hook handles loading & error toast)
+        // 1. Run the Analysis
         const result = await runAnalysis(llm, code, language);
 
         // If result is null, it failed. Stop here.
@@ -156,13 +156,8 @@ const CodeAnalysis: React.FC = () => {
             // If no project exists, create one now
             if (!targetProjectId) {
                 const projectName = `Code Analysis ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`;
-                
-                // Create project but DON'T redirect (pass false)
                 const newProject = await ingestText(projectName, code, false);
-                
-                if (newProject) {
-                    targetProjectId = newProject._id;
-                }
+                if (newProject) targetProjectId = newProject._id;
             }
 
             // 3. Save the specific Code Analysis data to the project
@@ -191,7 +186,6 @@ const CodeAnalysis: React.FC = () => {
             addNotification(`Please provide the ${explanationType} to explain.`, 'info');
             return;
         }
-        // Hook handles loading, state update, and error toast
         await runExplanation(llm, explanationArtifact, language, explanationType);
     }, [explanationArtifact, explanationType, addNotification, language, llm, runExplanation]);
 
@@ -412,7 +406,6 @@ const CodeAnalysis: React.FC = () => {
                                     {/* Action Buttons for Text Artifacts */}
                                     {key !== 'flowchart' && (
                                         <>
-                                            {/* Fullscreen Button */}
                                             <Button 
                                                 onClick={() => setExpandedArtifact({ title: key, content: value })} 
                                                 variant="secondary" 
@@ -423,13 +416,25 @@ const CodeAnalysis: React.FC = () => {
                                                     <path fillRule="evenodd" d="M3 4a1 1 0 011-1h4a1 1 0 010 2H6.414l2.293 2.293a1 1 0 01-1.414 1.414L5 6.414V8a1 1 0 01-2 0V4zm9 1a1 1 0 010-2h4a1 1 0 011 1v4a1 1 0 01-2 0V6.414l-2.293 2.293a1 1 0 11-1.414-1.414L13.586 5H12zm-9 7a1 1 0 011 1v1.586l2.293-2.293a1 1 0 011.414 1.414L5.414 15H7a1 1 0 010 2H3a1 1 0 01-1-1v-4a1 1 0 011-1zm10 0a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 010-2h1.586l-2.293-2.293a1 1 0 011.414-1.414L15 13.586V12a1 1 0 011-1z" clipRule="evenodd" />
                                                 </svg>
                                             </Button>
-                                            {/* Download Button */}
                                             <Button onClick={() => downloadArtifact(key, value)} variant="secondary" className="text-xs px-3" title="Download as Text">
                                                 <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
                                                     <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" />
                                                 </svg>
                                             </Button>
                                         </>
+                                    )}
+                                    {/* Separate fullscreen logic for flowchart */}
+                                    {key === 'flowchart' && (
+                                        <Button 
+                                            onClick={() => setExpandedArtifact({ title: key, content: value })} 
+                                            variant="secondary" 
+                                            className="text-xs px-3" 
+                                            title="Fullscreen"
+                                        >
+                                           <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                                <path fillRule="evenodd" d="M3 4a1 1 0 011-1h4a1 1 0 010 2H6.414l2.293 2.293a1 1 0 01-1.414 1.414L5 6.414V8a1 1 0 01-2 0V4zm9 1a1 1 0 010-2h4a1 1 0 011 1v4a1 1 0 01-2 0V6.414l-2.293 2.293a1 1 0 11-1.414-1.414L13.586 5H12zm-9 7a1 1 0 011 1v1.586l2.293-2.293a1 1 0 011.414 1.414L5.414 15H7a1 1 0 010 2H3a1 1 0 01-1-1v-4a1 1 0 011-1zm10 0a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 010-2h1.586l-2.293-2.293a1 1 0 011.414-1.414L15 13.586V12a1 1 0 011-1z" clipRule="evenodd" />
+                                            </svg>
+                                        </Button>
                                     )}
                                 </div>
                             </div>
@@ -487,8 +492,15 @@ const CodeAnalysis: React.FC = () => {
                             </svg>
                         </button>
                     </div>
-                    <div className="flex-1 overflow-auto bg-gray-50 dark:bg-slate-900 p-6 rounded-lg border border-slate-200 dark:border-slate-700 font-mono text-base text-slate-800 dark:text-slate-300 whitespace-pre-wrap shadow-2xl">
-                        {expandedArtifact.content}
+                    
+                    <div className={`flex-1 overflow-auto bg-gray-50 dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-700 font-mono text-base text-slate-800 dark:text-slate-300 whitespace-pre-wrap shadow-2xl ${expandedArtifact.title === 'flowchart' ? 'p-0 overflow-hidden' : 'p-6'}`}>
+                        {expandedArtifact.title === 'flowchart' ? (
+                            <div className="w-full h-full">
+                                <Mermaid chart={expandedArtifact.content} theme={mermaidTheme} />
+                            </div>
+                        ) : (
+                            expandedArtifact.content
+                        )}
                     </div>
                 </div>
             )}

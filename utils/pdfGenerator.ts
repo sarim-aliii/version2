@@ -1,6 +1,6 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { User, StudyProject } from '../types';
+import { User, StudyProject, MCQ } from '../types';
 
 export const generateUserReport = (user: User, projects: StudyProject[]) => {
   const doc = new jsPDF();
@@ -97,4 +97,86 @@ export const generateUserReport = (user: User, projects: StudyProject[]) => {
 
   // Save
   doc.save(`Kairon_Report_${user.name.replace(/\s+/g, '_')}.pdf`);
+};
+
+export const generateMCQPdf = (mcqs: MCQ[], projectName: string) => {
+  const doc = new jsPDF();
+  const pageWidth = doc.internal.pageSize.width;
+  let finalY = 20;
+
+  // --- Header ---
+  doc.setFontSize(20);
+  doc.setTextColor(220, 38, 38); // Red-600
+  doc.text('Kairon AI - Quiz', pageWidth / 2, finalY, { align: 'center' });
+  
+  finalY += 10;
+  doc.setFontSize(12);
+  doc.setTextColor(100);
+  doc.text(`Project: ${projectName}`, pageWidth / 2, finalY, { align: 'center' });
+  doc.text(`Date: ${new Date().toLocaleDateString()}`, pageWidth / 2, finalY + 6, { align: 'center' });
+
+  finalY += 20;
+
+  // --- Questions ---
+  doc.setFontSize(12);
+  doc.setTextColor(0);
+
+  mcqs.forEach((mcq, index) => {
+    // Check for page break
+    if (finalY > 250) {
+      doc.addPage();
+      finalY = 20;
+    }
+
+    // Question Text
+    doc.setFont("helvetica", "bold");
+    const questionText = `Q${index + 1}. ${mcq.question}`;
+    const questionLines = doc.splitTextToSize(questionText, pageWidth - 28);
+    doc.text(questionLines, 14, finalY);
+    finalY += (questionLines.length * 5) + 4;
+
+    // Options
+    doc.setFont("helvetica", "normal");
+    mcq.options.forEach((option, optIndex) => {
+      const optionLabel = String.fromCharCode(65 + optIndex); // A, B, C, D
+      const optionText = `${optionLabel}) ${option}`;
+      // Wrap options if they are too long
+      const optionLines = doc.splitTextToSize(optionText, pageWidth - 34);
+      doc.text(optionLines, 20, finalY);
+      finalY += (optionLines.length * 5) + 2; 
+    });
+
+    finalY += 6; // Spacing between questions
+  });
+
+  // --- Answer Key (New Page) ---
+  doc.addPage();
+  finalY = 20;
+  
+  doc.setFontSize(18);
+  doc.setTextColor(220, 38, 38);
+  doc.text('Answer Key', pageWidth / 2, finalY, { align: 'center' });
+  finalY += 20;
+
+  const answerData = mcqs.map((mcq, i) => [
+    `Q${i + 1}`, 
+    mcq.correctAnswer, 
+    mcq.explanation
+  ]);
+
+  autoTable(doc, {
+    startY: finalY,
+    head: [['Question', 'Correct Answer', 'Explanation']],
+    body: answerData,
+    theme: 'grid',
+    headStyles: { fillColor: [220, 38, 38] },
+    columnStyles: {
+      0: { cellWidth: 20 },
+      1: { cellWidth: 50 },
+      2: { cellWidth: 'auto' }
+    },
+    styles: { fontSize: 10, cellPadding: 4 },
+  });
+
+  doc.save(`${projectName}_Quiz.pdf`);
 };

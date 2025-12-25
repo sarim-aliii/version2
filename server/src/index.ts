@@ -5,7 +5,7 @@ import rateLimit from 'express-rate-limit';
 import hpp from 'hpp';
 import cors from 'cors';
 
-// 1. Added NextFunction to imports
+// Added NextFunction to imports
 import express, { Request, Response, NextFunction } from 'express';
 import connectDB from './config/db';
 import path from 'path';
@@ -15,10 +15,10 @@ import authRoutes from './routes/authRoutes';
 import projectRoutes from './routes/projectRoutes';
 import geminiRoutes from './routes/geminiRoutes';
 import feedbackRoutes from './routes/feedbackRoutes';
+import socialRoutes from './routes/socialRoutes'; // Ensure this is imported
 
 import { errorHandler } from './middleware/errorMiddleware';
 import { AppError } from './utils/AppError';
-import socialRoutes from './routes/socialRoutes';
 
 // Connect to database
 connectDB();
@@ -48,7 +48,10 @@ app.use('/api/gemini', aiLimiter);
 app.use(hpp());
 
 app.use(cors({
-    origin: process.env.FRONTEND_URL || 'http://localhost:3000', 
+    origin: [
+        process.env.FRONTEND_URL || 'http://localhost:3000',
+        'http://localhost:5173' 
+    ], 
     credentials: true
 }));
 
@@ -59,8 +62,7 @@ app.use('/api/gemini', geminiRoutes);
 app.use('/api/feedback', feedbackRoutes);
 app.use('/api/social', socialRoutes);
 
-// 2. Handle Unhandled API Routes
-// This ensures missing API endpoints return JSON 404 instead of the HTML frontend
+// Handle Unhandled API Routes
 app.all('/api/*', (req: Request, res: Response, next: NextFunction) => {
     next(new AppError(`Route ${req.originalUrl} not found`, 404));
 });
@@ -74,7 +76,7 @@ if (process.env.NODE_ENV === 'production') {
     );
 }
 
-// 3. Global Error Handler (Must be the last middleware)
+// Global Error Handler
 app.use(errorHandler);
 
 const PORT = process.env.PORT || 5001;

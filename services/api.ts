@@ -153,8 +153,8 @@ export const extractTextFromFile = async (llm: string, base64Data: string, fileT
   return data;
 };
 
-export const generateMCQs = async (llm: string, text: string, language: string, difficulty: string): Promise<any[]> => {
-  const { data } = await api.post('/gemini/generate-mcqs', { llm, text, language, difficulty });
+export const generateMCQs = async (llm: string, text: string, language: string, difficulty: string, numQuestions: number): Promise<any[]> => {
+  const { data } = await api.post('/gemini/generate-mcqs', { llm, text, language, difficulty, numQuestions });
   return data;
 };
 
@@ -322,5 +322,6 @@ export const transformText = async (llm: string, text: string, selection: string
   const { data } = await api.post('/gemini/transform', { llm, text, selection, instruction, language });
   return data;
 };
+
 
 export default api;

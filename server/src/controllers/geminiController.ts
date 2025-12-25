@@ -11,6 +11,7 @@ import {
 import ytdl from '@distube/ytdl-core';
 import axios from 'axios';
 import * as cheerio from 'cheerio';
+import { YoutubeTranscript } from 'youtube-transcript';
 
 
 if (!process.env.GEMINI_API_KEY) {
@@ -19,7 +20,6 @@ if (!process.env.GEMINI_API_KEY) {
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
-// FIX: Use one of your available models
 const defaultModelName = 'gemini-flash-latest';
 
 const safetySettings = [
@@ -241,9 +241,13 @@ export const extractTextFromFile = async (req: Request, res: Response) => {
 };
 
 export const generateMCQs = async (req: Request, res: Response) => {
-    const { llm, text, language, difficulty } = req.body;
+    const { llm, text, language, difficulty, numQuestions } = req.body;
     try {
-        const prompt = `Based on the following text, generate a JSON array of 5 ${difficulty} multiple-choice questions in ${language}. Each object in the array must have four properties: "question" (string), "options" (array of 4 strings), "correctAnswer" (string, which must be one of the options), and "explanation" (string).\n\nTEXT:\n${text}`;
+        // Default to 5 if not provided, clamp between 1 and 20 for safety
+        const count = Math.min(Math.max(numQuestions || 5, 1), 20);
+        
+        const prompt = `Based on the following text, generate a JSON array of ${count} ${difficulty} multiple-choice questions in ${language}. Each object in the array must have four properties: "question" (string), "options" (array of 4 strings), "correctAnswer" (string, which must be one of the options), and "explanation" (string).\n\nTEXT:\n${text}`;
+        
         const model = getModel(llm, "application/json");
         const result = await model.generateContent(prompt);
         const textRes = result.response.text().replace(/```json/g, '').replace(/```/g, '');
@@ -568,8 +572,30 @@ export const transcribeYoutubeVideo = async (req: Request, res: Response) => {
         return res.status(400).json({ message: "Invalid YouTube URL." });
     }
 
+    console.log(`[YouTube] Processing: ${url}`);
+
     try {
+        // --- STRATEGY 1: DIRECT TRANSCRIPT FETCH (FAST & RELIABLE) ---
+        // This bypasses the need to download audio and prevents 403 errors on most videos.
+        try {
+            console.log("[YouTube] Attempting to fetch existing transcript...");
+            const transcriptItems = await YoutubeTranscript.fetchTranscript(url);
+            
+            if (transcriptItems && transcriptItems.length > 0) {
+                // Combine all transcript parts into a single string
+                const fullText = transcriptItems.map(item => item.text).join(' ');
+                console.log("[YouTube] Transcript fetched successfully!");
+                return res.json(fullText);
+            }
+        } catch (transcriptError) {
+            console.warn("[YouTube] Direct transcript fetch failed (video might not have captions). Falling back to audio download.");
+        }
+
+        // --- STRATEGY 2: AUDIO DOWNLOAD + GEMINI (FALLBACK) ---
+        // Only runs if Strategy 1 fails. 
+        console.log("[YouTube] Downloading audio stream...");
         const { buffer, mimeType } = await downloadAudioBuffer(url);
+        
         const base64Data = buffer.toString('base64');
         const model = getModel(llm || 'gemini-1.5-flash');
         
@@ -578,23 +604,26 @@ export const transcribeYoutubeVideo = async (req: Request, res: Response) => {
             { text: "Transcribe the audio from this file. Respond only with the full transcription." },
         ];
 
+        console.log("[YouTube] Sending audio to Gemini for transcription...");
         const result = await model.generateContent({ contents: [{ role: 'user', parts }] });
         
         res.json(result.response.text());
 
     } 
     catch (error: any) {
-        console.error("YouTube Transcription Error:", error);
+        console.error("YouTube Transcription Critical Failure:", error.message);
         
-        if (error.message.includes('403') || error.message.includes('Sign in')) {
-             return res.status(500).json({ 
-                message: "YouTube blocked the download (403 Forbidden). This is common with server-side downloaders. Please try downloading the file manually and using the 'Upload' tab." 
+        // Detailed error for common YouTube blocks
+        if (error.message.includes('403') || error.message.includes('Sign in') || error.message.includes('bot')) {
+             return res.status(503).json({ 
+                message: "YouTube blocked the automated request (403 Forbidden). This video likely requires a login or your server IP is flagged. Please try a different video or use the 'Upload Audio' tab." 
             });
         }
 
         res.status(500).json({ message: `Failed to transcribe video: ${error.message}` });
     }
 };
+
 
 interface CodeAnalysisResult {
     algorithm: string;

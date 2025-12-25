@@ -23,7 +23,8 @@
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.4.1",
     "multer": "^2.0.2",
-    "nodemailer": "^7.0.10"
+    "nodemailer": "^7.0.10",
+    "youtube-transcript": "^1.2.1"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
