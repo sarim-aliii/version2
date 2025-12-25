@@ -7,7 +7,8 @@ import {
     StudyPlan,
     ConceptMapData,
     CodeAnalysisResult,
-    PodcastSegment
+    PodcastSegment,
+    CodeTranslationResult,
 } from '../types';
 
 export {
@@ -164,6 +165,20 @@ export const transformContent = async (llm: string, text: string, selection: str
         return await apiHelpers.transformText(llm, text, selection, instruction, language);
     } catch (error) {
         console.error("Error in transformContent:", error);
+        throw error;
+    }
+};
+
+export const translateCode = async (llm: string, code: string, targetLanguage: string): Promise<CodeTranslationResult> => {
+    try {
+        const { data } = await axiosInstance.post('/gemini/code-analysis/translate', { 
+            llm, 
+            code, 
+            targetLanguage 
+        });
+        return data as CodeTranslationResult;
+    } catch (error) {
+        console.error("Error in translateCode:", error);
         throw error;
     }
 };

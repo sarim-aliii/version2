@@ -30,6 +30,7 @@ import {
     generateSlideContent,
     scrapeWebPage,
     transformText,
+    translateCode,
 } from '../controllers/geminiController';
 import { protect } from '../middleware/authMiddleware';
 import multer from 'multer';
@@ -69,6 +70,7 @@ router.post('/transcribe-youtube', protect, transcribeYoutubeVideo);
 
 router.post('/code-analysis/generate', protect, generateCodeAnalysis);
 router.post('/code-analysis/explain', protect, explainCodeAnalysis);
+router.post('/code-analysis/translate', protect, translateCode);
 
 router.post('/mock-interview', protect, conductMockInterview);
 router.post('/podcast-script', protect, generatePodcastScript);

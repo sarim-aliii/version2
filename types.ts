@@ -205,3 +205,8 @@ export interface PodcastSegment {
     speaker: 'Host' | 'Guest';
     text: string;
 }
+
+export interface CodeTranslationResult {
+    translatedCode: string;
+    explanation: string;
+}

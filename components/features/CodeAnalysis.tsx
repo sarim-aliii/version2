@@ -2,12 +2,12 @@ import React, { useState, useCallback, useEffect } from 'react';
 import Editor from '@monaco-editor/react';
 import { useAppContext } from '../../context/AppContext';
 import { useApi } from '../../hooks/useApi';
-import { generateCodeAnalysis, explainCodeAnalysis } from '../../services/geminiService';
+import { generateCodeAnalysis, explainCodeAnalysis, translateCode } from '../../services/geminiService';
 import { Button } from '../ui/Button';
 import { Card } from '../ui/Card';
 import { Loader } from '../ui/Loader';
 import { Mermaid } from '../ui/Mermaid';
-import { CodeAnalysisResult } from '../../types';
+import { CodeAnalysisResult, CodeTranslationResult } from '../../types';
 import { MarkdownRenderer } from '../ui/MarkdownRenderer';
 
 type ArtifactType = 'code' | 'algorithm' | 'pseudocode' | 'flowchart';
@@ -20,6 +20,17 @@ const RUNTIME_LANGUAGES = [
     { label: 'Go', value: 'go' },
     { label: 'Rust', value: 'rust' },
     { label: 'C++', value: 'c++' },
+];
+
+const TARGET_LANGUAGES = [
+    { label: 'Python', value: 'Python' },
+    { label: 'JavaScript', value: 'JavaScript' },
+    { label: 'TypeScript', value: 'TypeScript' },
+    { label: 'Java', value: 'Java' },
+    { label: 'C++', value: 'C++' },
+    { label: 'Go', value: 'Go' },
+    { label: 'Rust', value: 'Rust' },
+    { label: 'Swift', value: 'Swift' },
 ];
 
 const CodeAnalysis: React.FC = () => {
@@ -39,6 +50,9 @@ const CodeAnalysis: React.FC = () => {
     const [languageRuntime, setLanguageRuntime] = useState('python');
     const [output, setOutput] = useState('');
     const [isRunning, setIsRunning] = useState(false);
+
+    // Translation State
+    const [targetLanguage, setTargetLanguage] = useState('Java');
 
     // Explanation State
     const [explanationArtifact, setExplanationArtifact] = useState('');
@@ -64,6 +78,13 @@ const CodeAnalysis: React.FC = () => {
         data: explanationResult,
         setData: setExplanationResult
     } = useApi(explainCodeAnalysis);
+
+    // 3. Translation Hook
+    const { 
+        execute: runTranslation, 
+        loading: isTranslating, 
+        data: translationResult, 
+    } = useApi(translateCode);
 
 
     // Sync Active Project Data with Hook State
@@ -157,6 +178,14 @@ const CodeAnalysis: React.FC = () => {
         
     }, [code, addNotification, language, llm, activeProject, ingestText, updateProjectData, runAnalysis, setExplanationResult]);
 
+    const handleTranslate = useCallback(async () => {
+        if (!code.trim()) {
+            addNotification('Please paste code to translate.', 'info');
+            return;
+        }
+        await runTranslation(llm, code, targetLanguage);
+    }, [code, targetLanguage, llm, addNotification, runTranslation]);
+
     const handleExplain = useCallback(async () => {
         if (!explanationArtifact.trim()) {
             addNotification(`Please provide the ${explanationType} to explain.`, 'info');
@@ -199,9 +228,10 @@ const CodeAnalysis: React.FC = () => {
         <div className="space-y-6">
             <Card title="Interactive Code Editor">
                 <div className="space-y-4">
+                    {/* Toolbar Row 1: Language & Main Actions */}
                     <div className="flex flex-col sm:flex-row gap-4 justify-between items-center bg-slate-100 dark:bg-slate-800 p-2 rounded-md">
                         <div className="flex items-center gap-2">
-                             <span className="text-sm font-medium text-slate-600 dark:text-slate-300">Language:</span>
+                             <span className="text-sm font-medium text-slate-600 dark:text-slate-300">Run Language:</span>
                              <select 
                                 value={languageRuntime}
                                 onChange={(e) => setLanguageRuntime(e.target.value)}
@@ -222,6 +252,30 @@ const CodeAnalysis: React.FC = () => {
                         </div>
                     </div>
 
+                    {/* Toolbar Row 2: Translation Controls */}
+                    <div className="flex flex-col sm:flex-row gap-4 justify-between items-center bg-blue-50 dark:bg-slate-800/50 p-2 rounded-md border border-blue-100 dark:border-slate-700">
+                        <div className="flex items-center gap-2">
+                             <span className="text-sm font-medium text-slate-600 dark:text-slate-300">Translate to:</span>
+                             <select 
+                                value={targetLanguage}
+                                onChange={(e) => setTargetLanguage(e.target.value)}
+                                className="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200 text-sm rounded-md block p-1.5"
+                            >
+                                {TARGET_LANGUAGES.map(lang => (
+                                    <option key={lang.value} value={lang.value}>{lang.label}</option>
+                                ))}
+                            </select>
+                        </div>
+                        <Button 
+                            onClick={handleTranslate} 
+                            disabled={!code.trim() || isTranslating} 
+                            className="text-xs sm:text-sm px-3 py-1.5 bg-blue-600 hover:bg-blue-700 w-full sm:w-auto text-white"
+                        >
+                            {isTranslating ? 'Translating...' : '⚡ Translate Code'}
+                        </Button>
+                    </div>
+
+                    {/* Editor & Console Grid */}
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                         {/* Editor Panel */}
                         <div className="h-80 border border-slate-300 dark:border-slate-700 rounded-md overflow-hidden">
@@ -259,6 +313,65 @@ const CodeAnalysis: React.FC = () => {
             </Card>
 
             {isAnalyzing && <Loader />}
+            {isTranslating && <Loader />}
+
+            {/* Translation Result Card */}
+            {translationResult && (
+                <Card title={`Translation: ${targetLanguage}`} className="fade-in border-blue-200 dark:border-blue-900">
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                        {/* Translated Code View */}
+                        <div className="space-y-2">
+                            <h3 className="font-semibold text-slate-700 dark:text-slate-200">Translated Code</h3>
+                            <div className="h-80 border border-slate-300 dark:border-slate-700 rounded-md overflow-hidden">
+                                <Editor
+                                    height="100%"
+                                    language={targetLanguage.toLowerCase()}
+                                    theme="vs-dark"
+                                    value={(translationResult as CodeTranslationResult).translatedCode}
+                                    options={{
+                                        readOnly: true,
+                                        minimap: { enabled: false },
+                                        fontSize: 14,
+                                        scrollBeyondLastLine: false,
+                                    }}
+                                />
+                            </div>
+                            <div className="flex gap-2">
+                                <Button 
+                                    onClick={() => {
+                                        const res = translationResult as CodeTranslationResult;
+                                        downloadArtifact(`translated_${targetLanguage}`, res.translatedCode);
+                                    }} 
+                                    variant="secondary" 
+                                    className="flex-1 text-xs"
+                                >
+                                    Download Code
+                                </Button>
+                                <Button 
+                                    onClick={() => {
+                                        const res = translationResult as CodeTranslationResult;
+                                        setExplanationArtifact(res.translatedCode);
+                                        setExplanationType('code');
+                                        addNotification('Translated code copied to Explanation Tool.', 'success');
+                                    }}
+                                    variant="secondary"
+                                    className="flex-1 text-xs"
+                                >
+                                    Copy to Explain
+                                </Button>
+                            </div>
+                        </div>
+
+                        {/* Explanation View */}
+                        <div className="space-y-2">
+                            <h3 className="font-semibold text-slate-700 dark:text-slate-200">Key Differences</h3>
+                            <div className="bg-gray-50 dark:bg-slate-900 p-4 rounded-md border border-slate-200 dark:border-slate-700 h-80 overflow-y-auto custom-scrollbar">
+                                <MarkdownRenderer content={(translationResult as CodeTranslationResult).explanation} />
+                            </div>
+                        </div>
+                    </div>
+                </Card>
+            )}
 
             {analysisResult && (
                 <Card title="Generated Artifacts" className="fade-in">

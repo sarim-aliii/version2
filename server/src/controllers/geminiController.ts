@@ -857,3 +857,50 @@ export const transformText = async (req: Request, res: Response) => {
         res.status(500).json({ message: `Transformation failed: ${error.message}` });
     }
 };
+
+interface CodeTranslationResult {
+    translatedCode: string;
+    explanation: string;
+}
+
+// @desc    Translate code from one language to another
+// @route   POST /api/gemini/code-analysis/translate
+// @access  Private
+export const translateCode = async (req: Request, res: Response) => {
+    const { llm, code, targetLanguage } = req.body;
+
+    if (!code || !targetLanguage) {
+        return res.status(400).json({
+            message: "Code and Target Language are required."
+        });
+    }
+
+    try {
+        const prompt = `Act as an expert software engineer. Translate the following code to ${targetLanguage}. 
+        
+        Requirements:
+        1. Maintain the logic and functionality of the original code.
+        2. Use idiomatic syntax for ${targetLanguage}.
+        3. Explain 3 key syntax or structural differences between the original code and the translated version.
+
+        Output Format:
+        Return ONLY a JSON object with two properties:
+        - "translatedCode" (string): The full converted code.
+        - "explanation" (string): A concise explanation of the differences (Markdown supported).
+        
+        CODE TO TRANSLATE:
+        ${code}`;
+
+        const model = getModel(llm, "application/json");
+        const result = await model.generateContent(prompt);
+        
+        // Clean markdown formatting if present
+        const textRes = result.response.text().replace(/```json/g, '').replace(/```/g, '');
+        const jsonResult: CodeTranslationResult = JSON.parse(textRes);
+
+        res.json(jsonResult);
+    } catch (error: any) {
+        console.error("Code Translation Error:", error);
+        res.status(500).json({ message: `Failed to translate code: ${error.message}` });
+    }
+};
