@@ -117,7 +117,7 @@ export const ProfilePage: React.FC = () => {
                                 </div>
                             )}
                             <p className="text-sm text-slate-400">{currentUser.email}</p>
-                            <p className="text-sm text-slate-500">Member since {new Date(currentUser.createdAt || Date.now()).toLocaleDateString()}</p>
+                            <p className="text-sm text-slate-500">Member since {new Date((currentUser as any).createdAt || Date.now()).toLocaleDateString()}</p>
                         </div>
                         
                          <div className="w-full sm:w-auto">

@@ -142,14 +142,15 @@ export const LessonPlanner: React.FC = () => {
                     slide.addText(slideContent.title, { 
                         x: 0.5, y: 0.3, w: '90%', h: 0.8, 
                         fontSize: 28, bold: true, color: '111827', fontFace: 'Arial',
-                        border: { pt: 0, pb: 2, color: 'DC2626' } // Bottom border red
+                        // border: { pt: 0, pb: 2, color: 'DC2626' } // Bottom border red
                     });
                     
                     // Bullets
                     slide.addText(slideContent.bullets.map(b => `${b}`).join('\n'), { 
                         x: 0.8, y: 1.5, w: '85%', h: 4, 
                         fontSize: 18, color: '374151', lineSpacing: 32, fontFace: 'Arial',
-                        bullet: { type: 'number', color: 'DC2626' }
+                        // bullet: { type: 'number', color: 'DC2626' },
+                        bullet: { type: 'number' }
                     });
 
                     // Speaker Notes

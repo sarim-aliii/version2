@@ -203,7 +203,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     // Projects Fetcher Logic
     const fetchProjects = useCallback(async () => {
-        const token = api.getAuthToken() || userToken;
+        const token = userToken;
         if (token) {
             try {
                 const fetchedProjects = await api.getProjects();
