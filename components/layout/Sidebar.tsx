@@ -70,7 +70,7 @@ export const Sidebar: React.FC = () => {
                         </div>
                     )}
 
-                    {/* NEW: Daily Review Button */}
+                    {/* Daily Review Button */}
                     <button
                         onClick={() => setActiveTab(Tab.DailyReview)}
                         className={`w-full py-3 px-4 rounded-lg flex items-center justify-center gap-2 font-bold transition-all transform hover:scale-[1.02] shadow-md group ${

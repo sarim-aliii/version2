@@ -1,209 +1,132 @@
-import React, { useState, useCallback, useRef, useEffect } from 'react';
-import {
-    select,
-    forceSimulation,
-    forceLink,
-    forceManyBody,
-    forceCenter,
-    scaleOrdinal,
-    schemeCategory10,
-    zoom,
-    drag,
-    Simulation,
-    SimulationNodeDatum
-} from 'd3';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
+import ReactFlow, {
+    MiniMap,
+    Controls,
+    Background,
+    useNodesState,
+    useEdgesState,
+    addEdge,
+    Connection,
+    Edge,
+    Node,
+    MarkerType,
+    Panel,
+    ReactFlowProvider
+} from 'reactflow';
+import 'reactflow/dist/style.css';
+import dagre from 'dagre';
 import { useAppContext } from '../../context/AppContext';
-import { useApi } from '../../hooks/useApi'; // 1. Import the hook
+import { useApi } from '../../hooks/useApi';
 import { generateConceptMapData, generateConceptMapForTopic } from '../../services/geminiService';
 import { Button } from '../ui/Button';
 import { Card } from '../ui/Card';
 import { Loader } from '../ui/Loader';
-import { ConceptMapData, ConceptNode, ConceptLink } from '../../types';
 import { EmptyState } from '../ui/EmptyState';
 
-// --- D3 Graph Component (Unchanged) ---
-interface D3GraphProps {
-  data: ConceptMapData;
-  isFullscreen: boolean;
-}
 
-const D3Graph: React.FC<D3GraphProps> = ({ data, isFullscreen }) => {
-    const ref = useRef<SVGSVGElement>(null);
+// --- LAYOUT HELPER ---
+const dagreGraph = new dagre.graphlib.Graph();
+dagreGraph.setDefaultEdgeLabel(() => ({}));
 
-    useEffect(() => {
-        if (!data || !ref.current || data.nodes.length === 0) return;
+const nodeWidth = 180;
+const nodeHeight = 50;
 
-        const svg = select(ref.current);
-        svg.selectAll("*").remove();
+const getLayoutedElements = (nodes: Node[], edges: Edge[], direction = 'TB') => {
+    const isHorizontal = direction === 'LR';
+    dagreGraph.setGraph({ rankdir: direction });
 
-        const parent = ref.current.parentElement;
-        const width = parent?.clientWidth || 800;
-        const height = parent?.clientHeight || 600;
+    nodes.forEach((node) => {
+        dagreGraph.setNode(node.id, { width: nodeWidth, height: nodeHeight });
+    });
+
+    edges.forEach((edge) => {
+        dagreGraph.setEdge(edge.source, edge.target);
+    });
+
+    dagre.layout(dagreGraph);
+
+    const layoutedNodes = nodes.map((node) => {
+        const nodeWithPosition = dagreGraph.node(node.id);
         
-        const tooltip = select("body").append("div")
-            .attr("class", "absolute p-2 text-sm bg-slate-950 border border-slate-700 rounded-md pointer-events-none opacity-0 transition-opacity text-slate-200")
-            .style("z-index", "10");
-
-        svg.attr('viewBox', [0, 0, width, height].join(' '));
-
-        const g = svg.append("g"); 
-
-        const simulation = forceSimulation<ConceptNode>(data.nodes)
-            .force("link", forceLink<ConceptNode, ConceptLink>(data.links).id((d: any) => d.id).distance(100))
-            .force("charge", forceManyBody().strength(-300))
-            .force("center", forceCenter(width / 2, height / 2));
-
-        const link = g.append("g")
-            .attr("stroke", "#999")
-            .attr("stroke-opacity", 0.6)
-            .selectAll("line")
-            .data(data.links)
-            .join("line")
-            .attr("stroke-width", d => Math.sqrt(d.value));
-
-        let selectedNode: ConceptNode | null = null;
-        
-        const node = g.append("g")
-            .attr("stroke", "#fff")
-            .attr("stroke-width", 1.5)
-            .selectAll("g")
-            .data(data.nodes)
-            .join("g")
-            .call(createDragHandler(simulation) as any)
-            .on("mouseover", (event, d) => {
-                tooltip.transition().duration(200).style("opacity", .9);
-                tooltip.html(`<strong>${d.id}</strong><br/>Group: ${d.group}`)
-                    .style("left", (event.pageX + 10) + "px")
-                    .style("top", (event.pageY - 28) + "px");
-            })
-            .on("mouseout", () => {
-                tooltip.transition().duration(500).style("opacity", 0);
-            })
-            .on("click", clickHandler);
-
-        function resetHighlights() {
-            selectedNode = null;
-            node.transition().duration(300).style('opacity', 1);
-            link.transition().duration(300).style('opacity', 0.6);
-        }
-
-        function clickHandler(event: MouseEvent, d: ConceptNode) {
-            event.stopPropagation();
-            const isReselecting = selectedNode && selectedNode.id === d.id;
-            
-            if (isReselecting) {
-                resetHighlights();
-                return;
-            }
-
-            selectedNode = d;
-            const connectedNodes = new Set<string>();
-            connectedNodes.add(d.id);
-
-            link.each(function(l) {
-                const source = l.source as ConceptNode;
-                const target = l.target as ConceptNode;
-                if (source.id === d.id || target.id === d.id) {
-                    connectedNodes.add(source.id);
-                    connectedNodes.add(target.id);
-                }
-            });
-
-            node.transition().duration(300).style("opacity", n => connectedNodes.has(n.id) ? 1 : 0.15);
-            link.transition().duration(300).style("opacity", l => {
-                const source = l.source as ConceptNode;
-                const target = l.target as ConceptNode;
-                return source.id === d.id || target.id === d.id ? 1 : 0.1;
-            });
-        }
-        
-        svg.on('click', resetHighlights);
-
-        const color = scaleOrdinal(schemeCategory10);
-        
-        node.append("circle")
-            .attr("r", 10)
-            .attr("fill", d => color(d.group.toString()));
-
-        node.append("text")
-            .attr("x", 12)
-            .attr("y", "0.31em")
-            .text(d => d.id)
-            .attr("fill", "#ccc")
-            .attr("stroke", "none")
-            .style("font-size", "12px");
-
-        simulation.on("tick", () => {
-            link
-                .attr("x1", d => (d.source as SimulationNodeDatum).x!)
-                .attr("y1", d => (d.source as SimulationNodeDatum).y!)
-                .attr("x2", d => (d.target as SimulationNodeDatum).x!)
-                .attr("y2", d => (d.target as SimulationNodeDatum).y!);
-            node
-                .attr("transform", d => `translate(${(d as SimulationNodeDatum).x!},${(d as SimulationNodeDatum).y!})`);
-        });
-
-        const zoomBehavior = zoom<SVGSVGElement, unknown>()
-            .scaleExtent([0.1, 4])
-            .on("zoom", (event) => g.attr("transform", event.transform));
-        svg.call(zoomBehavior);
-
-        function createDragHandler(simulation: Simulation<ConceptNode, undefined>) {
-            function dragstarted(event: any) {
-                if (!event.active) simulation.alphaTarget(0.3).restart();
-                event.subject.fx = event.subject.x;
-                event.subject.fy = event.subject.y;
-            }
-            function dragged(event: any) {
-                event.subject.fx = event.x;
-                event.subject.fy = event.y;
-            }
-            function dragended(event: any) {
-                if (!event.active) simulation.alphaTarget(0);
-                event.subject.fx = null;
-                event.subject.fy = null;
-            }
-            return drag()
-                .on("start", dragstarted)
-                .on("drag", dragged)
-                .on("end", dragended);
-        }
-        
-        return () => {
-            tooltip.remove();
+        // We are shifting the dagre node position (anchor=center center) to the top left
+        // so it matches the React Flow node anchor point (top left).
+        return {
+            ...node,
+            targetPosition: isHorizontal ? 'left' : 'top',
+            sourcePosition: isHorizontal ? 'right' : 'bottom',
+            position: {
+                x: nodeWithPosition.x - nodeWidth / 2,
+                y: nodeWithPosition.y - nodeHeight / 2,
+            },
         };
+    });
 
-    }, [data, isFullscreen]);
-
-    return <svg ref={ref} className="w-full h-full min-h-[600px] bg-slate-950/50 rounded-md border border-slate-700 cursor-pointer"></svg>;
+    return { nodes: layoutedNodes, edges };
 };
 
-// --- Main ConceptMap Component ---
-
-export const ConceptMap: React.FC = () => {
-    const { ingestedText, addNotification, language, llm } = useAppContext();
+// --- MAIN COMPONENT ---
+const ConceptMapFlow: React.FC = () => {
+    const { activeProject, llm, language, addNotification, updateProjectData, ingestedText } = useAppContext();
     
-    // We keep mapData separate from the hooks because it can come from either hook
-    const [mapData, setMapData] = useState<ConceptMapData | null>(null);
+    // React Flow State
+    const [nodes, setNodes, onNodesChange] = useNodesState([]);
+    const [edges, setEdges, onEdgesChange] = useEdgesState([]);
+    
+    // Local UI State
+    const [newNodeLabel, setNewNodeLabel] = useState('');
     const [topic, setTopic] = useState('');
+    
+    // Fullscreen State
     const [isFullscreen, setIsFullscreen] = useState(false);
     const mapContainerRef = useRef<HTMLDivElement>(null);
 
-    // --- API HOOKS ---
+    // API Hooks
+    const { execute: runGenerate, loading: isGenerating } = useApi(generateConceptMapData);
+    const { execute: runExpand, loading: isExpanding } = useApi(generateConceptMapForTopic);
 
-    // 1. Hook for generating from Ingested Text
-    const { 
-        execute: generateFromText, 
-        loading: textLoading 
-    } = useApi(generateConceptMapData, "Map generated from text!");
+    // Initialize from Project Data
+    useEffect(() => {
+        if (activeProject?.conceptMapData) {
+            const { nodes: apiNodes, links: apiLinks } = activeProject.conceptMapData;
+            
+            if (apiNodes && apiLinks && apiNodes.length > 0) {
+                const initialNodes: Node[] = apiNodes.map((n: any) => ({
+                    id: n.id,
+                    data: { label: n.id },
+                    position: { x: 0, y: 0 }, // Layout will fix this
+                    type: 'default',
+                    style: { 
+                        background: n.group === 1 ? '#eff6ff' : '#fff', 
+                        border: n.group === 1 ? '1px solid #2563eb' : '1px solid #94a3b8',
+                        borderRadius: '8px',
+                        fontSize: '12px',
+                        width: 180,
+                        textAlign: 'center',
+                        padding: '10px'
+                    }
+                }));
 
-    // 2. Hook for generating from Topic
-    const { 
-        execute: generateFromTopic, 
-        loading: topicLoading 
-    } = useApi(generateConceptMapForTopic, "Map generated from topic!");
+                const initialEdges: Edge[] = apiLinks.map((l: any, i: number) => ({
+                    id: `e${i}`,
+                    source: typeof l.source === 'object' ? l.source.id : l.source,
+                    target: typeof l.target === 'object' ? l.target.id : l.target,
+                    animated: true,
+                    style: { stroke: '#94a3b8' },
+                    markerEnd: { type: MarkerType.ArrowClosed, color: '#94a3b8' },
+                }));
 
+                const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements(
+                    initialNodes,
+                    initialEdges
+                );
 
+                setNodes(layoutedNodes);
+                setEdges(layoutedEdges);
+            }
+        }
+    }, [activeProject, setNodes, setEdges]);
+
+    // Handle Fullscreen Events
     useEffect(() => {
         const handleFullscreenChange = () => {
             setIsFullscreen(document.fullscreenElement !== null);
@@ -223,128 +146,262 @@ export const ConceptMap: React.FC = () => {
         }
     };
 
-    // Helper to clean up bad links (nodes that don't exist)
-    const sanitizeData = (result: ConceptMapData): ConceptMapData => {
-        if (result && result.nodes && result.links) {
-            const nodeIds = new Set(result.nodes.map(n => n.id));
-            const sanitizedLinks = result.links.filter(link => 
-                nodeIds.has(link.source as string) && nodeIds.has(link.target as string)
-            );
-            return { nodes: result.nodes, links: sanitizedLinks };
-        }
-        return result;
+    const handleConnect = useCallback(
+        (params: Connection) => setEdges((eds) => addEdge({ ...params, animated: true }, eds)),
+        [setEdges]
+    );
+
+    const saveGraph = async () => {
+        if (!activeProject) return;
+        
+        // Convert React Flow format back to our ConceptMapData format
+        const mapData = {
+            nodes: nodes.map(n => ({ id: n.id, group: 2 })), 
+            links: edges.map(e => ({ source: e.source, target: e.target, value: 1 }))
+        };
+
+        await updateProjectData(activeProject._id, { conceptMapData: mapData });
+        addNotification('Mind Map saved successfully!', 'success');
     };
 
-    const handleBuildMap = useCallback(async () => {
+    const handleGenerate = async () => {
         if (!ingestedText) {
-            addNotification('Please ingest some text first.', 'info');
+            addNotification('Please ingest text first.', 'info');
             return;
         }
         
-        // Reset current map to show loading state cleanly
-        setMapData(null);
-        
-        // Call Hook 1
-        const result = await generateFromText(llm, ingestedText, language);
-        
-        // Process and set data
-        if (result) {
-            setMapData(sanitizeData(result));
+        const data = await runGenerate(llm, ingestedText, language);
+        if (data) {
+            const initialNodes = data.nodes.map((n: any) => ({
+                id: n.id,
+                data: { label: n.id },
+                position: { x: 0, y: 0 },
+                style: { width: 180, borderRadius: '8px', textAlign: 'center', padding: '10px', background: '#fff', border: '1px solid #94a3b8' }
+            }));
+            const initialEdges = data.links.map((l: any, i: number) => ({
+                id: `e${Date.now()}-${i}`,
+                source: l.source,
+                target: l.target,
+                animated: true,
+                markerEnd: { type: MarkerType.ArrowClosed }
+            }));
+            
+            const layout = getLayoutedElements(initialNodes, initialEdges);
+            setNodes(layout.nodes);
+            setEdges(layout.edges);
+            
+            // Auto-save
+            await updateProjectData(activeProject?._id, { conceptMapData: data });
         }
-    }, [ingestedText, addNotification, language, llm, generateFromText]);
+    };
 
-    const handleGenerateFromTopic = useCallback(async () => {
-        if (!topic.trim()) {
-            addNotification('Please enter a topic.', 'info');
-            return;
+    const handleGenerateFromTopic = async () => {
+        if (!topic.trim()) return;
+        const data = await runExpand(llm, topic, language);
+        if (data) {
+             const initialNodes = data.nodes.map((n: any) => ({
+                id: n.id,
+                data: { label: n.id },
+                position: { x: 0, y: 0 },
+                style: { width: 180, borderRadius: '8px', textAlign: 'center', padding: '10px', background: '#fff', border: '1px solid #94a3b8' }
+            }));
+            const initialEdges = data.links.map((l: any, i: number) => ({
+                id: `e${Date.now()}-${i}`,
+                source: l.source,
+                target: l.target,
+                animated: true,
+                markerEnd: { type: MarkerType.ArrowClosed }
+            }));
+            
+            const layout = getLayoutedElements(initialNodes, initialEdges);
+            setNodes(layout.nodes);
+            setEdges(layout.edges);
         }
+    };
 
-        setMapData(null);
+    const handleNodeDoubleClick = async (_: React.MouseEvent, node: Node) => {
+        const confirmExpand = window.confirm(`Expand concept "${node.data.label}" with AI?`);
+        if (!confirmExpand) return;
 
-        // Call Hook 2
-        const result = await generateFromTopic(llm, topic, language);
+        try {
+            const data = await runExpand(llm, node.data.label, language);
+            if (data && data.nodes.length > 0) {
+                // 1. Create new nodes
+                const newNodes: Node[] = data.nodes
+                    .filter((n: any) => !nodes.find(exist => exist.id === n.id)) // Avoid duplicates
+                    .map((n: any) => ({
+                        id: n.id,
+                        data: { label: n.id },
+                        // Position new nodes near the parent
+                        position: { 
+                            x: node.position.x + (Math.random() - 0.5) * 200, 
+                            y: node.position.y + 150 + Math.random() * 50 
+                        }, 
+                        style: { width: 180, borderRadius: '8px', textAlign: 'center', padding: '10px', background: '#f0fdf4', border: '1px solid #16a34a' }
+                    }));
 
-        // Process and set data
-        if (result) {
-            setMapData(sanitizeData(result));
+                // 2. Create new edges
+                const newEdges: Edge[] = data.links.map((l: any, i: number) => ({
+                    id: `e-exp-${Date.now()}-${i}`,
+                    source: l.source,
+                    target: l.target,
+                    animated: true,
+                    style: { stroke: '#86efac' }
+                }));
+
+                // 3. Connect User's clicked node to the new related concepts
+                const connectingEdges = newNodes.map((n, i) => ({
+                    id: `e-connect-${Date.now()}-${i}`,
+                    source: node.id,
+                    target: n.id,
+                    animated: true,
+                    style: { stroke: '#16a34a' }
+                }));
+
+                setNodes((nds) => [...nds, ...newNodes]);
+                setEdges((eds) => [...eds, ...newEdges, ...connectingEdges]);
+                
+                addNotification(`Expanded "${node.data.label}" with ${newNodes.length} new nodes.`, 'success');
+            }
+        } catch (e) {
+            addNotification('Failed to expand concept.', 'error');
         }
-    }, [topic, addNotification, language, llm, generateFromTopic]);
+    };
 
-    // Combined loading state
-    const isLoading = textLoading || topicLoading;
+    const handleAddManualNode = () => {
+        if (!newNodeLabel.trim()) return;
+        const id = newNodeLabel.trim();
+        const newNode: Node = {
+            id,
+            data: { label: id },
+            position: { x: 100, y: 100 }, // Default position, user drags it
+            style: { width: 180, borderRadius: '8px', textAlign: 'center', padding: '10px', background: '#fff', border: '1px solid #334155' }
+        };
+        setNodes((nds) => [...nds, newNode]);
+        setNewNodeLabel('');
+    };
 
-    if (!ingestedText && !mapData) {
+    // Determine Loading State
+    const isLoading = isGenerating || isExpanding;
+
+    if (!ingestedText && nodes.length === 0) {
         return (
-            <Card title="Concept Map">
+             <Card title="Concept Map">
                  <div className="space-y-6">
                     <div className="flex flex-col sm:flex-row gap-4 items-center">
-                        <Button onClick={handleBuildMap} disabled={true} className="w-full sm:w-auto">
-                            Build from Ingested Text
-                        </Button>
-                        <div className="w-full flex items-center gap-2">
-                            <input
-                                type="text"
-                                value={topic}
-                                onChange={(e) => setTopic(e.target.value)}
-                                placeholder="Generate map from a topic..."
-                                className="w-full bg-slate-900 border border-slate-700 rounded-md p-2 text-slate-300 focus:ring-2 focus:ring-red-500 focus:outline-none transition"
-                                disabled={isLoading}
-                            />
-                            <Button onClick={handleGenerateFromTopic} variant="secondary" disabled={!topic.trim() || isLoading} className="flex-shrink-0">
-                                {topicLoading ? 'Building...' : 'Generate'}
-                            </Button>
-                        </div>
-                    </div>
-                     <EmptyState 
-                        title="Visualize Your Notes"
-                        message="Ingest text to generate a concept map, or enter a topic above to create one from scratch."
-                    />
-                 </div>
-            </Card>
-        )
-    }
-
-    return (
-        <Card title="Concept Map">
-            <div className="space-y-6">
-                <div className="flex flex-col sm:flex-row gap-4 items-center">
-                    <Button onClick={handleBuildMap} disabled={!ingestedText || isLoading} className="w-full sm:w-auto">
-                        {textLoading ? 'Building from text...' : 'Build from Ingested Text'}
-                    </Button>
-                    <div className="w-full flex items-center gap-2">
                         <input
                             type="text"
                             value={topic}
                             onChange={(e) => setTopic(e.target.value)}
-                            placeholder="Or generate map from a topic..."
-                            className="w-full bg-slate-900 border border-slate-700 rounded-md p-2 text-slate-300 focus:ring-2 focus:ring-red-500 focus:outline-none transition"
-                            disabled={isLoading}
+                            placeholder="Enter a topic to start a map..."
+                            className="flex-1 bg-slate-900 border border-slate-700 rounded-md p-2 text-slate-300 focus:ring-2 focus:ring-red-500 focus:outline-none"
                         />
-                        <Button onClick={handleGenerateFromTopic} variant="secondary" disabled={!topic.trim() || isLoading} className="flex-shrink-0">
-                            {topicLoading ? 'Building...' : 'Generate'}
+                        <Button onClick={handleGenerateFromTopic} disabled={!topic.trim() || isLoading}>
+                            {isExpanding ? 'Generating...' : 'Start from Topic'}
                         </Button>
                     </div>
+                    <EmptyState 
+                        title="Interactive Mind Map" 
+                        message="Visualize connections. Ingest text or enter a topic to generate a graph. Double-click nodes to expand them with AI." 
+                    />
+                 </div>
+             </Card>
+        );
+    }
+
+    return (
+        <Card title="Interactive Mind Map" className="h-[800px] flex flex-col">
+            <div className="flex flex-col md:flex-row gap-4 mb-4 justify-between items-center bg-slate-50 dark:bg-slate-900/50 p-3 rounded-lg border border-slate-200 dark:border-slate-800">
+                <div className="flex gap-2 w-full md:w-auto">
+                    {ingestedText && (
+                        <Button onClick={handleGenerate} disabled={isLoading} variant="secondary" className="text-xs">
+                            {isGenerating ? 'Regenerating...' : 'Reset from Text'}
+                        </Button>
+                    )}
+                    <Button onClick={saveGraph} variant="primary" className="text-xs">
+                        Save Map
+                    </Button>
                 </div>
                 
-                {isLoading && <Loader />}
-                
-                {mapData && mapData.nodes.length > 0 && (
-                    <div ref={mapContainerRef} className="relative fade-in bg-slate-950">
-                        <button onClick={toggleFullscreen} className="absolute top-2 right-2 z-10 p-2 bg-slate-800/50 hover:bg-red-600 rounded-full text-slate-300 hover:text-white transition-colors" aria-label={isFullscreen ? 'Exit full-screen' : 'Enter full-screen'}>
-                            {isFullscreen ? (
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                                  <path fillRule="evenodd" d="M5 5a1 1 0 011-1h2a1 1 0 110 2H6v1a1 1 0 11-2 0V5zm10 0a1 1 0 011 1v1a1 1 0 11-2 0V6h-1a1 1 0 110-2h2zM5 15a1 1 0 011 1h1a1 1 0 110 2H6a1 1 0 01-1-1v-2a1 1 0 112 0v1zm11-1a1 1 0 10-2 0v1h-1a1 1 0 100 2h2a1 1 0 001-1v-2z" clipRule="evenodd" />
-                                </svg>
-                            ) : (
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                                    <path fillRule="evenodd" d="M3 5a1 1 0 011-1h2a1 1 0 110 2H5v1a1 1 0 11-2 0V5zm12 0a1 1 0 011 1v2a1 1 0 11-2 0V6h-1a1 1 0 110-2h2zM5 13a1 1 0 100 2h1v1a1 1 0 102 0v-2a1 1 0 00-1-1H5zm11-1a1 1 0 10-2 0v2a1 1 0 001 1h2a1 1 0 100-2h-1v-1z" clipRule="evenodd" />
-                                </svg>
-                            )}
-                        </button>
-                        <D3Graph data={mapData} isFullscreen={isFullscreen} />
+                <div className="flex gap-2 items-center w-full md:w-auto">
+                    <input 
+                        type="text" 
+                        value={newNodeLabel}
+                        onChange={(e) => setNewNodeLabel(e.target.value)}
+                        placeholder="New Concept..."
+                        className="flex-1 md:w-48 px-3 py-1.5 text-sm rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 outline-none focus:border-blue-500"
+                        onKeyDown={(e) => e.key === 'Enter' && handleAddManualNode()}
+                    />
+                    <Button onClick={handleAddManualNode} variant="secondary" className="text-xs whitespace-nowrap">
+                        Add Node
+                    </Button>
+                </div>
+            </div>
+
+            {/* Map Container with Ref for Fullscreen */}
+            <div 
+                ref={mapContainerRef} 
+                className="flex-1 w-full h-full border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden bg-slate-50 dark:bg-slate-950 relative group"
+            >
+                {/* Fullscreen Button */}
+                <button 
+                    onClick={toggleFullscreen}
+                    className="absolute top-4 right-4 z-10 p-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-sm text-slate-500 hover:text-slate-900 dark:hover:text-white transition-colors"
+                    title={isFullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}
+                >
+                    {isFullscreen ? (
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                            <path fillRule="evenodd" d="M3 4a1 1 0 011-1h4a1 1 0 010 2H6.414l2.293 2.293a1 1 0 01-1.414 1.414L5 6.414V8a1 1 0 01-2 0V4zm9 1a1 1 0 010-2h4a1 1 0 011 1v4a1 1 0 01-2 0V6.414l-2.293 2.293a1 1 0 11-1.414-1.414L13.586 5H12zm-9 7a1 1 0 011 1v1.586l2.293-2.293a1 1 0 011.414 1.414L5.414 15H7a1 1 0 010 2H3a1 1 0 01-1-1v-4a1 1 0 011-1zm10 0a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 010-2h1.586l-2.293-2.293a1 1 0 011.414-1.414L15 13.586V12a1 1 0 011-1z" clipRule="evenodd" />
+                        </svg>
+                    ) : (
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                            <path fillRule="evenodd" d="M3 4a1 1 0 011-1h4a1 1 0 010 2H6.414l2.293 2.293a1 1 0 01-1.414 1.414L5 6.414V8a1 1 0 01-2 0V4zm9 1a1 1 0 010-2h4a1 1 0 011 1v4a1 1 0 01-2 0V6.414l-2.293 2.293a1 1 0 11-1.414-1.414L13.586 5H12zm-9 7a1 1 0 011 1v1.586l2.293-2.293a1 1 0 011.414 1.414L5.414 15H7a1 1 0 010 2H3a1 1 0 01-1-1v-4a1 1 0 011-1zm10 0a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 010-2h1.586l-2.293-2.293a1 1 0 011.414-1.414L15 13.586V12a1 1 0 011-1z" clipRule="evenodd" />
+                        </svg>
+                    )}
+                </button>
+
+                {isLoading && (
+                    <div className="absolute inset-0 flex items-center justify-center z-50 bg-white/50 dark:bg-black/50 backdrop-blur-sm">
+                        <Loader />
                     </div>
                 )}
+                
+                <ReactFlow
+                    nodes={nodes}
+                    edges={edges}
+                    onNodesChange={onNodesChange}
+                    onEdgesChange={onEdgesChange}
+                    onConnect={handleConnect}
+                    onNodeDoubleClick={handleNodeDoubleClick}
+                    fitView
+                    attributionPosition="bottom-right"
+                >
+                    <MiniMap 
+                        nodeStrokeColor={(n) => {
+                            if (n.style?.background) return n.style.background as string;
+                            return '#eee';
+                        }}
+                        nodeColor={(n) => {
+                            if (n.style?.background) return n.style.background as string;
+                            return '#fff';
+                        }}
+                        maskColor="rgba(0, 0, 0, 0.1)"
+                        className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg"
+                    />
+                    <Controls className="bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 fill-slate-500" />
+                    <Background color="#94a3b8" gap={16} size={1} />
+                    
+                    <Panel position="top-left" className="bg-white/90 dark:bg-slate-800/90 p-2 rounded shadow border border-slate-200 dark:border-slate-700 text-xs text-slate-500 dark:text-slate-400">
+                        Double-click a node to <strong>Expand with AI</strong>. Drag to reorganize.
+                    </Panel>
+                </ReactFlow>
             </div>
         </Card>
     );
 };
+
+export const ConceptMap = () => (
+    <ReactFlowProvider>
+        <ConceptMapFlow />
+    </ReactFlowProvider>
+);

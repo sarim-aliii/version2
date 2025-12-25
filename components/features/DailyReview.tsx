@@ -1,12 +1,14 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAppContext } from '../../context/AppContext';
 import { useApi } from '../../hooks/useApi';
 import { getDueFlashcards } from '../../services/api';
+import { analyzeWeakness } from '../../services/geminiService'; // Import the service
 import { Button } from '../ui/Button';
 import { Card } from '../ui/Card';
 import { Loader } from '../ui/Loader';
 import { EmptyState } from '../ui/EmptyState';
-import { SRFlashcard, StudyProject } from '../../types';
+import { SRFlashcard, StudyProject, RemedialContent } from '../../types';
+import { MarkdownRenderer } from '../ui/MarkdownRenderer';
 
 // Simplified Flashcard Component for Review Mode
 const ReviewCard: React.FC<{ 
@@ -78,12 +80,16 @@ interface ReviewItem {
 }
 
 export const DailyReview: React.FC = () => {
-    const { updateProjectData, updateProgress, addNotification } = useAppContext();
+    const { updateProjectData, updateProgress, addNotification, llm, language } = useAppContext();
     
     const [projectsData, setProjectsData] = useState<StudyProject[]>([]);
     const [reviewQueue, setReviewQueue] = useState<ReviewItem[]>([]);
     const [currentIndex, setCurrentIndex] = useState(0);
     const [isSessionComplete, setIsSessionComplete] = useState(false);
+
+    // Track failures: Map<ProjectId, Count>
+    const [sessionFailures, setSessionFailures] = useState<Record<string, number>>({});
+    const [remedialData, setRemedialData] = useState<RemedialContent | null>(null);
 
     // Fetch Hook
     const { 
@@ -91,13 +97,17 @@ export const DailyReview: React.FC = () => {
         loading 
     } = useApi(getDueFlashcards);
 
+    const {
+        execute: runWeaknessAnalysis,
+        loading: isAnalyzing
+    } = useApi(analyzeWeakness);
+
     useEffect(() => {
         const loadCards = async () => {
             const data = await fetchDue();
             if (data) {
                 setProjectsData(data);
                 
-                // Flatten projects into a single queue of due cards
                 const now = new Date();
                 const queue: ReviewItem[] = [];
                 
@@ -125,6 +135,14 @@ export const DailyReview: React.FC = () => {
         const item = reviewQueue[currentIndex];
         const card = item.card;
 
+        // Track failures (Quality < 3 is usually considered a struggle/fail in strict terms, but let's say < 2 for "Again")
+        if (quality < 2) {
+            setSessionFailures(prev => ({
+                ...prev,
+                [item.projectId]: (prev[item.projectId] || 0) + 1
+            }));
+        }
+
         // SRS Algorithm (Standard SM-2)
         let { easeFactor, interval } = card;
 
@@ -151,7 +169,6 @@ export const DailyReview: React.FC = () => {
             const updatedFlashcards = project.srsFlashcards?.map(c => c.id === card.id ? updatedCard : c);
             
             // 2. Persist to Backend immediately
-            // We optimize by sending ONLY the flashcards field
             await updateProjectData(item.projectId, { srsFlashcards: updatedFlashcards });
         }
 
@@ -160,27 +177,83 @@ export const DailyReview: React.FC = () => {
             setCurrentIndex(prev => prev + 1);
         } else {
             setIsSessionComplete(true);
-            updateProgress(reviewQueue.length * 10); // 10 XP per card
+            updateProgress(reviewQueue.length * 10);
             addNotification(`Daily Review Complete! +${reviewQueue.length * 10} XP`, "success");
+        }
+    };
+
+    const handleAnalyzeWeakness = async () => {
+        // Find the project with the most failures
+        const sortedProjects = Object.entries(sessionFailures).sort((a, b) => b[1] - a[1]);
+        
+        if (sortedProjects.length === 0) return;
+
+        const worstProjectId = sortedProjects[0][0];
+        
+        // Ensure we only run it once or if requested
+        const result = await runWeaknessAnalysis(llm, worstProjectId, language);
+        if (result) {
+            setRemedialData(result);
         }
     };
 
     if (loading) return <Loader />;
 
     if (isSessionComplete) {
+        // Determine if we should suggest remedial action
+        const totalFailures = Object.values(sessionFailures).reduce((a, b) => a + b, 0);
+        const hasWeakness = totalFailures > 0;
+
         return (
-            <Card className="text-center py-12 animate-in fade-in">
-                <div className="flex justify-center mb-6">
-                    <div className="p-4 bg-green-500/20 rounded-full text-green-500">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
+            <div className="space-y-6 animate-in fade-in">
+                <Card className="text-center py-12">
+                    <div className="flex justify-center mb-6">
+                        <div className="p-4 bg-green-500/20 rounded-full text-green-500">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                        </div>
                     </div>
-                </div>
-                <h2 className="text-3xl font-bold text-slate-100 mb-2">All Caught Up!</h2>
-                <p className="text-slate-400 mb-8">You've reviewed all your due cards for today. Great job!</p>
-                <Button onClick={() => window.location.reload()}>Refresh</Button>
-            </Card>
+                    <h2 className="text-3xl font-bold text-slate-100 mb-2">All Caught Up!</h2>
+                    <p className="text-slate-400 mb-8">You've reviewed all your due cards for today.</p>
+                    
+                    {hasWeakness && !remedialData && (
+                        <div className="max-w-md mx-auto bg-red-900/20 border border-red-900/50 p-6 rounded-lg">
+                            <h3 className="text-red-400 font-bold mb-2">Struggle Detected</h3>
+                            <p className="text-slate-300 text-sm mb-4">
+                                You missed {totalFailures} cards today. Our AI can analyze your mistakes and create a custom lesson to help you.
+                            </p>
+                            <Button onClick={handleAnalyzeWeakness} disabled={isAnalyzing}>
+                                {isAnalyzing ? 'Analyzing Weaknesses...' : 'Generate Remedial Lesson'}
+                            </Button>
+                        </div>
+                    )}
+
+                    {!hasWeakness && (
+                        <Button onClick={() => window.location.reload()}>Refresh</Button>
+                    )}
+                </Card>
+
+                {/* Remedial Content Display */}
+                {remedialData && (
+                    <div className="animate-in slide-in-from-bottom duration-500">
+                        <Card title={`Remedial Lesson: ${remedialData.focusTopic}`} className="border-l-4 border-l-blue-500">
+                            <div className="prose dark:prose-invert max-w-none text-sm text-slate-300 mb-6">
+                                <MarkdownRenderer content={remedialData.explanation} />
+                            </div>
+                            
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                {remedialData.actionableTips.map((tip, i) => (
+                                    <div key={i} className="bg-slate-800 p-3 rounded border border-slate-700 text-xs text-slate-400">
+                                        <strong className="text-slate-200 block mb-1">Tip {i + 1}</strong>
+                                        {tip}
+                                    </div>
+                                ))}
+                            </div>
+                        </Card>
+                    </div>
+                )}
+            </div>
         );
     }
 

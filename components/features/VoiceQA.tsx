@@ -3,13 +3,11 @@ import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
 import { FileUploader } from '../ui/FileUploader';
 import { useAppContext } from '../../context/AppContext';
-import { useApi } from '../../hooks/useApi'; // 1. Import hook
+import { useApi } from '../../hooks/useApi'; 
 import { EmptyState } from '../ui/EmptyState';
 import { transcribeAudio, transcribeYoutube, generateSummary, generateFlashcards, generateAnswer } from '../../services/geminiService';
 import { Loader } from '../ui/Loader';
-import { Flashcard as FlashcardType } from '../../types';
 
-type AnalysisAction = 'summary' | 'flashcards' | 'qa';
 
 const fileToBase64 = (file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
@@ -76,9 +74,6 @@ export const AudioAnalysis: React.FC = () => {
 
   const resetState = () => {
     setTranscribedText(null);
-    // Hook data persists until next call, so we might need to manually clear if "reset" means "clear UI"
-    // Since useApi doesn't expose a 'reset' method, we rely on the component re-mounting or just ignoring old data if transcribedText is null
-    // Ideally, for a full reset, you'd reset the hook's internal state, but for now we just clear the trigger (transcribedText)
     setQuestion('');
   };
 

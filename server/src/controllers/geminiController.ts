@@ -139,10 +139,25 @@ export const generateFlashcards = async (req: Request, res: Response) => {
     }
 };
 
+// --- UPDATED TUTOR RESPONSE ---
+const getPersonaInstruction = (persona: string) => {
+    switch (persona) {
+        case 'Socratic Mentor':
+            return "You are a Socratic Mentor. Never give the answer directly. Instead, ask guiding questions to help the student discover the answer themselves. Encourage critical thinking.";
+        case 'ELI5 Buddy':
+            return "You are an ELI5 Buddy. Explain complex concepts using simple analogies and language suitable for a 5-year-old. Keep it fun, simple, and easy to understand.";
+        case 'Strict Professor':
+            return "You are a Strict Professor. Demand precision and academic rigor. Point out exactly what the student got wrong. Do not tolerate vague or informal answers. Be critical but constructive.";
+        case 'Philosopher':
+            return "You are a Philosopher. Connect the topic to broader existential questions, ethics, and the nature of reality. Use a contemplative tone.";
+        default:
+            return "You are a helpful and knowledgeable AI tutor. Provide clear, accurate, and supportive explanations.";
+    }
+};
 
 export const getTutorResponse = async (req: Request, res: Response) => {
     if (!req.user) return res.status(401).json({ message: 'Not authorized' });
-    const { projectId, message, history, language, llm } = req.body;
+    const { projectId, message, history, language, llm, persona } = req.body; // Added persona
     try {
         const project = await getProjectForUser(projectId, req.user.id);
         const context = `CONTEXT: ${project.ingestedText.substring(0, 500000)}\n\n`;
@@ -152,8 +167,10 @@ export const getTutorResponse = async (req: Request, res: Response) => {
             parts: [{ text: h.content }]
         }));
 
+        const systemInstruction = getPersonaInstruction(persona);
+
         const prompt = `${context}Based on the context above and our conversation history, answer my latest question in ${language}.\n\nLATEST QUESTION:\n${message}`;
-        const model = getModel(llm);
+        const model = getModel(llm, undefined, systemInstruction);
         const chat = model.startChat({ history: chatHistory });
         const result = await chat.sendMessage(prompt);
         res.json(result.response.text());
@@ -508,7 +525,7 @@ export const generateStudyPlanFromText = async (req: Request, res: Response) => 
 };
 
 export const getTutorResponseFromText = async (req: Request, res: Response) => {
-    const { llm, text, message, history, language } = req.body;
+    const { llm, text, message, history, language, persona } = req.body; // Added persona
     try {
         const context = `CONTEXT: ${text.substring(0, 500000)}\n\n`;
 
@@ -517,8 +534,10 @@ export const getTutorResponseFromText = async (req: Request, res: Response) => {
             parts: [{ text: h.content }]
         }));
 
+        const systemInstruction = getPersonaInstruction(persona);
+
         const prompt = `${context}Based on the context above and our conversation history, answer my latest question in ${language}.\n\nLATEST QUESTION:\n${message}`;
-        const model = getModel(llm);
+        const model = getModel(llm, undefined, systemInstruction);
         const chat = model.startChat({ history: chatHistory });
         const result = await chat.sendMessage(prompt);
         res.json(result.response.text());
@@ -575,8 +594,6 @@ export const transcribeYoutubeVideo = async (req: Request, res: Response) => {
     console.log(`[YouTube] Processing: ${url}`);
 
     try {
-        // --- STRATEGY 1: DIRECT TRANSCRIPT FETCH (FAST & RELIABLE) ---
-        // This bypasses the need to download audio and prevents 403 errors on most videos.
         try {
             console.log("[YouTube] Attempting to fetch existing transcript...");
             const transcriptItems = await YoutubeTranscript.fetchTranscript(url);
@@ -931,5 +948,129 @@ export const translateCode = async (req: Request, res: Response) => {
     } catch (error: any) {
         console.error("Code Translation Error:", error);
         res.status(500).json({ message: `Failed to translate code: ${error.message}` });
+    }
+};
+
+
+interface ResumeAnalysisResult {
+    matchScore: number;
+    missingKeywords: string[];
+    tailoredSummary: string;
+    suggestions: string[];
+}
+
+// @desc    Analyze Resume against Job Description for ATS optimization
+// @route   POST /api/gemini/analyze-resume
+// @access  Private
+export const analyzeResume = async (req: Request, res: Response) => {
+    const { llm, resumeText, jobDescription, language } = req.body;
+
+    if (!resumeText || !jobDescription) {
+        return res.status(400).json({ message: "Both Resume text and Job Description are required." });
+    }
+
+    try {
+        const prompt = `Act as an expert ATS (Applicant Tracking System) and Career Coach. Compare the following Resume against the Job Description.
+        
+        Analyze for:
+        1. **Match Score**: A percentage (0-100) representing how well the resume fits the job.
+        2. **Missing Keywords**: Critical skills, tools, or terms found in the Job Description but missing from the Resume.
+        3. **Tailored Summary**: Write a new, professional summary (3-4 sentences) for the resume that highlights relevant experience for THIS specific job.
+        4. **Suggestions**: 3-5 concrete, actionable bullet points to improve the resume's impact.
+
+        RESUME:
+        ${resumeText.substring(0, 10000)}
+
+        JOB DESCRIPTION:
+        ${jobDescription.substring(0, 10000)}
+
+        Output strictly as a JSON object with this structure:
+        {
+            "matchScore": number,
+            "missingKeywords": ["string", "string"],
+            "tailoredSummary": "string",
+            "suggestions": ["string", "string"]
+        }
+        Respond in ${language || 'English'}.`;
+
+        const model = getModel(llm, "application/json");
+        const result = await model.generateContent(prompt);
+        
+        const textRes = result.response.text().replace(/```json/g, '').replace(/```/g, '');
+        const jsonResult: ResumeAnalysisResult = JSON.parse(textRes);
+
+        res.json(jsonResult);
+
+    } catch (error: any) {
+        console.error("Resume Analysis Error:", error);
+        res.status(500).json({ message: `Failed to analyze resume: ${error.message}` });
+    }
+};
+
+// @desc    Analyze flashcard failures and incorrect MCQs to find knowledge gaps
+// @route   POST /api/gemini/analyze-weakness
+// @access  Private
+export const analyzeProjectWeakness = async (req: Request, res: Response) => {
+    const { projectId, llm, language } = req.body;
+
+    try {
+        const project = await getProjectForUser(projectId, req.user.id);
+
+        // 1. Aggregate Weaknesses
+        const weakFlashcards = project.srsFlashcards?.filter(fc => fc.easeFactor < 2.3) || [];
+        
+        // Collect last 20 incorrect questions from MCQ history
+        const recentIncorrectMcqs = project.mcqAttempts
+            ?.slice(0, 5) // Last 5 attempts
+            .flatMap(attempt => attempt.incorrectQuestions) 
+            || [];
+
+        // If user is doing great (no weaknesses), return early
+        if (weakFlashcards.length === 0 && recentIncorrectMcqs.length === 0) {
+            return res.json({
+                weakTopics: [],
+                focusTopic: "None",
+                explanation: "Great job! We couldn't detect any significant patterns of failure. You are mastering this material.",
+                actionableTips: ["Keep reviewing your flashcards to maintain retention.", "Try increasing the difficulty of your quizzes."]
+            });
+        }
+
+        // 2. Prepare Prompt
+        const failureContext = `
+            The student is struggling with the following Flashcards (Ease Factor < 2.3):
+            ${weakFlashcards.map(fc => `- Q: ${fc.question} | A: ${fc.answer}`).join('\n')}
+
+            The student recently answered these Quiz Questions incorrectly:
+            ${recentIncorrectMcqs.map(q => `- ${q}`).join('\n')}
+        `;
+
+        const prompt = `Act as an expert tutor analyzing a student's performance data.
+        
+        ${failureContext}
+
+        Task:
+        1. Identify clusters/themes in these failures (e.g., "Recursion", "Memory Management").
+        2. Select the #1 most critical weak topic that needs immediate attention.
+        3. Write a "Remedial Lesson" for this specific topic.
+
+        Output strictly as JSON:
+        {
+            "weakTopics": [ {"topic": "string", "count": number (estimated items), "reason": "string (brief why)"} ],
+            "focusTopic": "string (the #1 topic)",
+            "explanation": "string (3-4 paragraphs explaining the concept simply, fixing common misconceptions found in the failures)",
+            "actionableTips": ["string", "string", "string"]
+        }
+        Respond in ${language || 'English'}.`;
+
+        // 3. Generate Analysis
+        const model = getModel(llm, "application/json");
+        const result = await model.generateContent(prompt);
+        const text = result.response.text().replace(/```json/g, '').replace(/```/g, '');
+        
+        res.json(JSON.parse(text));
+
+    } catch (error: any) {
+        console.error("Weakness Analysis Error:", error);
+        res.status(500).json({ message: `Analysis failed: ${error.message}` });
     }
 };

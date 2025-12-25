@@ -9,8 +9,11 @@ import {
     CodeAnalysisResult,
     PodcastSegment,
     CodeTranslationResult,
+    ResumeAnalysisResult,
+    RemedialContent,
 } from '../types';
 
+// ... (Keep existing exports from ./api) ...
 export {
     fetchTopicInfo,
     transcribeAudio,
@@ -24,6 +27,8 @@ export {
 } from './api';
 
 import { SearchResult, SlideData } from './api';
+
+// ... (Keep other functions like generateStudyPlan, generateLessonPlan...) ...
 
 export const generateStudyPlan = async (llm: string, text: string, days: number, language: string): Promise<StudyPlan> => {
     try {
@@ -61,12 +66,38 @@ export const generateConceptMapForTopic = async (llm: string, topic: string, lan
     }
 };
 
-export const getTutorResponse = async (llm: string, text: string, history: ChatMessage[], message: string, language: string): Promise<string> => {
+// ALIAS for the Expand feature request
+export const generateConceptMapFromTopic = generateConceptMapForTopic;
+
+// --- UPDATED TUTOR RESPONSE ---
+export const getTutorResponse = async (llm: string, text: string, history: ChatMessage[], message: string, language: string, persona: string): Promise<string> => {
     try {
-        return await apiHelpers.getTutorResponseFromText(llm, text, history, message, language);
+        // Direct call to ensure persona is passed correctly
+        const { data } = await axiosInstance.post('/gemini/tutor', { 
+            llm, 
+            projectId: text, // Assuming 'text' here is projectId for project-based chat context
+            history, 
+            message, 
+            language,
+            persona 
+        });
+        return data;
     } catch (error) {
-        console.error("Error in getTutorResponse:", error);
-        throw error;
+        // Fallback or retry logic if needed, or check if it's text-based
+        try {
+             const { data } = await axiosInstance.post('/gemini/tutor-from-text', { 
+                llm, 
+                text, 
+                history, 
+                message, 
+                language,
+                persona 
+            });
+            return data;
+        } catch(e) {
+             console.error("Error in getTutorResponse:", error);
+             throw error;
+        }
     }
 };
 
@@ -179,6 +210,35 @@ export const translateCode = async (llm: string, code: string, targetLanguage: s
         return data as CodeTranslationResult;
     } catch (error) {
         console.error("Error in translateCode:", error);
+        throw error;
+    }
+};
+
+export const analyzeResume = async (llm: string, resumeText: string, jobDescription: string, language: string): Promise<ResumeAnalysisResult> => {
+    try {
+        const { data } = await axiosInstance.post('/gemini/analyze-resume', { 
+            llm, 
+            resumeText, 
+            jobDescription, 
+            language 
+        });
+        return data as ResumeAnalysisResult;
+    } catch (error) {
+        console.error("Error in analyzeResume:", error);
+        throw error;
+    }
+};
+
+export const analyzeWeakness = async (llm: string, projectId: string, language: string): Promise<RemedialContent> => {
+    try {
+        const { data } = await axiosInstance.post('/gemini/analyze-weakness', { 
+            llm, 
+            projectId, 
+            language 
+        });
+        return data as RemedialContent;
+    } catch (error) {
+        console.error("Error in analyzeWeakness:", error);
         throw error;
     }
 };

@@ -5,8 +5,9 @@ import { Card } from '../ui/Card';
 import { Loader } from '../ui/Loader';
 import { getTutorResponse } from '../../services/geminiService';
 import useLocalStorage from '../../hooks/useLocalStorage';
-import { Difficulty, Category } from '@/types';
+import { Difficulty, Category, Tab } from '../../types'; // Added Tab import
 
+// ... Imports for questions (dsaTop150, etc.) remain the same ...
 import {
     dsaTop150,
     dsaBlind75,
@@ -83,7 +84,7 @@ import {
 import { MarkdownRenderer } from '../ui/MarkdownRenderer';
 import { MockInterview } from './MockInterview';
 
-// --- DATA STRUCTURES ---
+// --- DATA STRUCTURES (INTERVIEW_DATA array remains the same) ---
 const INTERVIEW_DATA: Category[] = [
     {
         id: 'dsa',
@@ -281,7 +282,8 @@ const INTERVIEW_DATA: Category[] = [
 
 // --- COMPONENT ---
 export const InterviewPrep: React.FC = () => {
-    const { llm, language, addNotification, updateProgress } = useAppContext();
+    // 1. Added setActiveTab to context destructuring
+    const { llm, language, addNotification, updateProgress, setActiveTab } = useAppContext();
     const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
     const [expandedQuestion, setExpandedQuestion] = useState<string | null>(null);
     const [explanations, setExplanations] = useState<{ [key: string]: string }>({});
@@ -293,29 +295,18 @@ export const InterviewPrep: React.FC = () => {
     const [sortOrder, setSortOrder] = useState<'default' | 'asc' | 'desc'>('default');
     const [filterDifficulty, setFilterDifficulty] = useState<Difficulty | 'All'>('All');
 
-    // DSA View
+    // ... View states (dsaView, webView, etc.) remain unchanged ...
     const [dsaView, setDsaView] = useState<'menu' | 'top150' | 'blind75' | 'leetcode75'>('menu');
-    // Web View
     const [webView, setWebView] = useState<'menu' | 'fundamentals' | 'advanced' | 'system'>('menu');
-    // Mobile View
     const [mobileView, setMobileView] = useState<'menu' | 'fundamentals' | 'advanced' | 'system'>('menu');
-    // Cloud View
     const [cloudView, setCloudView] = useState<'menu' | 'fundamentals' | 'advanced' | 'system'>('menu');
-    // Networks View
     const [networksView, setNetworksView] = useState<'menu' | 'fundamentals' | 'advanced' | 'system'>('menu');
-    // DBMS View
     const [dbmsView, setDbmsView] = useState<'menu' | 'fundamentals' | 'advanced' | 'system'>('menu');
-    // GenAI View
     const [genaiView, setGenaiView] = useState<'menu' | 'fundamentals' | 'advanced' | 'system'>('menu');
-    // OOD View
     const [oodView, setOodView] = useState<'menu' | 'fundamentals' | 'advanced' | 'system'>('menu');
-    // HR View
     const [hrView, setHrView] = useState<'menu' | 'fundamentals' | 'behavioral' | 'leadership'>('menu');
-    // Security View
     const [securityView, setSecurityView] = useState<'menu' | 'fundamentals' | 'advanced' | 'system'>('menu');
-    // OS View
     const [osView, setOsView] = useState<'menu' | 'fundamentals' | 'advanced' | 'system'>('menu');
-    // System View
     const [sysView, setSysView] = useState<'menu' | 'fundamentals' | 'advanced' | 'deepDive'>('menu');
 
 
@@ -548,7 +539,7 @@ Respond in ${language}.`;
         });
     };
 
-    // Back Button Logic (DSA + Web + Mobile + Cloud + Networks + DBMS + GenAI + OOD submenus)
+    // Back Button Logic
     const handleBack = () => {
         if (selectedCategory?.id === 'dsa' && dsaView !== 'menu') {
             setDsaView('menu');
@@ -609,6 +600,32 @@ Respond in ${language}.`;
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        
+                        {/* --- NEW: RESUME SCANNER CARD --- */}
+                        <button
+                            onClick={() => setActiveTab(Tab.ResumeScanner)}
+                            className="flex flex-col items-start p-6 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 border border-blue-200 dark:border-blue-800 rounded-xl hover:shadow-md hover:border-blue-400 transition-all group text-left relative overflow-hidden"
+                        >
+                            <div className="absolute top-0 right-0 w-24 h-24 bg-blue-500/10 rounded-full blur-2xl -mr-10 -mt-10 pointer-events-none"></div>
+                            
+                            <div className="p-3 rounded-lg bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400 mb-4 group-hover:scale-110 transition-transform">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                </svg>
+                            </div>
+                            <div className="w-full flex justify-between items-start mb-2">
+                                <h3 className="text-xl font-bold text-slate-800 dark:text-slate-200">Resume Screener</h3>
+                                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300">NEW</span>
+                            </div>
+                            <p className="text-sm text-slate-500 dark:text-slate-400">
+                                Optimize your resume for ATS. Check match scores and get tailored improvement tips.
+                            </p>
+                            <div className="mt-4 text-xs font-semibold text-blue-500 group-hover:translate-x-1 transition-transform flex items-center gap-1">
+                                Analyze Resume <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" /></svg>
+                            </div>
+                        </button>
+
+                        {/* --- EXISTING CARDS --- */}
                         {INTERVIEW_DATA.map(cat => (
                             <button
                                 key={cat.id}
@@ -646,7 +663,7 @@ Respond in ${language}.`;
                     </div>
                 </div>
             ) : (
-                // --- CATEGORY SELECTED ---
+                // --- CATEGORY SELECTED (Remaining UI code unchanged) ---
                 <div className="fade-in space-y-6">
                     <div className="flex flex-col gap-4 mb-2">
                         <div className="flex items-center gap-4">
@@ -1347,6 +1364,62 @@ Respond in ${language}.`;
                                     </div>
                                 </div>
                             </div>
+                        ) : selectedCategory.id === 'ood' && oodView === 'menu' ? (
+                            // --- OOD MENU VIEW ---
+                            <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                    {/* OOD Fundamentals */}
+                                    <div
+                                        onClick={() => setOodView('fundamentals')}
+                                        className="relative overflow-hidden rounded-2xl p-8 h-64 flex flex-col justify-center items-start bg-gradient-to-br from-sky-500 to-indigo-700 shadow-xl group cursor-pointer transition-transform hover:scale-[1.02] border border-sky-400/40"
+                                    >
+                                        <div className="absolute top-0 right-0 w-64 h-64 bg-white opacity-10 rounded-full -translate-y-1/2 translate-x-1/2 blur-3xl group-hover:opacity-15 transition-opacity" />
+                                        <h3 className="text-3xl font-bold text-white mb-2 relative z-10">
+                                            OOD Fundamentals
+                                        </h3>
+                                        <p className="text-sky-100 mb-6 relative z-10 max-w-xs font-medium">
+                                            SOLID, basic patterns, UML, cohesion & coupling foundations.
+                                        </p>
+                                        <button className="bg-white text-sky-700 px-6 py-2.5 rounded-full font-bold shadow-lg hover:bg-sky-50 transition-colors relative z-10 text-sm tracking-wide">
+                                            Get Started
+                                        </button>
+                                    </div>
+
+                                    {/* Advanced OOD & Modeling */}
+                                    <div
+                                        onClick={() => setOodView('advanced')}
+                                        className="relative overflow-hidden rounded-2xl p-8 h-64 flex flex-col justify-center items-start bg-gradient-to-br from-purple-500 to-fuchsia-700 shadow-xl group cursor-pointer transition-transform hover:scale-[1.02] border border-purple-400/40"
+                                    >
+                                        <div className="absolute bottom-0 left-0 w-64 h-64 bg-white opacity-10 rounded-full translate-y-1/2 -translate-x-1/2 blur-3xl group-hover:opacity-15 transition-opacity" />
+                                        <h3 className="text-3xl font-bold text-white mb-2 relative z-10">
+                                            Advanced OOD & Modeling
+                                        </h3>
+                                        <p className="text-purple-100 mb-6 relative z-10 max-w-xs font-medium">
+                                            DDD, aggregates, CQRS, event sourcing and complex design patterns.
+                                        </p>
+                                        <button className="bg-white text-purple-700 px-6 py-2.5 rounded-full font-bold shadow-lg hover:bg-purple-50 transition-colors relative z-10 text-sm tracking-wide">
+                                            Level Up
+                                        </button>
+                                    </div>
+
+                                    {/* OOD System & Architecture */}
+                                    <div
+                                        onClick={() => setOodView('system')}
+                                        className="relative overflow-hidden rounded-2xl p-8 h-64 flex flex-col justify-center items-start bg-gradient-to-br from-emerald-500 to-teal-800 shadow-xl group cursor-pointer transition-transform hover:scale-[1.02] border border-emerald-400/40"
+                                    >
+                                        <div className="absolute top-0 left-0 w-64 h-64 bg-white opacity-10 rounded-full -translate-y-1/2 -translate-x-1/2 blur-3xl group-hover:opacity-15 transition-opacity" />
+                                        <h3 className="text-3xl font-bold text-white mb-2 relative z-10">
+                                            OOD System & Architecture
+                                        </h3>
+                                        <p className="text-emerald-100 mb-6 relative z-10 max-w-xs font-medium">
+                                            Hexagonal, modular monoliths, plugins, rule engines & large-scale OOD.
+                                        </p>
+                                        <button className="bg-white text-emerald-700 px-6 py-2.5 rounded-full font-bold shadow-lg hover:bg-emerald-50 transition-colors relative z-10 text-sm tracking-wide">
+                                            Dive In
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
                         ) : selectedCategory.id === 'system' && sysView === 'menu' ? (
                             <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -1455,64 +1528,8 @@ Respond in ${language}.`;
 
                                 </div>
                             </div>
-                        ) : selectedCategory.id === 'ood' && oodView === 'menu' ? (
-                            // --- OOD MENU VIEW ---
-                            <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                                    {/* OOD Fundamentals */}
-                                    <div
-                                        onClick={() => setOodView('fundamentals')}
-                                        className="relative overflow-hidden rounded-2xl p-8 h-64 flex flex-col justify-center items-start bg-gradient-to-br from-sky-500 to-indigo-700 shadow-xl group cursor-pointer transition-transform hover:scale-[1.02] border border-sky-400/40"
-                                    >
-                                        <div className="absolute top-0 right-0 w-64 h-64 bg-white opacity-10 rounded-full -translate-y-1/2 translate-x-1/2 blur-3xl group-hover:opacity-15 transition-opacity" />
-                                        <h3 className="text-3xl font-bold text-white mb-2 relative z-10">
-                                            OOD Fundamentals
-                                        </h3>
-                                        <p className="text-sky-100 mb-6 relative z-10 max-w-xs font-medium">
-                                            SOLID, basic patterns, UML, cohesion & coupling foundations.
-                                        </p>
-                                        <button className="bg-white text-sky-700 px-6 py-2.5 rounded-full font-bold shadow-lg hover:bg-sky-50 transition-colors relative z-10 text-sm tracking-wide">
-                                            Get Started
-                                        </button>
-                                    </div>
-
-                                    {/* Advanced OOD & Modeling */}
-                                    <div
-                                        onClick={() => setOodView('advanced')}
-                                        className="relative overflow-hidden rounded-2xl p-8 h-64 flex flex-col justify-center items-start bg-gradient-to-br from-purple-500 to-fuchsia-700 shadow-xl group cursor-pointer transition-transform hover:scale-[1.02] border border-purple-400/40"
-                                    >
-                                        <div className="absolute bottom-0 left-0 w-64 h-64 bg-white opacity-10 rounded-full translate-y-1/2 -translate-x-1/2 blur-3xl group-hover:opacity-15 transition-opacity" />
-                                        <h3 className="text-3xl font-bold text-white mb-2 relative z-10">
-                                            Advanced OOD & Modeling
-                                        </h3>
-                                        <p className="text-purple-100 mb-6 relative z-10 max-w-xs font-medium">
-                                            DDD, aggregates, CQRS, event sourcing and complex design patterns.
-                                        </p>
-                                        <button className="bg-white text-purple-700 px-6 py-2.5 rounded-full font-bold shadow-lg hover:bg-purple-50 transition-colors relative z-10 text-sm tracking-wide">
-                                            Level Up
-                                        </button>
-                                    </div>
-
-                                    {/* OOD System & Architecture */}
-                                    <div
-                                        onClick={() => setOodView('system')}
-                                        className="relative overflow-hidden rounded-2xl p-8 h-64 flex flex-col justify-center items-start bg-gradient-to-br from-emerald-500 to-teal-800 shadow-xl group cursor-pointer transition-transform hover:scale-[1.02] border border-emerald-400/40"
-                                    >
-                                        <div className="absolute top-0 left-0 w-64 h-64 bg-white opacity-10 rounded-full -translate-y-1/2 -translate-x-1/2 blur-3xl group-hover:opacity-15 transition-opacity" />
-                                        <h3 className="text-3xl font-bold text-white mb-2 relative z-10">
-                                            OOD System & Architecture
-                                        </h3>
-                                        <p className="text-emerald-100 mb-6 relative z-10 max-w-xs font-medium">
-                                            Hexagonal, modular monoliths, plugins, rule engines & large-scale OOD.
-                                        </p>
-                                        <button className="bg-white text-emerald-700 px-6 py-2.5 rounded-full font-bold shadow-lg hover:bg-emerald-50 transition-colors relative z-10 text-sm tracking-wide">
-                                            Dive In
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
                         ) : (
-                            // --- QUESTION LIST VIEW ---
+                            // --- QUESTION LIST VIEW (unchanged) ---
                             <>
                                 {/* DSA SUB-TABS */}
                                 {selectedCategory.id === 'dsa' && (

@@ -96,6 +96,7 @@ export enum Tab {
     Leaderboard = 'Leaderboard',
     Profile = 'Profile',
     DailyReview = 'Daily Review',
+    ResumeScanner = 'Resume Scanner',
 }
 
 export type NotificationType = 'error' | 'success' | 'info';
@@ -209,4 +210,24 @@ export interface PodcastSegment {
 export interface CodeTranslationResult {
     translatedCode: string;
     explanation: string;
+}
+
+export interface ResumeAnalysisResult {
+    matchScore: number;
+    missingKeywords: string[];
+    tailoredSummary: string;
+    suggestions: string[];
+}
+
+export interface WeakTopic {
+    topic: string;
+    count: number;
+    reason: string;
+}
+
+export interface RemedialContent {
+    weakTopics: WeakTopic[];
+    focusTopic: string;
+    explanation: string;
+    actionableTips: string[];
 }

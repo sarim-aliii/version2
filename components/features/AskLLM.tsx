@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useAppContext } from '../../context/AppContext';
 import { useApi } from '../../hooks/useApi'; // 1. Import the hook
 import { getTutorResponse, generateEssayOutline, generateEssayArguments } from '../../services/geminiService';
@@ -7,8 +7,17 @@ import { Card } from '../ui/Card';
 import { Loader } from '../ui/Loader';
 import { EmptyState } from '../ui/EmptyState';
 import { ChatMessage, EssayOutline } from '../../types';
+import { MarkdownRenderer } from '../ui/MarkdownRenderer';
 
 type AIToolMode = 'tutor' | 'essay';
+
+const PERSONAS = [
+    { label: 'Friendly Tutor', value: 'Friendly Tutor' },
+    { label: 'Socratic Mentor', value: 'Socratic Mentor' },
+    { label: 'ELI5 Buddy', value: 'ELI5 Buddy' },
+    { label: 'Strict Professor', value: 'Strict Professor' },
+    { label: 'Philosopher', value: 'Philosopher' },
+];
 
 const EssayOutlineDisplay: React.FC<{ outline: EssayOutline }> = ({ outline }) => (
     <div className="space-y-4 text-slate-300 bg-slate-900 p-4 rounded-md border border-slate-700">
@@ -40,12 +49,13 @@ const EssayOutlineDisplay: React.FC<{ outline: EssayOutline }> = ({ outline }) =
 );
 
 export const AITutor: React.FC = () => {
-  const { ingestedText, addNotification, language, llm } = useAppContext();
+  const { ingestedText, addNotification, language, llm, activeProject, updateActiveProjectData } = useAppContext();
   const [mode, setMode] = useState<AIToolMode>('tutor');
   
   // Tutor state
-  const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
+  const [chatHistory, setChatHistory] = useState<ChatMessage[]>(activeProject?.aiTutorHistory || []);
   const [currentMessage, setCurrentMessage] = useState('');
+  const [persona, setPersona] = useState('Friendly Tutor'); // New State
   const chatContainerRef = useRef<HTMLDivElement>(null);
 
   // Essay Prep state
@@ -63,7 +73,7 @@ export const AITutor: React.FC = () => {
   const { 
     execute: generateOutline, 
     loading: outlineLoading, 
-    data: essayOutline, // Rename 'data' to 'essayOutline' for clarity
+    data: essayOutline, 
     setData: setEssayOutline 
   } = useApi(generateEssayOutline, "Essay outline generated!");
 
@@ -71,17 +81,23 @@ export const AITutor: React.FC = () => {
   const { 
     execute: generateArgs, 
     loading: argsLoading, 
-    data: essayArguments, // Rename 'data' to 'essayArguments'
+    data: essayArguments, 
     setData: setEssayArguments 
   } = useApi(generateEssayArguments, "Counter-arguments generated!");
 
+  // Load history from project context
+  useEffect(() => {
+    if (activeProject) {
+        setChatHistory(activeProject.aiTutorHistory || []);
+    }
+  }, [activeProject]);
 
   useEffect(() => {
     // Scroll to bottom of chat on new message
     if (chatContainerRef.current) {
         chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
     }
-  }, [chatHistory, chatLoading]); // Added chatLoading to scroll when loading starts
+  }, [chatHistory, chatLoading]); 
 
   const handleSendMessage = useCallback(async () => {
     if (!ingestedText) {
@@ -95,17 +111,19 @@ export const AITutor: React.FC = () => {
     setCurrentMessage('');
 
     try {
-      // The hook handles the loading state and error toast automatically
-      const response = await fetchTutorResponse(llm, ingestedText, newHistory, currentMessage, language);
+      // Pass persona to the hook
+      const response = await fetchTutorResponse(llm, ingestedText, newHistory, currentMessage, language, persona);
       
       if (response) {
-        setChatHistory([...newHistory, { role: 'model', content: response }]);
+        const updatedHistory = [...newHistory, { role: 'model', content: response }];
+        setChatHistory(updatedHistory);
+        // Persist history if inside a project
+        updateActiveProjectData({ aiTutorHistory: updatedHistory });
       }
     } catch (e) {
-      // If it fails, we might want to keep the user message but maybe mark it failed
-      // For now, the global Toast will show the error, so we just catch it to prevent crashes.
+      // Error handling by useApi hook toast
     }
-  }, [ingestedText, currentMessage, chatHistory, addNotification, language, llm, fetchTutorResponse]);
+  }, [ingestedText, currentMessage, chatHistory, addNotification, language, llm, fetchTutorResponse, persona, updateActiveProjectData]);
 
   const handleGenerateOutline = useCallback(async () => {
     if (!ingestedText) {
@@ -144,7 +162,20 @@ export const AITutor: React.FC = () => {
     if (mode === 'tutor') {
       return (
         <>
-            <div ref={chatContainerRef} className="h-96 overflow-y-auto bg-slate-900/50 p-4 rounded-md border border-slate-700 space-y-4 mb-4">
+            {/* Persona Selector Header */}
+            <div className="flex justify-end mb-2">
+                <select
+                    value={persona}
+                    onChange={(e) => setPersona(e.target.value)}
+                    className="text-xs bg-slate-100 dark:bg-slate-800 border-none rounded-md py-1 px-2 focus:ring-1 focus:ring-red-500 outline-none text-slate-700 dark:text-slate-300 cursor-pointer"
+                >
+                    {PERSONAS.map(p => (
+                        <option key={p.value} value={p.value}>{p.label}</option>
+                    ))}
+                </select>
+            </div>
+
+            <div ref={chatContainerRef} className="h-96 overflow-y-auto bg-slate-900/50 p-4 rounded-md border border-slate-700 space-y-4 mb-4 custom-scrollbar">
                 {chatHistory.length === 0 && (
                     <div className="flex items-center justify-center h-full">
                         <p className="text-slate-400">Ask a question to start your tutoring session.</p>
@@ -152,15 +183,20 @@ export const AITutor: React.FC = () => {
                 )}
                 {chatHistory.map((msg, index) => (
                     <div key={index} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                        <div className={`max-w-lg p-3 rounded-lg ${msg.role === 'user' ? 'bg-red-800/60' : 'bg-slate-700/80'}`}>
-                            <p className="text-slate-200 whitespace-pre-wrap">{msg.content}</p>
+                        <div className={`max-w-[85%] p-3 rounded-lg ${msg.role === 'user' ? 'bg-red-800/60 text-white rounded-br-none' : 'bg-slate-700/80 text-slate-200 rounded-bl-none'}`}>
+                            {msg.role === 'user' ? (
+                                <p className="whitespace-pre-wrap">{msg.content}</p>
+                            ) : (
+                                <MarkdownRenderer content={msg.content} />
+                            )}
                         </div>
                     </div>
                 ))}
                  {chatLoading && (
                     <div className="flex justify-start">
-                        <div className="max-w-lg p-3 rounded-lg bg-slate-700/80">
-                           <Loader spinnerClassName="w-6 h-6"/>
+                        <div className="max-w-lg p-3 rounded-lg bg-slate-700/80 rounded-bl-none flex items-center gap-2">
+                           <Loader spinnerClassName="w-4 h-4"/>
+                           <span className="text-xs text-slate-400">Thinking...</span>
                         </div>
                     </div>
                  )}
@@ -171,7 +207,7 @@ export const AITutor: React.FC = () => {
                     value={currentMessage}
                     onChange={(e) => setCurrentMessage(e.target.value)}
                     onKeyDown={(e) => { if (e.key === 'Enter' && !chatLoading) handleSendMessage(); }}
-                    placeholder="Ask a question..."
+                    placeholder={`Ask the ${persona}...`}
                     className="w-full bg-slate-900 border border-slate-700 rounded-md p-3 text-slate-300 focus:ring-2 focus:ring-red-500 focus:outline-none transition"
                     disabled={chatLoading}
                 />
@@ -191,7 +227,7 @@ export const AITutor: React.FC = () => {
                     type="text"
                     value={essayTopic}
                     onChange={(e) => setEssayTopic(e.target.value)}
-                    placeholder="Enter your essay topic or thesis statement..."
+                    placeholder="Enter an essay topic or thesis statement..."
                     className="w-full bg-slate-900 border border-slate-700 rounded-md p-3 text-slate-300 focus:ring-2 focus:ring-red-500 focus:outline-none transition"
                     disabled={outlineLoading || argsLoading}
                 />
@@ -215,7 +251,9 @@ export const AITutor: React.FC = () => {
                     {essayArguments && (
                         <div className="fade-in">
                              <h4 className="text-lg font-semibold text-slate-200 border-b border-slate-600 pb-1 mb-2">Counter-Arguments & Considerations</h4>
-                             <p className="text-slate-300 whitespace-pre-wrap leading-relaxed bg-slate-900 p-4 rounded-md border border-slate-700">{essayArguments}</p>
+                             <div className="text-slate-300 leading-relaxed bg-slate-900 p-4 rounded-md border border-slate-700">
+                                <MarkdownRenderer content={essayArguments} />
+                             </div>
                         </div>
                     )}
                 </div>
