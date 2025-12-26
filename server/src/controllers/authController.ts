@@ -381,41 +381,67 @@ export const resetPassword = asyncHandler(async (req: Request, res: Response) =>
 // @route   PUT /api/auth/progress
 // @access  Private
 export const updateUserProgress = asyncHandler(async (req: Request, res: Response) => {
-  const { xpGained, category } = req.body;
+  const { xpGained, category, timezoneOffset } = req.body; //
 
   if (!req.user) throw new AppError('Not authorized', 401);
 
   const user = await User.findById(req.user.id);
   if (!user) throw new AppError('User not found', 404);
 
-  // Streak Calculation
+  // --- STREAK LOGIC START ---
+  
+  // Helper: Normalize a date to User's Local Midnight (represented in UTC)
+  const getUserMidnight = (date: Date, offsetMinutes: number) => {
+    if (!date) return null;
+    // Adjust UTC time by the offset to get "Local Time"
+    // offsetMinutes is positive for West (behind UTC) and negative for East (ahead UTC).
+    // JS Date logic: Local = UTC - offset.
+    // So we subtract the offset to shift the timestamp to "User's Local Time".
+    const localTime = new Date(date.getTime() - (offsetMinutes * 60 * 1000));
+    
+    // Set to midnight (00:00:00)
+    localTime.setUTCHours(0, 0, 0, 0);
+    return localTime;
+  };
+
+  // Use provided offset or default to 0 (UTC)
+  const offset = typeof timezoneOffset === 'number' ? timezoneOffset : 0;
+
   const today = new Date();
-  const dateString = today.toISOString().split('T')[0]; // YYYY-MM-DD
-  today.setHours(0, 0, 0, 0);
+  const todayMidnight = getUserMidnight(today, offset);
 
-  let lastStudy = user.lastStudyDate ? new Date(user.lastStudyDate) : null;
-  if (lastStudy) lastStudy.setHours(0, 0, 0, 0);
+  // Normalize the stored Last Study Date using the SAME offset
+  const lastStudy = user.lastStudyDate ? new Date(user.lastStudyDate) : null;
+  const lastStudyMidnight = lastStudy ? getUserMidnight(lastStudy, offset) : null;
 
-  if (!lastStudy) {
+  if (!lastStudyMidnight || !todayMidnight) {
     user.currentStreak = 1;
-  } else if (lastStudy.getTime() !== today.getTime()) {
-    const diffTime = Math.abs(today.getTime() - lastStudy.getTime());
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  } else if (lastStudyMidnight.getTime() !== todayMidnight.getTime()) {
+    // Calculate difference in days between the two Midnights
+    const diffTime = Math.abs(todayMidnight.getTime() - lastStudyMidnight.getTime());
+    const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24)); // Use round for safety
 
     if (diffDays === 1) {
+      // Exactly 1 day difference (Consecutive)
       user.currentStreak = (user.currentStreak || 0) + 1;
     } else {
+      // More than 1 day difference (Missed a day)
       user.currentStreak = 1;
     }
   }
+  // If dates are equal (Same Day), do nothing to streak.
 
-  user.lastStudyDate = new Date();
+  user.lastStudyDate = new Date(); // Save current server time for next reference
+  // --- STREAK LOGIC END ---
 
-  // XP & Level Logic
+  // XP & Level Logic (Existing Code)
   user.xp = (user.xp || 0) + xpGained;
   user.level = Math.floor(user.xp / 100) + 1;
 
-  // Analytics Logic
+  // Analytics Logic (Existing Code)
+  // Use the Local Date String for stats so the graph matches user's timezone
+  const dateString = new Date(today.getTime() - (offset * 60 * 1000)).toISOString().split('T')[0];
+
   if (!user.dailyStats) user.dailyStats = [];
   const todayStatIndex = user.dailyStats.findIndex(s => s.date === dateString);
   if (todayStatIndex >= 0) {
@@ -446,6 +472,7 @@ export const updateUserProgress = asyncHandler(async (req: Request, res: Respons
     todos: updatedUser.todos
   });
 });
+
 
 // @desc    Resend Verification Email
 // @route   POST /api/auth/resend-verification

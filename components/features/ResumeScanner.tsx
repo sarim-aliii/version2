@@ -65,7 +65,7 @@ export const ResumeScanner: React.FC = () => {
 
                     <Button 
                         onClick={handleScan} 
-                        disabled={isScanning || !resumeText || !jobDescription} 
+                        disabled={isScanning} 
                         className="w-full py-3 text-lg shadow-lg shadow-blue-500/20"
                     >
                         {isScanning ? 'Analyzing Match...' : 'Scan Resume'}

@@ -106,8 +106,8 @@ export const resetPassword = async (data: { email: string; otp: string; password
   return response.data;
 };
 
-export const updateUserProgress = async (xpGained: number, category?: string) => {
-  const { data } = await api.put('/auth/progress', { xpGained, category });
+export const updateUserProgress = async (xpGained: number, category?: string, timezoneOffset?: number) => {
+  const { data } = await api.put('/auth/progress', { xpGained, category, timezoneOffset });
   return data;
 };
 

@@ -24,6 +24,7 @@ import { InterviewPrep } from './components/features/InterviewPrep';
 import { AudioDeepDive } from './components/features/AudioDeepDive';
 import { Leaderboard } from './components/features/Leaderboard';
 import { DailyReview } from './components/features/DailyReview';
+import { ResumeScanner } from './components/features/ResumeScanner';
 
 
 
@@ -53,6 +54,7 @@ const MainContent: React.FC = () => {
       case Tab.InterviewPrep: return <InterviewPrep />;
       case Tab.AudioDeepDive: return <AudioDeepDive />;
       case Tab.Leaderboard: return <Leaderboard />;
+      case Tab.ResumeScanner: return <ResumeScanner />;
       case Tab.Profile: return <ProfilePage />;
       default: return <Ingest />;
     }

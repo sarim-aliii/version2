@@ -8,7 +8,7 @@ import { Slider } from '../ui/Slider';
 import { fetchTopicInfo, extractTextFromFile, scrapeUrl } from '../../services/geminiService';
 import { Loader } from '../ui/Loader';
 import { Tab } from '../../types';
-import { SmartEditor } from '../ui/SmartEditor'; // <--- Import SmartEditor
+import { SmartEditor } from '../ui/SmartEditor';
 
 export const Ingest: React.FC = () => {
   const { 
@@ -66,8 +66,6 @@ export const Ingest: React.FC = () => {
     }
   }, [ingestedText]);
 
-  // ... (file handling functions: acceptedMimeTypes, fileToBase64, handleFilesUpload remain unchanged) ...
-  // [Rest of file handling code omitted for brevity as it is unchanged]
   const acceptedMimeTypes = {
     'application/pdf': ['.pdf'],
     'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'],
