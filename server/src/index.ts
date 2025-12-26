@@ -15,7 +15,8 @@ import authRoutes from './routes/authRoutes';
 import projectRoutes from './routes/projectRoutes';
 import geminiRoutes from './routes/geminiRoutes';
 import feedbackRoutes from './routes/feedbackRoutes';
-import socialRoutes from './routes/socialRoutes'; // Ensure this is imported
+import socialRoutes from './routes/socialRoutes';
+import githubRoutes from './routes/githubRoutes';
 
 import { errorHandler } from './middleware/errorMiddleware';
 import { AppError } from './utils/AppError';
@@ -61,6 +62,7 @@ app.use('/api/projects', projectRoutes);
 app.use('/api/gemini', geminiRoutes);
 app.use('/api/feedback', feedbackRoutes);
 app.use('/api/social', socialRoutes);
+app.use('/api/github', githubRoutes);
 
 // Handle Unhandled API Routes
 app.all('/api/*', (req: Request, res: Response, next: NextFunction) => {

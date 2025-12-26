@@ -97,6 +97,7 @@ export enum Tab {
     Profile = 'Profile',
     DailyReview = 'Daily Review',
     ResumeScanner = 'Resume Scanner',
+    RepoScanner = 'Repo Scanner',
 }
 
 export type NotificationType = 'error' | 'success' | 'info';

@@ -242,3 +242,12 @@ export const analyzeWeakness = async (llm: string, projectId: string, language: 
         throw error;
     }
 };
+
+export const defineTerm = async (llm: string, term: string, context: string, language: string): Promise<string> => {
+    try {
+        return await apiHelpers.defineTerm(llm, term, context, language);
+    } catch (error) {
+        console.error("Error in defineTerm:", error);
+        throw error;
+    }
+};

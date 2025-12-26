@@ -323,5 +323,15 @@ export const transformText = async (llm: string, text: string, selection: string
   return data;
 };
 
+export const defineTerm = async (llm: string, term: string, context: string, language: string): Promise<string> => {
+  const { data } = await api.post('/gemini/define', { llm, term, context, language });
+  return data.definition;
+};
+
+export const analyzeGitHubRepo = async (llm: string, repoUrl: string, language: string) => {
+    const { data } = await api.post('/github/scan', { llm, repoUrl, language });
+    return data;
+};
+
 
 export default api;

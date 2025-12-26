@@ -1074,3 +1074,35 @@ export const analyzeProjectWeakness = async (req: Request, res: Response) => {
         res.status(500).json({ message: `Analysis failed: ${error.message}` });
     }
 };
+
+// @desc    Get a concise definition for a specific term within context
+// @route   POST /api/gemini/define
+// @access  Private
+export const defineTerm = async (req: Request, res: Response) => {
+    const { llm, term, context, language } = req.body;
+
+    if (!term) return res.status(400).json({ message: "Term is required" });
+
+    try {
+        // Use a faster model if possible, or force a concise system instruction
+        const model = getModel(llm);
+        
+        const prompt = `
+        Define the term "${term}" as it is used in the following context:
+        "${context?.substring(0, 200)}..."
+        
+        Requirements:
+        1. Keep the definition simple (ELI5 style).
+        2. Maximum 2 sentences.
+        3. Respond in ${language || 'English'}.
+        4. Return ONLY the definition text.
+        `;
+
+        const result = await model.generateContent(prompt);
+        res.json({ definition: result.response.text() });
+
+    } catch (error: any) {
+        console.error("Define Term Error:", error);
+        res.status(500).json({ message: `Definition failed: ${error.message}` });
+    }
+};

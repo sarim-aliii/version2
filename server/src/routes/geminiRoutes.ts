@@ -33,6 +33,7 @@ import {
     translateCode,
     analyzeResume,
     analyzeProjectWeakness,
+    defineTerm
 } from '../controllers/geminiController';
 import { protect } from '../middleware/authMiddleware';
 import multer from 'multer';
@@ -81,5 +82,6 @@ router.post('/scrape-url', protect, scrapeWebPage);
 router.post('/transform', protect, transformText);
 router.post('/analyze-resume', protect, analyzeResume);
 router.post('/analyze-weakness', protect, analyzeProjectWeakness);
+router.post('/define', protect, defineTerm);
 
 export default router;

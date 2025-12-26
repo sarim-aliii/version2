@@ -25,6 +25,7 @@ import { AudioDeepDive } from './components/features/AudioDeepDive';
 import { Leaderboard } from './components/features/Leaderboard';
 import { DailyReview } from './components/features/DailyReview';
 import { ResumeScanner } from './components/features/ResumeScanner';
+import { RepoScanner } from './components/features/RepoScanner';
 
 
 
@@ -55,6 +56,7 @@ const MainContent: React.FC = () => {
       case Tab.AudioDeepDive: return <AudioDeepDive />;
       case Tab.Leaderboard: return <Leaderboard />;
       case Tab.ResumeScanner: return <ResumeScanner />;
+      case Tab.RepoScanner: return <RepoScanner />;
       case Tab.Profile: return <ProfilePage />;
       default: return <Ingest />;
     }
