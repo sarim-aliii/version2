@@ -85,6 +85,24 @@ export const Sidebar: React.FC = () => {
                         Daily Review
                     </button>
 
+                    {/* Study Wars Button - ADDED */}
+                    <button
+                        onClick={() => setActiveTab(Tab.StudyWars)}
+                        className={`w-full py-3 px-4 rounded-lg flex items-center justify-center gap-2 font-bold transition-all transform hover:scale-[1.02] shadow-md group ${
+                            activeTab === Tab.StudyWars
+                            ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-indigo-500/20'
+                            : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 hover:border-indigo-500/50 hover:shadow-lg'
+                        }`}
+                    >
+                        {/* Crossed Swords Icon */}
+                        <svg xmlns="http://www.w3.org/2000/svg" className={`h-5 w-5 ${activeTab === Tab.StudyWars ? 'text-white' : 'text-indigo-500 group-hover:scale-110 transition-transform'}`} viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M14.707 13.293a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 1.414L11.414 8.5l3.293 3.293a1 1 0 010 1.414z" opacity="0" /> 
+                            <path fillRule="evenodd" d="M10.04 7.96L8.414 6.336a2 2 0 010-2.829L9.66 2.26a1 1 0 011.415 0l4.242 4.243a1 1 0 010 1.414l-1.625 1.626 5.614 5.615c1.334 1.334 1.54 3.35.46 4.43l-1.414 1.414c-1.08 1.08-3.096.874-4.43-.46l-5.615-5.614-1.626 1.625a1 1 0 01-1.414 0L.929 12.308a1 1 0 010-1.414l2.828-2.829 1.625 1.626 4.658-4.659V7.96zM15.314 3.672L11.071 7.914l3.536 3.536 4.243-4.243-3.536-3.535z" clipRule="evenodd" />
+                            <path d="M3.05 16.657l4.243 4.243 1.414-1.414-4.243-4.243-1.414 1.414z" />
+                        </svg>
+                        Study Wars
+                    </button>
+
                     {/* FOCUS TIMER */}
                     <FocusTimer />
 

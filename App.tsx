@@ -26,8 +26,7 @@ import { Leaderboard } from './components/features/Leaderboard';
 import { DailyReview } from './components/features/DailyReview';
 import { ResumeScanner } from './components/features/ResumeScanner';
 import { RepoScanner } from './components/features/RepoScanner';
-
-
+import { StudyWars } from './components/features/StudyWars'; 
 
 // Auth
 import { AuthManager } from './components/auth/AuthManager';
@@ -57,6 +56,7 @@ const MainContent: React.FC = () => {
       case Tab.Leaderboard: return <Leaderboard />;
       case Tab.ResumeScanner: return <ResumeScanner />;
       case Tab.RepoScanner: return <RepoScanner />;
+      case Tab.StudyWars: return <StudyWars />;
       case Tab.Profile: return <ProfilePage />;
       default: return <Ingest />;
     }

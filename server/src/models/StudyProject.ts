@@ -1,54 +1,52 @@
 import mongoose, { Document, Model, Schema } from 'mongoose';
-import { 
-    SRFlashcard, 
-    MCQAttempt, 
-    ChatMessage, 
-    EssayOutline, 
-    ConceptMapData, 
-    LessonPlan, 
-    StudyPlan,
-    MCQ,
-    CodeAnalysisResult,
-    Todo
-} from '../../../types'; // Verify this path matches your structure
 
-// Interface definition for TypeScript
+interface Flashcard {
+  question: string;
+  answer: string;
+}
+
+interface SRFlashcard extends Flashcard {
+  id: string;
+  easeFactor: number;
+  interval: number;
+  dueDate: string;
+}
+
 interface IStudyProject {
   name: string;
-  owner: mongoose.Types.ObjectId; // Correct type for an ObjectId instance
+  owner: mongoose.Types.ObjectId;
   ingestedText: string;
   status: 'processing' | 'ready' | 'error';
   summary?: string;
   srsFlashcards?: SRFlashcard[];
-  mcqAttempts?: MCQAttempt[];
-  currentMcqs?: MCQ[];
+  
+  // We use specific types where simple, 'any' or 'Object' for complex frontend types
+  mcqAttempts?: any[];
+  currentMcqs?: any[];
   semanticSearchHistory?: string[];
-  aiTutorHistory?: ChatMessage[];
+  aiTutorHistory?: any[];
   essayTopic?: string;
-  essayOutline?: EssayOutline;
+  essayOutline?: any;
   essayArguments?: string;
-  conceptMapData?: ConceptMapData;
-  lessonPlan?: LessonPlan;
-  studyPlan?: StudyPlan;
+  conceptMapData?: any; // Avoiding d3 dependency here
+  lessonPlan?: any;
+  studyPlan?: any;
   codeSnippet?: string;
-  codeAnalysis?: CodeAnalysisResult;
-  todos?: Todo[];
+  codeAnalysis?: any;
+  todos?: any[];
   chunks?: string[];
   embeddings?: number[][];
   
   // Social Features
   sharedWith: mongoose.Types.ObjectId[]; 
   
-  // Timestamps (Managed by Mongoose)
+  // Timestamps
   createdAt: Date;
   updatedAt: Date;
 }
 
-interface IStudyProjectMethods {}
+// --- SCHEMA DEFINITION ---
 
-export interface IStudyProjectDocument extends IStudyProject, IStudyProjectMethods, Document {}
-
-// Schema for Sub-documents
 const FlashcardSchema = new Schema({
     id: String,
     question: String,
@@ -58,9 +56,9 @@ const FlashcardSchema = new Schema({
     dueDate: Date
 });
 
+export interface IStudyProjectDocument extends IStudyProject, Document {}
 interface IStudyProjectModel extends Model<IStudyProjectDocument> {}
 
-// Main Schema Definition
 const studyProjectSchema = new Schema<IStudyProjectDocument, IStudyProjectModel>({
   name: { type: String, required: true, trim: true },
   owner: { type: Schema.Types.ObjectId, required: true, ref: 'User' },
@@ -68,6 +66,8 @@ const studyProjectSchema = new Schema<IStudyProjectDocument, IStudyProjectModel>
   status: { type: String, enum: ['processing', 'ready', 'error'], default: 'ready' },
   summary: { type: String },
   srsFlashcards: [FlashcardSchema],
+  
+  // Use generic Object types for complex nested structures
   mcqAttempts: { type: [Object], default: [] },
   currentMcqs: { type: [Object], default: [] },
   semanticSearchHistory: { type: [String], default: [] },
@@ -88,7 +88,7 @@ const studyProjectSchema = new Schema<IStudyProjectDocument, IStudyProjectModel>
   sharedWith: [{ type: Schema.Types.ObjectId, ref: 'User' }],
   
 }, {
-  timestamps: true, // Automatically manages createdAt and updatedAt
+  timestamps: true,
 });
 
 const StudyProject = mongoose.model<IStudyProjectDocument, IStudyProjectModel>('StudyProject', studyProjectSchema);
