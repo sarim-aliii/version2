@@ -8,7 +8,7 @@ export default defineConfig(({ mode }) => {
   
   return {
     build: {
-      outDir: 'build',
+      outDir: 'dist',
       emptyOutDir: true,
     },
     server: {
@@ -30,6 +30,9 @@ export default defineConfig(({ mode }) => {
       VitePWA({
         registerType: 'autoUpdate',
         includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'mask-icon.svg'],
+        workbox: {
+          maximumFileSizeToCacheInBytes: 10 * 1024 * 1024,
+        },
         manifest: {
           name: 'Gemini Study Assistant',
           short_name: 'GeminiStudy',
