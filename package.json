@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "npm install && npm run build:frontend && npm run build:backend",
+    "build": "npm install --legacy-peer-deps && npm run build:frontend && npm run build:backend",
     "build:frontend": "tsc && vite build",
     "build:backend": "cd server && npm install && npm run build",
     "start": "cd server && node dist/index.js",
