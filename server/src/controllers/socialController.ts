@@ -3,7 +3,7 @@ import { asyncHandler } from '../utils/asyncHandler';
 import { AppError } from '../utils/AppError';
 import User from '../models/User';
 import StudyProject from '../models/StudyProject';
-import { sendEmail } from '../utils/sendEmail';
+import sendEmail from '../utils/sendEmail';
 
 
 // @desc    Get Global Leaderboard (Top 10 by XP)

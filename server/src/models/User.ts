@@ -1,6 +1,20 @@
 import mongoose, { Document, Model } from 'mongoose';
 import bcrypt from 'bcryptjs';
-import { Todo } from '../../../types';
+
+
+enum Priority {
+    High = 'High',
+    Medium = 'Medium',
+    Low = 'Low',
+}
+
+interface Todo {
+  id: number;
+  text: string;
+  completed: boolean;
+  priority: Priority;
+  deleting?: boolean;
+}
 
 interface IUser {
   email: string;

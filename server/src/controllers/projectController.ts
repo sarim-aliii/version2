@@ -1,5 +1,3 @@
-// server/src/controllers/projectController.ts
-
 import { Request, Response } from 'express';
 import StudyProject from '../models/StudyProject';
 import { GoogleGenerativeAI } from "@google/generative-ai";
