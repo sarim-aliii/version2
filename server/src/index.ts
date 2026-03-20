@@ -30,6 +30,14 @@ connectDB();
 const app = express();
 const httpServer = createServer(app);
 
+app.use(cors({
+    origin: [
+        process.env.FRONTEND_URL || 'http://localhost:3000',
+        'http://localhost:5173' 
+    ], 
+    credentials: true
+}));
+
 // Initialize Socket.io
 const io = new Server(httpServer, {
     cors: {
@@ -66,14 +74,6 @@ const aiLimiter = rateLimit({
 app.use('/api/gemini', aiLimiter);
 
 app.use(hpp());
-
-app.use(cors({
-    origin: [
-        process.env.FRONTEND_URL || 'http://localhost:3000',
-        'http://localhost:5173' 
-    ], 
-    credentials: true
-}));
 
 // Mount routers
 app.use('/api/auth', authRoutes);
