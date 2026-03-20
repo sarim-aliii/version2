@@ -6,7 +6,7 @@ import { Card } from '../ui/Card';
 import { Loader } from '../ui/Loader';
 
 // Connect to backend
-const socket: Socket = io(import.meta.env.VITE_API_URL || 'http://localhost:5001');
+const socket: Socket = io(import.meta.env.VITE_SOCKET_URL || 'http://localhost:5001');
 
 export const StudyWars: React.FC = () => {
     const { activeProject, currentUser, addNotification } = useAppContext();
