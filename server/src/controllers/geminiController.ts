@@ -54,7 +54,6 @@ const MATH_INSTRUCTION = " Always format mathematical equations using LaTeX synt
 const getModel = (llm: string, responseMimeType?: string, systemInstruction?: string) => {
     let modelName = llm || defaultModelName;
 
-    // FIX: Catch invalid model names from old localStorage and force a valid one
     const validModels = [
         'gemini-flash-latest', 
         'gemini-pro-latest', 
@@ -315,7 +314,7 @@ export const fetchTopicInfo = async (req: Request, res: Response) => {
 
 export const transcribeAudio = async (req: Request, res: Response) => {
     const { llm } = req.body;
-    const file = req.file;
+    const file = (req as any).file;
 
     if (!file) return res.status(400).json({ message: "No file uploaded" });
 
