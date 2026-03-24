@@ -1012,6 +1012,10 @@ export const analyzeResume = async (req: Request, res: Response) => {
 export const analyzeProjectWeakness = async (req: Request, res: Response) => {
     const { projectId, llm, language } = req.body;
 
+    if (!req.user) {
+        return res.status(401).json({ message: 'Not authorized' });
+    }
+
     try {
         const project = await getProjectForUser(projectId, req.user.id);
 

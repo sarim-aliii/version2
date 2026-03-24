@@ -27,6 +27,9 @@ export const inviteUser = asyncHandler(async (req: Request, res: Response) => {
   if (!email) {
     throw new AppError('Email address is required', 400);
   }
+  if (!req.user) {
+    throw new AppError('Not authorized', 401);
+  }
 
   const message = `
     Hi there!

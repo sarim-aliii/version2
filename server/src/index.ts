@@ -33,21 +33,20 @@ const app = express();
 app.set('trust proxy', 1);
 const httpServer = createServer(app);
 
+
+const allowedOrigins = [
+    process.env.FRONTEND_URL || 'http://localhost:5173',
+    'http://localhost:3000',
+];
 app.use(cors({
-    origin: [
-        process.env.FRONTEND_URL || 'http://localhost:3000',
-        'http://localhost:5173' 
-    ], 
+    origin: allowedOrigins, 
     credentials: true
 }));
 
 // Initialize Socket.io
 const io = new Server(httpServer, {
     cors: {
-        origin: [
-            process.env.FRONTEND_URL || 'http://localhost:3000',
-            'http://localhost:5173'
-        ],
+        origin: allowedOrigins,
         methods: ["GET", "POST"],
         credentials: true
     }
