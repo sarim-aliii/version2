@@ -8,14 +8,17 @@ interface EmailOptions {
 
 const sendEmail = async (options: EmailOptions) => {
   const transporter = nodemailer.createTransport({
-    host: 'smtp.gmail.com',
-    port: 587,
-    secure: false,
+    host: process.env.EMAIL_HOST || 'smtp.gmail.com', 
+    port: Number(process.env.EMAIL_PORT) || 587,
+    secure: process.env.EMAIL_PORT === '465',
     auth: {
       user: process.env.EMAIL_USER,
       pass: process.env.EMAIL_PASS,
     },
     connectionTimeout: 10000, 
+    tls: {
+      rejectUnauthorized: false
+    }
   });
 
   const mailOptions = {
