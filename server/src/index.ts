@@ -93,17 +93,6 @@ app.all('/api/*', (req: Request, res: Response, next: NextFunction) => {
     next(new AppError(`Route ${req.originalUrl} not found`, 404));
 });
 
-// Serve frontend in production
-if (process.env.NODE_ENV === 'production') {
-    const buildPath = path.join(process.cwd(), 'build'); 
-    
-    app.use(express.static(buildPath));
-
-    app.get('*', (req: Request, res: Response) => 
-        res.sendFile(path.join(buildPath, 'index.html'))
-    );
-}
-
 // Global Error Handler
 app.use(errorHandler);
 
