@@ -24,10 +24,13 @@ import githubRoutes from './routes/githubRoutes';
 import { errorHandler } from './middleware/errorMiddleware';
 import { AppError } from './utils/AppError';
 
+
 // Connect to database
 connectDB();
 
+// Initialize App
 const app = express();
+app.set('trust proxy', 1);
 const httpServer = createServer(app);
 
 app.use(cors({
@@ -56,7 +59,10 @@ setupQuizSocket(io);
 // Body parser middleware
 app.use(express.json({ limit: '200mb' }));
 app.use(express.urlencoded({ limit: '200mb', extended: true }));
-app.use(helmet());
+app.use(helmet({
+    contentSecurityPolicy: false,
+    crossOriginOpenerPolicy: { policy: "same-origin-allow-popups" }
+}));
 
 // Global Limiter (General API protection)
 const globalLimiter = rateLimit({
@@ -90,10 +96,12 @@ app.all('/api/*', (req: Request, res: Response, next: NextFunction) => {
 
 // Serve frontend in production
 if (process.env.NODE_ENV === 'production') {
-    app.use(express.static(path.join(__dirname, '../../build')));
+    const buildPath = path.join(process.cwd(), 'build'); 
+    
+    app.use(express.static(buildPath));
 
     app.get('*', (req: Request, res: Response) => 
-        res.sendFile(path.resolve(__dirname, '../../build', 'index.html'))
+        res.sendFile(path.join(buildPath, 'index.html'))
     );
 }
 
